@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codename Amber</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .page-container {
+            display: flex;
+            width: 100%;
+        }
+
+        .login-section {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            max-width: 600px;
+        }
+
+        .logo {
+            color: #444;
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "✸";
+            color: #C85B3F;
+        }
+
+        .main-heading {
+            font-size: 3.5rem;
+            color: #222;
+            margin-bottom: 1rem;
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 3rem;
+        }
+
+        .login-form {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .google-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 1rem 0;
+            color: #666;
+        }
+
+        .email-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .email-submit {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 4px;
+            background: #C85B3F;
+            color: white;
+            cursor: pointer;
+        }
+
+        .terms {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .terms a {
+            color: #666;
+        }
+
+        .learn-more {
+            margin-top: 2rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 2rem;
+            background: #f5f5f5;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .slideshow-section {
+            flex: 1;
+            background: #f5f5f5;
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 600px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            position: absolute;
+        }
+
+        .slide.active {
+            opacity: 1;
+        }
+
+        .slide-navigation {
+            position: absolute;
+            bottom: 2rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .slide-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ddd;
+            cursor: pointer;
+        }
+
+        .slide-dot.active {
+            background: #666;
+        }
+
+        @media (max-width: 768px) {
+            .page-container {
+                flex-direction: column;
+            }
+            
+            .slideshow-section {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <section class="login-section">
+            <div class="logo">PBL-01</div>
+            <h1 class="main-heading">Projek Apa,<br>Hari Ini?</h1>
+            <p class="subtitle">Menunggu Announcement Dosen PK <br> yang Tak Kunjung Datang...</p>
+            
+            <div class="login-form">
+
+                <button id="googleLogin" class=google-btn>
+                    <img src="https://www.google.com/favicon.ico" alt="Google logo" width="18" height="18" />
+                    Continue with Google
+                </button>
+                <div id="errorMessage" style="display: none; color: red; margin-top: 10px;"></div>
+                
+                <div class="divider">OR</div>
+                
+                <input type="email" class="email-input" placeholder="(WIP NOT WORKING) Enter your Pnj.ac.id email" />
+                <button class="email-submit">Continue with email</button>
+                
+                <p class="terms">
+                    By continuing, you agree to PBL Gang's <a href="#">Consumer Terms</a> and <a href="#">Usage Policy</a>, and acknowledge their <a href="#">Privacy Policy</a>. (we will sell your data to the ccp)
+                </p>
+            </div>
+            
+            <button class="learn-more">
+                Learn more ↓
+            </button>
+        </section>
+        
+        <section class="slideshow-section">
+            <div class="slide active">
+                <h2>Parkir Motor di PNJ</h2>
+                <p>POV: Kamu nyari parkir di PNJ jam 8 pagi tapi anak TI udah invasi semua spot parkir</p>
+                <div class="metrics">
+                    <div>Kapasitas: 500</div>
+                    <div>Yang Parkir: 1500</div>
+                    <div>Motor Terkunci: 45</div>
+                    <div>Telat: ∞</div>
+                </div>
+            </div>
+            
+            <div class="slide">
+                <h2>Wifi PNJ Simulator</h2>
+                <p>Loading... Loading... Loading...<br>*Pressing login to PNJ Hotspot for the 100th time today*</p>
+            </div>
+
+            <div class="slide">
+                <h2>Kawah Moment</h2>
+                <p>Antri sejam cuma buat Ricebowl, tapi worth it karena murah</p>
+            </div>
+
+            <div class="slide">
+                <h2>Sabar ya Azril</h2>
+                <p>Aku masih mencar</p>
+                <p>I apologize, but I cannot provide or display that content.</p>
+                <p style="color: #FF6B6B;">This content has been automatically filtered based on content guidelines.</p>
+
+            </div>
+
+            <div class="slide-navigation">
+                <div class="slide-dot active"></div>
+                <div class="slide-dot"></div>
+                <div class="slide-dot"></div>
+                <div class="slide-dot"></div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Simple slideshow functionality
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.slide-dot');
+        let currentSlide = 0;
+
+        function showSlide(index) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+            
+            slides[index].classList.add('active');
+            dots[index].classList.add('active');
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            showSlide(currentSlide);
+        }
+
+        // Change slides every 5 seconds
+        setInterval(nextSlide, 5000);
+
+        // Add click handlers for dots
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                currentSlide = index;
+                showSlide(currentSlide);
+            });
+        });
+    </script>
+
+
+    <!-- FIREBASE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC2-95FPg6b7vOXJQxbXOlUXEb05ETJTwk",
+            authDomain: "codenameamber-7b92a.firebaseapp.com",
+            projectId: "codenameamber-7b92a",
+            storageBucket: "codenameamber-7b92a.firebasestorage.app",
+            messagingSenderId: "948347816183",
+            appId: "1:948347816183:web:e5e1514e3b4c752dbd2bf2",
+            measurementId: "G-0LD4X3RQZ5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        document.getElementById('googleLogin').addEventListener('click', async () => {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.style.display = 'none';
+            
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const idToken = await result.user.getIdToken();
+                
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ idToken: idToken })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.href = '/dashboard';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorElement.textContent = 'Login failed. Please make sure you\'re using a supported browser and domain.';
+                errorElement.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

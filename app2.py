@@ -1,0 +1,53 @@
+from flask import Flask, render_template, session, redirect, request    #For flask stuff
+import firebase_admin                                                   #
+from firebase_admin import credentials, auth                            #creds for init, auth
+from functools import wraps
+import secrets  # Adding this to generate a random key
+
+
+#INIT FLASK
+app = Flask(__name__)
+app.secret_key = secrets.token_hex(16)  # This creates a 32-character random hex string
+
+#INIT FIREBASE
+cred = credentials.Certificate("codenameamber-7b92a-firebase-adminsdk-fbsvc-91917bcd0a.json")
+firebase_admin.initialize_app(cred)
+
+def isloggedin(f):
+    @wraps(f)
+    def dummy(*args, **kwargs):
+        if 'user' not in session:
+            return redirect("/")
+        return f(*args, **kwargs)
+    return dummy
+
+@app.route("/")
+def index():
+    return render_template("test.html")
+
+@app.route("/dashboard")
+@isloggedin
+def dashboard():
+    return render_template("dashboard.html", user=session['user'])
+
+@app.route("/login", methods=["POST"])
+def login():
+    id_token = request.json['idToken']
+    try:
+        google_user = auth.verify_id_token(id_token)
+        session['user'] = {
+            'email' : google_user['email'],
+            'name' : google_user.get('name', 'name of user not found'),
+            'picture': google_user.get('picture', 'default_avatar.png')
+        }
+        return {'status':'success'}
+    except:
+        return {'status' : 'error'}, 400
+    
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+if __name__ == '__main__':
+    app.run(debug=True, port=4443, host='0.0.0.0')

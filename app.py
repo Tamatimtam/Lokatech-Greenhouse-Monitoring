@@ -14,6 +14,8 @@ app.secret_key = 'your-secret-key-here'  # Change this to a real secret key
 cred = credentials.Certificate("codenameamber-7b92a-firebase-adminsdk-fbsvc-91917bcd0a.json")
 firebase_admin.initialize_app(cred)
 
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -35,6 +37,7 @@ def dashboard():
 def login():
     id_token = request.json['idToken']
     try:
+        # This is where auth acts like a bouncer, checking if the ID is real
         user = auth.verify_id_token(id_token)
         session['user'] = {
             'email': user['email'],
