@@ -16,12 +16,6 @@
 #### CLEARANCE LEVEL: AMBER
 #### STATUS: [REDACTED]
 
-```
-Initiative Status: [PENDING]
-Protocol: [CLASSIFIED]
-Directive: [AWAITING AUTHORIZATION]
-```
-
 </div>
 
 ---
