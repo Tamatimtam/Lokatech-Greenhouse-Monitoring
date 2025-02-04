@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="/static/images/logo.png" width="200" height="200" alt="Amber Logo"/>
+<img src="/static/images/logo.png" width="400" height="500" alt="Amber Logo"/>
 
 # `CODENAME: AMBER`
 
