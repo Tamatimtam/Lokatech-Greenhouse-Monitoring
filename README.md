@@ -1,14 +1,6 @@
 <div align="center">
 
-```
-      ★
-    ／⋆＼
-  ／  ⋆  ＼
-／   AMBER  ＼
-╭━━━━━━━━━━━╮
-│ CLASSIFIED │
-╰━━━━━━━━━━━╯
-```
+<img src="/static/images/logo.png" width="200" height="200" alt="Amber Logo"/>
 
 # `CODENAME: AMBER`
 
