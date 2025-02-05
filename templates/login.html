@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Codename Amber</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/transition.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo.ico') }}">
     <style>
         * {
             margin: 0;
@@ -39,12 +40,16 @@
             margin-bottom: 2rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
         }
 
         .logo::before {
-            content: "✸";
-            color: #C85B3F;
+            content: "";
+            background-image: url("{{ url_for('static', filename='images/logo.png') }}");
+            background-size: contain;
+            background-repeat: no-repeat;
+            width: 48px;
+            height: 60px;
+            display: inline-block;
         }
 
         .main-heading {
