@@ -11,5 +11,5 @@ steps:
 # Tell Cloud Build where to find our secret
 availableSecrets:
   secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/firebase-credentials/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/firebase-api/versions/latest
       env: 'SECRET'
