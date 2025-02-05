@@ -8,6 +8,7 @@ import secrets  # Adding this to generate a random key
 #INIT FLASK
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)  # This creates a 32-character random hex string
+port = int(os.environ.get('PORT', 4443))
 
 #INIT FIREBASE
 cred = credentials.Certificate("codenameamber-7b92a-firebase-adminsdk-fbsvc-91917bcd0a.json")
@@ -50,4 +51,4 @@ def logout():
     return redirect("/")
 
 if __name__ == '__main__':
-    app.run(debug=True, port=4443, host='0.0.0.0')
+    app.run(debug=True, port=port, host='0.0.0.0')
