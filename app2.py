@@ -12,7 +12,7 @@ app.secret_key = secrets.token_hex(16)  # This creates a 32-character random hex
 port = int(os.environ.get('PORT', 4443))
 
 #INIT FIREBASE
-cred = credentials.Certificate("codenameamber-7b92a-firebase-adminsdk-fbsvc-91917bcd0a.json")
+cred = credentials.Certificate("firebase-credentials.json")
 firebase_admin.initialize_app(cred)
 
 def isloggedin(f):

@@ -1,0 +1,15 @@
+steps:
+  # Step 1: Get the secret and save it as a file
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "$$SECRET" > /workspace/firebase-credentials.json
+    secretEnv: ['SECRET']
+
+# Tell Cloud Build where to find our secret
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/firebase-credentials/versions/latest
+      env: 'SECRET'
