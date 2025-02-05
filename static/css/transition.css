@@ -1,11 +1,9 @@
-/* Add a fade animation */
-.fade {
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-}
+@view-transition {
+    navigation: auto;
+  }
 
-/* Add a slide animation (optional) */
-.slide {
-    transition: transform 0.3s ease-out;
-    transform: translateY(20px);
-}
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    /*  Excessively long duration for demonstration purposes */
+    animation-duration: 2s;
+  }
