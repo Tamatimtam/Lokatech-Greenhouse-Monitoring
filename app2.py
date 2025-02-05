@@ -3,6 +3,7 @@ import firebase_admin                                                   #
 from firebase_admin import credentials, auth                            #creds for init, auth
 from functools import wraps
 import secrets  # Adding this to generate a random key
+import os
 
 
 #INIT FLASK
