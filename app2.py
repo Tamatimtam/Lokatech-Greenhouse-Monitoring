@@ -12,7 +12,9 @@ app.secret_key = secrets.token_hex(16)  # This creates a 32-character random hex
 port = int(os.environ.get('PORT', 4443))
 
 #INIT FIREBASE
-credentials_path = os.path.join(os.path.dirname(__file__), "secrets", "firebase-credentials.json")
+local_path = os.path.join(os.path.dirname(__file__), "secrets", "firebase-credentials.json")
+cloud_path = "/secrets/firebase-credentials.json"
+credentials_path = local_path if os.path.exists(local_path) else cloud_path
 cred = credentials.Certificate(credentials_path)
 firebase_admin.initialize_app(cred)
 

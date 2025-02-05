@@ -1,0 +1,11 @@
+/* Add a fade animation */
+.fade {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Add a slide animation (optional) */
+.slide {
+    transition: transform 0.3s ease-out;
+    transform: translateY(20px);
+}
