@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Codename Amber</title>
+    <title>LokaTech Greenhouse Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/transition.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo.ico') }}">
     <style>
@@ -12,6 +12,13 @@
             padding: 0;
             box-sizing: border-box;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        :root {
+            --primary-green: #09814A;
+            --secondary-green: #0AA15C;
+            --light-green: #E8F5E9;
+            --dark-green: #076B3D;
         }
 
         body {
@@ -35,16 +42,16 @@
         }
 
         .logo {
-            color: #444;
+            color: var(--primary-green);
             font-size: 1.5rem;
             margin-bottom: 2rem;
             display: flex;
             align-items: center;
+            background-image: url("{{ url_for('static', filename='images/lokatech-logo.png') }}");
         }
 
         .logo::before {
             content: "";
-            background-image: url("{{ url_for('static', filename='images/logo.png') }}");
             background-size: contain;
             background-repeat: no-repeat;
             width: 60px;
@@ -53,8 +60,8 @@
         }
 
         .main-heading {
-            font-size: 3.5rem;
-            color: #222;
+            font-size: 2.8rem;
+            color: var(--primary-green);
             margin-bottom: 1rem;
             line-height: 1.1;
         }
@@ -102,9 +109,13 @@
             padding: 0.75rem;
             border: none;
             border-radius: 4px;
-            background: #C85B3F;
+            background: var(--primary-green);
             color: white;
             cursor: pointer;
+        }
+
+        .email-submit:hover {
+            background: var(--secondary-green);
         }
 
         .terms {
@@ -133,7 +144,7 @@
 
         .slideshow-section {
             flex: 1;
-            background: #f5f5f5;
+            background: var(--light-green);
             padding: 2rem;
             display: flex;
             align-items: center;
@@ -144,15 +155,30 @@
             background: white;
             padding: 2rem;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 1px solid rgba(9,129,74,0.1);
             max-width: 600px;
             opacity: 0;
             transition: opacity 0.5s ease;
             position: absolute;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .slide.active {
             opacity: 1;
+        }
+
+        .slide-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .slide-content {
+            padding: 1rem;
         }
 
         .slide-navigation {
@@ -190,9 +216,9 @@
 <body>
     <div class="page-container">
         <section class="login-section">
-            <div class="logo">PBL-01</div>
-            <h1 class="main-heading">Projek Apa,<br>Hari Ini?</h1>
-            <p class="subtitle">Menunggu Announcement Dosen PK <br> yang Tak Kunjung Datang...</p>
+            <div class="logo">LokaTech</div>
+            <h1 class="main-heading">Greenhouse Monitor</h1>
+            <p class="subtitle">Smart monitoring for your hydroponic greenhouse</p>
             
             <div class="login-form">
 
@@ -207,8 +233,9 @@
                 <input type="email" class="email-input" placeholder="(WIP NOT WORKING) Enter your Pnj.ac.id email" />
                 <button class="email-submit">Continue with email</button>
                 
-                <p class="terms">
-                    By continuing, you agree to PBL Gang's <a href="#">Consumer Terms</a> and <a href="#">Usage Policy</a>, and acknowledge their <a href="#">Privacy Policy</a>. (we will sell your data to the ccp)
+                <p class="terms"></p>
+                    By continuing, you agree to LokaTech's <a href="#">Terms of Service</a> and 
+                    <a href="#">Privacy Policy</a>
                 </p>
             </div>
             
@@ -219,35 +246,47 @@
         
         <section class="slideshow-section">
             <div class="slide active">
-                <h2>Parkir Motor di PNJ</h2>
-                <p>POV: Kamu nyari parkir di PNJ jam 8 pagi tapi anak TI udah invasi semua spot parkir</p>
-                <div class="metrics">
-                    <div>Kapasitas: 500</div>
-                    <div>Yang Parkir: 1500</div>
-                    <div>Motor Terkunci: 45</div>
-                    <div>Telat: ∞</div>
+                <img class="slide-image" src="{{ url_for('static', filename='images/dashboard-preview.jpg') }}" 
+                     alt="Dashboard Preview">
+                <div class="slide-content">
+                    <h2>Real-time Monitoring</h2>
+                    <p>Monitor temperature, humidity, and light levels in real-time</p>
+                    <div class="metrics">
+                        <div>Temperature: 25°C</div>
+                        <div>Humidity: 65%</div>
+                        <div>Light: 5000 lux</div>
+                    </div>
                 </div>
             </div>
             
             <div class="slide">
-                <h2>Wifi PNJ Simulator</h2>
-                <p>Loading... Loading... Loading...<br>*Pressing login to PNJ Hotspot for the 100th time today*</p>
+                <img class="slide-image" src="{{ url_for('static', filename='images/control-preview.jpg') }}" 
+                     alt="Device Control">
+                <div class="slide-content">
+                    <h2>Smart Device Control</h2>
+                    <p>Control ventilation, irrigation, and lighting systems remotely</p>
+                </div>
             </div>
 
             <div class="slide">
-                <h2>Kawah Moment</h2>
-                <p>Antri sejam cuma buat Ricebowl, tapi worth it karena murah</p>
+                <img class="slide-image" src="{{ url_for('static', filename='images/analytics-preview.jpg') }}" 
+                     alt="Analytics Dashboard">
+                <div class="slide-content">
+                    <h2>Advanced Analytics</h2>
+                    <p>Track historical data and optimize your greenhouse performance</p>
+                </div>
             </div>
 
             <div class="slide">
-                <h2>Sabar ya Azril</h2>
-                <p>Aku masih mencar</p>
-                <p>I apologize, but I cannot provide or display that content.</p>
-                <p style="color: #FF6B6B;">This content has been automatically filtered based on content guidelines.</p>
-
+                <img class="slide-image" src="{{ url_for('static', filename='images/alerts-preview.jpg') }}" 
+                     alt="Alert System">
+                <div class="slide-content">
+                    <h2>Instant Alerts</h2>
+                    <p>Receive notifications when conditions need attention</p>
+                </div>
             </div>
 
-            <div class="slide-navigation">
+            <div class="slide-navigation"></div>
                 <div class="slide-dot active"></div>
                 <div class="slide-dot"></div>
                 <div class="slide-dot"></div>
