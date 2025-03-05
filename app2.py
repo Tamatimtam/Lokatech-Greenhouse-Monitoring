@@ -42,12 +42,12 @@ def login():
         google_user = auth.verify_id_token(id_token)
         session['user'] = {
             'email' : google_user['email'],
-            'name' : google_user.get('name', 'name of user not found'),
+            'name' : google_user.get('name', google_user['email'].split('@')[0]),
             'picture': google_user.get('picture', 'default_avatar.png')
         }
         return {'status':'success'}
     except:
-        return {'status' : 'error'}, 400
+        return {'status' : 'error', 'message': 'Invalid credentials'}, 400
     
 @app.route("/logout")
 def logout():
