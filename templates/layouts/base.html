@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LokaTech Greenhouse{% endblock %}</title>
+    
+    <!-- Base Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <!-- Header Section -->
+    {% block header %}
+    <header>
+        {% include 'components/header.html' %}
+    </header>
+    {% endblock %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bottom Navigation -->
+    {% block navigation %}
+    <nav class="bottom-nav">
+        {% include 'components/navigation.html' %}
+    </nav>
+    {% endblock %}
+
+    <!-- Base Scripts -->
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

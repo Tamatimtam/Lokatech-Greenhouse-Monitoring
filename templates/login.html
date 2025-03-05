@@ -3,10 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Codename Amber</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/transition.css') }}">
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logo.ico') }}">
+    <title>Lokatani.id - Login</title>
     <style>
+        :root {
+            --primary: #286247;
+            --primary-light: #357456;
+            --primary-dark: #035c1d;
+            --background: #F5F7FA;
+            --surface: #FFFFFF;
+            --text-primary: #1A1A1A;
+            --text-secondary: #666666;
+            
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 16px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,284 +33,185 @@
         }
 
         body {
+            background-color: var(--background);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
         }
 
-        .page-container {
+        .login-container {
             display: flex;
             width: 100%;
+            min-height: 100vh;
         }
 
-        .login-section {
+        .login-form-section {
             flex: 1;
-            padding: 2rem;
+            padding: var(--spacing-xl);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            max-width: 600px;
+            background: var(--surface);
+        }
+
+        .image-section {
+            flex: 0.7;  /* Reduced from 1 to make it smaller */
+            background-image: url("{{ url_for('static', filename='images/hydroponic.png') }}");
+            background-size: cover;
+            background-position: center;
+            border-radius: 30px;
         }
 
         .logo {
-            color: #444;
-            font-size: 1.5rem;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-        }
+            width: 300px;
+            height: 300px;
 
-        .logo::before {
-            content: "";
-            background-image: url("{{ url_for('static', filename='images/logo.png') }}");
-            background-size: contain;
-            background-repeat: no-repeat;
-            width: 60px;
-            height: 60px;
-            display: inline-block;
         }
-
-        .main-heading {
-            font-size: 3.5rem;
-            color: #222;
-            margin-bottom: 1rem;
-            line-height: 1.1;
-        }
-
-        .subtitle {
-            color: #666;
-            margin-bottom: 3rem;
-        }
+           
 
         .login-form {
             width: 100%;
-            max-width: 400px;
+            max-width: 600px;
         }
 
-        .google-btn {
+        .welcome-text {
+            text-align: left;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .welcome-text h1 {
+            font-size: 2.5rem;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .welcome-text p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
             width: 100%;
-            padding: 0.75rem;
+            padding: 15px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+        }
+
+        .forgot-password {
+            display: block;
+            text-align: right;
+            color: var(--primary);
+            text-decoration: underline;
+            font-size: 0.9rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+
+        .login-button {
+            width: 100%;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            padding: var(--spacing-sm);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
             cursor: pointer;
-            margin-bottom: 1rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .login-button:hover {
+            background: var(--primary-light);
         }
 
         .divider {
             text-align: center;
-            margin: 1rem 0;
-            color: #666;
+            margin: var(--spacing-md) 0;
+            color: var(--text-secondary);
         }
 
-        .email-input {
+        .google-button {
             width: 100%;
-            padding: 0.75rem;
+            height: 50px;
+            padding: var(--spacing-sm);
+            background: white;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-        }
-
-        .email-submit {
-            width: 100%;
-            padding: 0.75rem;
-            border: none;
-            border-radius: 4px;
-            background: #C85B3F;
-            color: white;
-            cursor: pointer;
-        }
-
-        .terms {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 1rem;
-            text-align: center;
-        }
-
-        .terms a {
-            color: #666;
-        }
-
-        .learn-more {
-            margin-top: 2rem;
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 2rem;
-            background: #f5f5f5;
-            color: #666;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .slideshow-section {
-            flex: 1;
-            background: #f5f5f5;
-            padding: 2rem;
+            border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .slide {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 600px;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            position: absolute;
-        }
-
-        .slide.active {
-            opacity: 1;
-        }
-
-        .slide-navigation {
-            position: absolute;
-            bottom: 2rem;
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .slide-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #ddd;
             cursor: pointer;
         }
 
-        .slide-dot.active {
-            background: #666;
+        .google-button img {
+            width: 18px;
+            height: 18px;
+            margin-right: var(--spacing-sm);
         }
 
         @media (max-width: 768px) {
-            .page-container {
-                flex-direction: column;
-            }
-            
-            .slideshow-section {
-            opacity: 0;
-            height: 0;
-            overflow: hidden; 
+            .image-section {
+                display: none;
             }
         }
     </style>
+    <!-- Add Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 </head>
 <body>
-    <div class="page-container">
-        <section class="login-section">
-            <div class="logo">PBL-01</div>
-            <h1 class="main-heading">Projek Apa,<br>Hari Ini?</h1>
-            <p class="subtitle">Menunggu Announcement Dosen PK <br> yang Tak Kunjung Datang...</p>
+    <div class="login-container">
+        <div class="login-form-section">
+            <img src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo" class="logo">
             
             <div class="login-form">
-
-                <button id="googleLogin" class=google-btn>
-                    <img src="https://www.google.com/favicon.ico" alt="Google logo" width="18" height="18" />
-                    Continue with Google
-                </button>
-                <div id="errorMessage" style="display: none; color: red; margin-top: 10px;"></div>
-                
-                <div class="divider">OR</div>
-                
-                <input type="email" class="email-input" placeholder="(WIP NOT WORKING) Enter your Pnj.ac.id email" />
-                <button class="email-submit">Continue with email</button>
-                
-                <p class="terms">
-                    By continuing, you agree to PBL Gang's <a href="#">Consumer Terms</a> and <a href="#">Usage Policy</a>, and acknowledge their <a href="#">Privacy Policy</a>. (we will sell your data to the ccp)
-                </p>
-            </div>
-            
-            <button class="learn-more">
-                Learn more ↓
-            </button>
-        </section>
-        
-        <section class="slideshow-section">
-            <div class="slide active">
-                <h2>Parkir Motor di PNJ</h2>
-                <p>POV: Kamu nyari parkir di PNJ jam 8 pagi tapi anak TI udah invasi semua spot parkir</p>
-                <div class="metrics">
-                    <div>Kapasitas: 500</div>
-                    <div>Yang Parkir: 1500</div>
-                    <div>Motor Terkunci: 45</div>
-                    <div>Telat: ∞</div>
+                <div class="welcome-text">
+                    <h1>Welcome back!</h1>
+                    <p>Enter your Credentials to access your account</p>
                 </div>
-            </div>
-            
-            <div class="slide">
-                <h2>Wifi PNJ Simulator</h2>
-                <p>Loading... Loading... Loading...<br>*Pressing login to PNJ Hotspot for the 100th time today*</p>
-            </div>
 
-            <div class="slide">
-                <h2>Kawah Moment</h2>
-                <p>Antri sejam cuma buat Ricebowl, tapi worth it karena murah</p>
-            </div>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    </div>
 
-            <div class="slide">
-                <h2>Sabar ya Azril</h2>
-                <p>Aku masih mencar</p>
-                <p>I apologize, but I cannot provide or display that content.</p>
-                <p style="color: #FF6B6B;">This content has been automatically filtered based on content guidelines.</p>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
 
-            </div>
+                    <a href="#" class="forgot-password" id="resetPassword">Forgot password?</a>
 
-            <div class="slide-navigation">
-                <div class="slide-dot active"></div>
-                <div class="slide-dot"></div>
-                <div class="slide-dot"></div>
-                <div class="slide-dot"></div>
+                    <button type="submit" class="login-button">Login</button>
+                </form>
+
+                <div class="divider">New User?</div>
+
+                <button class="google-button" id="registerButton">
+                    Register with Email
+                </button>
+                
+                <div id="error-message" style="color: red; margin-top: 10px; text-align: center;"></div>
             </div>
-        </section>
+        </div>
+        <div class="image-section"></div>
     </div>
 
     <script>
-        // Simple slideshow functionality
-        const slides = document.querySelectorAll('.slide');
-        const dots = document.querySelectorAll('.slide-dot');
-        let currentSlide = 0;
-
-        function showSlide(index) {
-            slides.forEach(slide => slide.classList.remove('active'));
-            dots.forEach(dot => dot.classList.remove('active'));
-            
-            slides[index].classList.add('active');
-            dots[index].classList.add('active');
-        }
-
-        function nextSlide() {
-            currentSlide = (currentSlide + 1) % slides.length;
-            showSlide(currentSlide);
-        }
-
-        // Change slides every 5 seconds
-        setInterval(nextSlide, 5000);
-
-        // Add click handlers for dots
-        dots.forEach((dot, index) => {
-            dot.addEventListener('click', () => {
-                currentSlide = index;
-                showSlide(currentSlide);
-            });
-        });
-    </script>
-
-
-    <!-- FIREBASE -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
-
+        // Firebase configuration - replace with your Firebase project config
         const firebaseConfig = {
             apiKey: "AIzaSyC2-95FPg6b7vOXJQxbXOlUXEb05ETJTwk",
             authDomain: "codenameamber-7b92a.firebaseapp.com",
@@ -302,40 +221,101 @@
             appId: "1:948347816183:web:e5e1514e3b4c752dbd2bf2",
             measurementId: "G-0LD4X3RQZ5"
         };
-
+        
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-
-        document.getElementById('googleLogin').addEventListener('click', async () => {
-            const errorElement = document.getElementById('errorMessage');
-            errorElement.style.display = 'none';
+        firebase.initializeApp(firebaseConfig);
+        
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('error-message');
             
             try {
-                const result = await signInWithPopup(auth, provider);
-                const idToken = await result.user.getIdToken();
+                // Sign in with email and password using Firebase
+                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                // Get the ID token
+                const idToken = await userCredential.user.getIdToken();
                 
+                // Send the token to the server
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ idToken: idToken })
+                    body: JSON.stringify({ idToken })
                 });
                 
                 const data = await response.json();
                 if (data.status === 'success') {
                     window.location.href = '/dashboard';
+                } else {
+                    errorElement.textContent = data.message || 'Login failed. Please try again.';
                 }
             } catch (error) {
-                console.error('Error:', error);
-                errorElement.textContent = 'Login failed. Please make sure you\'re using a supported browser and domain.';
-                errorElement.style.display = 'block';
+                console.error('Firebase Error:', error);
+                errorElement.textContent = error.message || 'Login failed. Please try again.';
             }
         });
+        
+        // Handle password reset
+        document.getElementById('resetPassword').addEventListener('click', async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const errorElement = document.getElementById('error-message');
+            
+            if (!email) {
+                errorElement.textContent = 'Please enter your email address to reset password';
+                return;
+            }
+            
+            try {
+                await firebase.auth().sendPasswordResetEmail(email);
+                errorElement.textContent = 'Password reset email sent. Check your inbox.';
+                errorElement.style.color = 'green';
+            } catch (error) {
+                errorElement.textContent = error.message;
+            }
+        });
+        
+        // Handle registration
+        document.getElementById('registerButton').addEventListener('click', function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('error-message');
+            
+            if (!email || !password) {
+                errorElement.textContent = 'Please enter both email and password to register';
+                return;
+            }
+            
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then(async (userCredential) => {
+                    // Get the ID token
+                    const idToken = await userCredential.user.getIdToken();
+                    
+                    // Send the token to the server
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ idToken })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        window.location.href = '/dashboard';
+                    } else {
+                        errorElement.textContent = data.message || 'Registration failed. Please try again.';
+                    }
+                })
+                .catch((error) => {
+                    errorElement.textContent = error.message;
+                });
+        });
     </script>
-
-    <script src="{{ url_for('static', filename='js/transition.js') }}"></script>
 </body>
 </html>
