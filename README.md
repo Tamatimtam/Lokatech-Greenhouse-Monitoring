@@ -1,34 +1,186 @@
+# 🌱 LokaTech Greenhouse Monitoring & Automation System
+
+> Smart IoT monitoring and automation for hydroponic greenhouses at Lokatani
+
+[![Project Status: Active](https://img.shields.io/badge/Project_Status-Active-green?style=for-the-badge)](https://github.com/yourusername/greenhouse-monitoring)
+[![PBL Project](https://img.shields.io/badge/PBL-6th_Semester-blue?style=for-the-badge)](https://github.com/yourusername/greenhouse-monitoring)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 <div align="center">
 
-<img src="/static/images/logo.png" width="400" height="400" alt="Amber Logo"/>
-
-# `CODENAME: AMBER`
-
-<img src="https://img.shields.io/badge/Status-Classified-red?style=for-the-badge&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAACXBIWXMAAAsTAAALEwEAmpwYAAAARUlEQVR4nGNgGAWjgBqAEYf4f1wKiNGIVR02jQwMDAz/ScXIhjAQ0kjQVmI1DgsNuDRhNRFdIy7nEjQVwzZsGkc8AABxChEPr9csCgAAAABJRU5ErkJggg==" />
+<img src="/static/images/lokatech-logo.png" width="70%" alt="LokaTech Greenhouse System">
 
 </div>
+
+## 🌟 Overview
+
+This smart IoT-based system replaces manual greenhouse cooling with an automated solution for monitoring and controlling environmental conditions in hydroponic greenhouses at Lokatani. Built as a 6th semester Project-Based Learning (PBL) and Special Topic Project.
+
+## 🔍 Why It Matters
+
+| Current Challenges | Our Solution |
+|---|---|
+| ❌ Manual fan & exhaust operation | ✅ Automated climate control |
+| ❌ Inefficient response to changes | ✅ Real-time monitoring and alerts |
+| ❌ Requires constant human attention | ✅ Remote access and management |
+| ❌ Prone to human error | ✅ Data-driven decision making |
+| ❌ Limited environmental data | ✅ Comprehensive data collection & analysis |
+
+## ✨ Features
+
+<table>
+    <tr>
+        <th>Feature</th>
+        <th>Status</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td>Environmental Monitoring</td>
+        <td>🔄 In Progress</td>
+        <td>Temperature, humidity (DHT22), light intensity (BH1750)</td>
+    </tr>
+    <tr>
+        <td>IoT Data Transmission</td>
+        <td>🔄 In Progress</td>
+        <td>ESP32 to cloud backend via MQTT</td>
+    </tr>
+    <tr>
+        <td>User Authentication</td>
+        <td>✅ Implemented</td>
+        <td>Secure access via Firebase</td>
+    </tr>
+    <tr>
+        <td>Data Storage</td>
+        <td>🔄 In Progress</td>
+        <td>Flask API + SQLite database</td>
+    </tr>
+    <tr>
+        <td>Dashboard & Visualization</td>
+        <td>⏱️ Planned</td>
+        <td>Mobile app & web dashboard</td>
+    </tr>
+    <tr>
+        <td>Equipment Control</td>
+        <td>⏱️ Planned</td>
+        <td>Automated fan & exhaust systems</td>
+    </tr>
+    <tr>
+        <td>Alerts & Notifications</td>
+        <td>⏱️ Planned</td>
+        <td>Telegram & email notifications</td>
+    </tr>
+    <tr>
+        <td>Historical Data Analysis</td>
+        <td>⏱️ Planned</td>
+        <td>Trend visualization & reports</td>
+    </tr>
+</table>
+
+## 🔧 Tech Stack
+
+<div align="center">
+
+### Hardware
+<img src="https://img.shields.io/badge/ESP32-E7352C?style=for-the-badge&logo=espressif&logoColor=white" alt="ESP32"/>
+<img src="https://img.shields.io/badge/DHT22-3C7D91?style=for-the-badge" alt="DHT22"/>
+<img src="https://img.shields.io/badge/BH1750-F9A03C?style=for-the-badge" alt="BH1750"/>
+<img src="https://img.shields.io/badge/Relay_Module-565656?style=for-the-badge" alt="Relay Module"/>
+
+### Backend
+<img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+<img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask"/>
+<img src="https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white" alt="Google Cloud Run"/>
+<img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
+<img src="https://img.shields.io/badge/MQTT-3C5280?style=for-the-badge&logo=eclipse-mosquitto&logoColor=white" alt="MQTT"/>
+
+### Frontend
+<img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5"/>
+<img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3"/>
+<img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript"/>
+<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin (planned)"/>
+
+### Authentication
+<img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase"/>
+
+</div>
+
+## 📊 Project Progress
+
+<div align="center">
+    <img src="https://progress-bar.dev/40/?width=500&title=Overall%20Project" alt="Overall Progress: 40%">
+</div>
+
+### Completed
+- ✅ Project foundation and architecture
+- ✅ Firebase authentication integration
+- ✅ Basic Flask app with login system
+
+### In Development
+- 🔄 ESP32 sensor data collection
+- 🔄 MQTT communication setup
+- 🔄 Database schema implementation
+
+### Coming Soon
+- ⏱️ Data visualization dashboard
+- ⏱️ Automation control logic
+- ⏱️ Mobile application
+- ⏱️ Alert notification system
+- ⏱️ Historical data analytics
+
+## 👨‍💻 Contributors
+
+<div align="center">
+
+| <img src="https://github.com/identicons/pratama.png" width="100" height="100" alt="Pratama"/><br/>**Pratama Varian**<br/>2207421040<br/>Backend Developer | <img src="https://github.com/identicons/reishafa.png" width="100" height="100" alt="Reishafa"/><br/>**Reishafa Armelia**<br/>2207421037<br/>Frontend Developer | <img src="https://github.com/identicons/christian.png" width="100" height="100" alt="Christian"/><br/>**Christian Nataniel**<br/>2207421043<br/>IoT Specialist | <img src="https://github.com/identicons/salsabilla.png" width="100" height="100" alt="Salsabilla"/><br/>**Salsabilla Aulia**<br/>2207421049<br/>UI/UX Designer |
+|---|---|---|---|
+
+</div>
+
+## 🚀 Quick Setup Guide
+
+### Prerequisites
+- Python 3.7+
+- Firebase account with credentials
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/greenhouse-monitoring.git
+
+# Navigate to the project directory
+cd greenhouse-monitoring
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up Firebase credentials
+mkdir -p secrets
+# Place your firebase-credentials.json file in the secrets directory
+
+# Run the application
+python app2.py
+```
+
+## 📸 Project Gallery
+
+<div align="center">
+    <details>
+        <summary>📊 <b>View Screenshots</b></summary>
+        <br>
+        <p><i>Coming soon as development progresses!</i></p>
+        <img src="https://via.placeholder.com/400x250?text=Dashboard+Preview" width="45%" alt="Dashboard Preview"/>
+        <img src="https://via.placeholder.com/400x250?text=Mobile+App+Concept" width="45%" alt="Mobile App Concept"/>
+    </details>
+</div>
+
+## 📄 License
+
+This project is part of our academic curriculum. All rights reserved.
 
 ---
 
 <div align="center">
-
-### ⚠️ RESTRICTED ACCESS ⚠️
-#### CLEARANCE LEVEL: AMBER
-#### STATUS: [REDACTED]
-
+<p>🌱 <b>Growing Technology for Sustainable Farming</b> 🌱</p>
+<p>Made with ❤️ by Team LokaTech</p>
 </div>
-
----
-
-<div align="center">
-
-## Coming Soon
-
-_"You Will Succeed, You Have No Choice."_
-
-</div>
-
-> This document is classified under Protocol AMBER-7. 
-> Access restricted to personnel with Level 3 clearance or higher.
-> 
-> //END TRANSMISSION//
