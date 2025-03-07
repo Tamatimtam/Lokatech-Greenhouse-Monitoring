@@ -5,7 +5,7 @@
 {% import "macros/status.html" as status %}
 {% import "macros/navigation.html" as navigation %}
 
-{% block title %}Home - Greenhouse Monitoring{% endblock %}
+{% block title %}Controls - Greenhouse Monitoring{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -23,28 +23,48 @@
       <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
   </header>
 
-  {% call card.card('ENVIRONMENTAL CONDITIONS', 'card--env') %}
-    {{ gauges.env_gauge('Temperature', 'temperature-high', 25, '°C', '#286247', 'temperature-gauge') }}
-    {{ gauges.env_gauge('Humidity', 'tint', 25, '%', '#333333', 'humidity-gauge') }}
-    {{ gauges.env_gauge('Light Levels', 'sun', 25, '%', '#F9D949', 'light-gauge') }}
-    {{ gauges.env_gauge('More Sensors', 'microchip', 25, '%', '#EB6B6B', 'more-gauge') }}
-  {% endcall %}
-
-  <div class="grid grid--2col">
-    {% call card.card('QUICK CONTROLS') %}
+  {% call card.card('EXHAUST FAN') %}
+  <div class="grid grid--3col">
+    {% call card.card('EXHAUST FAN 1') %}
+      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
+      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
+    {% endcall %}
+    
+    {% call card.card('EXHAUST FAN 1') %}
       {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
       {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
     {% endcall %}
 
-    {% call card.card('STATUS SUMMARY') %}
-      {{ status.status_item('Temperature is within optimal range', 'temperature-high', '#286247') }}
-      {{ status.status_item('Humidity is slightly above optimal range', 'tint', '#333333') }}
-      {{ status.status_item('Light levels are optimal for growth', 'sun', '#F9D949') }}
+    {% call card.card('EXHAUST FAN 1') %}
+      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
+      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
     {% endcall %}
   </div>
+  {% endcall %}
+
+  {% call card.card('EXHAUST FAN') %}
+  <div class="grid grid--3col">
+    {% call card.card('EXHAUST FAN 1') %}
+      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
+      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
+    {% endcall %}
+    
+    {% call card.card('EXHAUST FAN 1') %}
+      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
+      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
+    {% endcall %}
+
+    {% call card.card('EXHAUST FAN 1') %}
+      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
+      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
+    {% endcall %}
+  </div>
+  {% endcall %}
 </div>
 
-{{ navigation.bottom_nav('home') }}
+
+
+{{ navigation.bottom_nav('controls') }}
 {% endblock %}
 
 {% block scripts %}

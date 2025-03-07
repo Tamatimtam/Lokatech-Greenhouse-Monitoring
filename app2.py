@@ -34,6 +34,10 @@ def index():
 def dashboard():
     return render_template("dashboard.html")
 
+@app.route("/controls")
+def controls():
+    return render_template("controls.html")
+
 @app.route("/login", methods=["POST"])
 def login():
     id_token = request.json['idToken']

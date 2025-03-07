@@ -1,0 +1,13 @@
+{% macro control_switch(label, icon, id, checked=false) %}
+<div class="control">
+  <div class="control__label">
+    <i class="fas fa-{{ icon }}"></i>
+    {{ label }}
+  </div>
+  <label class="switch">
+    <input type="checkbox" id="{{ id }}" {% if checked %}checked{% endif %}>
+    <span class="switch__slider"></span>
+  </label>
+</div>
+
+{% endmacro %}

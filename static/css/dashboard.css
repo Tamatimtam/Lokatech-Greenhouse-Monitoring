@@ -1,3 +1,14 @@
+/* Import all component CSS files */
+@import 'components/card.css';
+@import 'components/gauge.css';
+@import 'components/controls.css';
+@import 'components/status.css';
+@import 'components/navigation.css';
+@import 'layout.css';
+
+/* Dashboard specific styles that don't fit in components */
+/* (should be minimal) */
+
 /* dashboard.css - extends base.css */
 
 .container {
@@ -93,21 +104,8 @@
   
   .gauge-value {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    width: 100%;
-  }
-  
-  .gauge-value .value {
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: bold;
-  }
-  
-  .gauge-value .unit {
-    font-size: 14px;
-    margin-left: 2px;
   }
   
   .gauge-unit {
