@@ -169,7 +169,7 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
       <br />
       <sub><span title="Frontend | User Testing | IoT Implementation">🖥️ Frontend & User Testing Specialist</span></sub>
       <br />
-      <a href="https://github.com/chrispurba007" title="GitHub Profile"><img src="https://img.shields.io-badge/chrispurba007-333?style=flat&logo=github" /></a>
+      <a href="https://github.com/chrispurba007" title="GitHub Profile"><img src="https://img.shields.io/badge/chrispurba007-333?style=flat&logo=github" /></a>
     </td>
     <td align="center">
       <a href="https://github.com/chacabilla">
@@ -182,35 +182,10 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
       <br />
       <sub><span title="UI/UX Design | Documentation | App Development | API Testing">🎨 Designer & QA Engineer</span></sub>
       <br />
-      <a href="https://github.com/chacabilla" title="GitHub Profile"><img src="https://img.shields.io-badge/chacabilla-333?style=flat&logo=github" /></a>
+      <a href="https://github.com/chacabilla" title="GitHub Profile"><img src="https://img.shields.io/badge/chacabilla-333?style=flat&logo=github" /></a>
     </td>
   </tr>
 </table>
-
-<div class="team-skills">
-  <span class="skill-tag">Python</span>
-  <span class="skill-tag">IoT</span>
-  <span class="skill-tag">ESP32</span>
-  <span class="skill-tag">Firebase</span>
-  <span class="skill-tag">Flask</span>
-  <span class="skill-tag">UX Research</span>
-  <span class="skill-tag">UI Design</span>
-  <span class="skill-tag">SQLite</span>
-  <span class="skill-tag">MQTT</span>
-</div>
-
-<details>
-  <summary>✨ <b>Team Superpowers</b></summary>
-  <br>
-  <ul>
-    <li>🚀 <b>Pratama:</b> Project coordination, full-stack development, system architecture, cloud infrastructure, security implementation</li>
-    <li>📱 <b>Reishafa:</b> Mobile app development, IoT systems integration, sensor network implementation</li>
-    <li>🖥️ <b>Christian:</b> Frontend interfaces, user experience testing, IoT hardware setup and testing</li>
-    <li>🎨 <b>Salsabilla:</b> Visual design, documentation management, API testing, application quality assurance</li>
-  </ul>
-</details>
-
-</div>
 
 <link rel="stylesheet" href="static/css/skills.css">
 
@@ -254,11 +229,11 @@ python app2.py
 
 ## 📄 License
 
-This project is part of our academic curriculum. All rights reserved.
+This project is part of Politeknik Negeri Jakarta's academic curriculum. All rights reserved.
 
 ---
 
 <div align="center">
 <p>🌱 <b>Growing Technology for Sustainable Farming</b> 🌱</p>
-<p>Made with ❤️ by Team LokaTech</p>
+<p>Made with ❤️ by LokaTech PBL Team @ PNJ</p>
 </div>
