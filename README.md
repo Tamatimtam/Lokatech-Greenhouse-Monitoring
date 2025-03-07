@@ -107,7 +107,7 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
 ## 📊 Project Progress
 
 <div align="center">
-    <img src="https://progress-bar.dev/40/?width=500&title=Overall%20Project" alt="Overall Progress: 40%">
+    <img src="https://img.shields.io/badge/Overall%20Progress-20%25-orange?style=for-the-badge&logo=github" alt="Overall Progress: 20%">
 </div>
 
 ### Completed
