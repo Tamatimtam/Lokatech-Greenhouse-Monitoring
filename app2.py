@@ -31,9 +31,12 @@ def index():
     return render_template("login.html")
 
 @app.route("/dashboard")
-@isloggedin
 def dashboard():
-    return render_template("dashboard.html", user=session['user'])
+    return render_template("dashboard.html")
+
+@app.route("/controls")
+def controls():
+    return render_template("controls.html")
 
 @app.route("/login", methods=["POST"])
 def login():

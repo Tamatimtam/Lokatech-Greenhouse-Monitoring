@@ -1,0 +1,240 @@
+/* Import all component CSS files */
+@import 'components/card.css';
+@import 'components/gauge.css';
+@import 'components/controls.css';
+@import 'components/status.css';
+@import 'components/navigation.css';
+@import 'layout.css';
+
+/* Dashboard specific styles that don't fit in components */
+/* (should be minimal) */
+
+/* dashboard.css - extends base.css */
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+    width: 100%;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .header-content h1 {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .header-content p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+  
+  .logo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .card {
+    background-color: var(--surface);
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .card-title {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 1rem;
+  }
+  
+  .environmental-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+  }
+  
+  @media (max-width: 768px) {
+    .environmental-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .environmental-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .env-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .env-item-title {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+  
+  .circular-gauge {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .gauge-value {
+    position: absolute;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  
+  .gauge-unit {
+    font-size: 0.8rem;
+    position: absolute;
+    top: 25px;
+    right: 30px;
+  }
+  
+  .svg-circle {
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+  
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+  }
+  
+  .control-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .control-item:last-child {
+    border-bottom: none;
+  }
+  
+  .control-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    font-weight: 500;
+  }
+  
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+  }
+  
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+  }
+  
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  input:checked + .slider {
+    background-color: var(--primary);
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
+  
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .status-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .status-text {
+    font-size: 0.95rem;
+  }
+  
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--surface);
+    display: flex;
+    justify-content: space-around;
+    padding: var(--spacing-sm) 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    padding: var(--spacing-sm);
+  }
+  
+  .nav-item.active {
+    color: var(--primary);
+  }
+  
+  .nav-icon {
+    margin-bottom: var(--spacing-xs);
+  }
