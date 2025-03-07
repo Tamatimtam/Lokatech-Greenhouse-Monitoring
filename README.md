@@ -134,111 +134,85 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
   <tr>
     <td align="center">
       <a href="https://github.com/Tamatimtam">
-        <img src="https://avatars.githubusercontent.com/u/47581847?v=4" width="120px" alt="Pratama"/>
+        <img src="https://avatars.githubusercontent.com/Tamatimtam" width="120px" alt="Pratama"/>
         <br />
         <sub><b>Pratama Varian</b></sub>
       </a>
       <br />
       <sub>2207421040</sub>
       <br />
-      <sub><span title="C++ | Python | IoT | Flask">🧠 Backend Architect</span></sub>
+      <sub><span title="Project Leadership | Backend | Frontend | IoT | Cloud | API | Security">🚀 Project Lead & Full-Stack Developer</span></sub>
       <br />
       <a href="https://github.com/Tamatimtam" title="GitHub Profile"><img src="https://img.shields.io/badge/Tamatimtam-333?style=flat&logo=github" /></a>
     </td>
     <td align="center">
       <a href="https://github.com/reiarm">
-        <img src="https://avatars.githubusercontent.com/u/103688295?v=4" width="120px" alt="Reishafa"/>
+        <img src="https://avatars.githubusercontent.com/reiarm" width="120px" alt="Reishafa"/>
         <br />
         <sub><b>Reishafa Armelia</b></sub>
       </a>
       <br />
       <sub>2207421037</sub>
       <br />
-      <sub><span title="JavaScript | UI/UX | Web Design">✨ Frontend Developer</span></sub>
+      <sub><span title="Mobile App Development | IoT Systems | Hardware Integration">📱 App Developer & IoT Engineer</span></sub>
       <br />
       <a href="https://github.com/reiarm" title="GitHub Profile"><img src="https://img.shields.io/badge/reiarm-333?style=flat&logo=github" /></a>
     </td>
     <td align="center">
       <a href="https://github.com/chrispurba007">
-        <img src="https://avatars.githubusercontent.com/u/103688264?v=4" width="120px" alt="Christian"/>
+        <img src="https://avatars.githubusercontent.com/chrispurba007" width="120px" alt="Christian"/>
         <br />
         <sub><b>Christian Nataniel</b></sub>
       </a>
       <br />
       <sub>2207421043</sub>
       <br />
-      <sub><span title="IoT | Arduino | ESP32 | Sensors">🔌 IoT Specialist</span></sub>
+      <sub><span title="Frontend | User Testing | IoT Implementation">🖥️ Frontend & User Testing Specialist</span></sub>
       <br />
-      <a href="https://github.com/chrispurba007" title="GitHub Profile"><img src="https://img.shields.io/badge/chrispurba007-333?style=flat&logo=github" /></a>
+      <a href="https://github.com/chrispurba007" title="GitHub Profile"><img src="https://img.shields.io-badge/chrispurba007-333?style=flat&logo=github" /></a>
     </td>
     <td align="center">
       <a href="https://github.com/chacabilla">
-        <img src="https://avatars.githubusercontent.com/u/103688449?v=4" width="120px" alt="Salsabilla"/>
+        <img src="https://avatars.githubusercontent.com/chacabilla" width="120px" alt="Salsabilla"/>
         <br />
         <sub><b>Salsabilla Aulia</b></sub>
       </a>
       <br />
       <sub>2207421049</sub>
       <br />
-      <sub><span title="UI/UX | Design | User Research">🎨 UI/UX Designer</span></sub>
+      <sub><span title="UI/UX Design | Documentation | App Development | API Testing">🎨 Designer & QA Engineer</span></sub>
       <br />
-      <a href="https://github.com/chacabilla" title="GitHub Profile"><img src="https://img.shields.io/badge/chacabilla-333?style=flat&logo=github" /></a>
+      <a href="https://github.com/chacabilla" title="GitHub Profile"><img src="https://img.shields.io-badge/chacabilla-333?style=flat&logo=github" /></a>
     </td>
   </tr>
 </table>
 
-<div class="skills-container">
-  <div class="skill-tag">Python</div>
-  <div class="skill-tag">IoT</div>
-  <div class="skill-tag">ESP32</div>
-  <div class="skill-tag">Firebase</div>
-  <div class="skill-tag">Flask</div>
-  <div class="skill-tag">UX Research</div>
-  <div class="skill-tag">UI Design</div>
-  <div class="skill-tag">SQLite</div>
-  <div class="skill-tag">MQTT</div>
+<div class="team-skills">
+  <span class="skill-tag">Python</span>
+  <span class="skill-tag">IoT</span>
+  <span class="skill-tag">ESP32</span>
+  <span class="skill-tag">Firebase</span>
+  <span class="skill-tag">Flask</span>
+  <span class="skill-tag">UX Research</span>
+  <span class="skill-tag">UI Design</span>
+  <span class="skill-tag">SQLite</span>
+  <span class="skill-tag">MQTT</span>
 </div>
 
 <details>
   <summary>✨ <b>Team Superpowers</b></summary>
   <br>
   <ul>
-    <li>🧠 <b>Pratama:</b> Backend architecture, data flow design, Flask API development</li>
-    <li>💻 <b>Reishafa:</b> Frontend interfaces, responsive design, user experience</li>
-    <li>🔌 <b>Christian:</b> IoT systems, sensor configuration, wireless communication</li>
-    <li>🎨 <b>Salsabilla:</b> Interface design, user research, visual aesthetics</li>
+    <li>🚀 <b>Pratama:</b> Project coordination, full-stack development, system architecture, cloud infrastructure, security implementation</li>
+    <li>📱 <b>Reishafa:</b> Mobile app development, IoT systems integration, sensor network implementation</li>
+    <li>🖥️ <b>Christian:</b> Frontend interfaces, user experience testing, IoT hardware setup and testing</li>
+    <li>🎨 <b>Salsabilla:</b> Visual design, documentation management, API testing, application quality assurance</li>
   </ul>
 </details>
 
 </div>
 
-<style>
-.skills-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.skill-tag {
-  background-color: #e9f5f9;
-  color: #1a73e8;
-  border: 1px solid #1a73e8;
-  border-radius: 16px;
-  padding: 5px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.skill-tag:hover {
-  background-color: #1a73e8;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-</style>
+<link rel="stylesheet" href="static/css/skills.css">
 
 ## 🚀 Quick Setup Guide
 
