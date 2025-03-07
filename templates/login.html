@@ -1,321 +1,52 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lokatani.id - Login</title>
-    <style>
-        :root {
-            --primary: #286247;
-            --primary-light: #357456;
-            --primary-dark: #035c1d;
-            --background: #F5F7FA;
-            --surface: #FFFFFF;
-            --text-primary: #1A1A1A;
-            --text-secondary: #666666;
-            
-            --spacing-xs: 0.25rem;
-            --spacing-sm: 0.5rem;
-            --spacing-md: 1rem;
-            --spacing-lg: 1.5rem;
-            --spacing-xl: 2rem;
-            
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 16px;
-        }
+{% extends "base.html" %}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
+{% block title %}Lokatani.id - Login{% endblock %}
 
-        body {
-            background-color: var(--background);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-        }
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
 
-        .login-container {
-            display: flex;
-            width: 100%;
-            min-height: 100vh;
-        }
+{% block content %}
+<div class="login-container">
+    <div class="login-form-section">
+        <img src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo" class="logo">
+        
+        <div class="login-form">
+            <div class="welcome-text">
+                <h1>Welcome back!</h1>
+                <p>Enter your Credentials to access your account</p>
+            </div>
 
-        .login-form-section {
-            flex: 1;
-            padding: var(--spacing-xl);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: var(--surface);
-        }
-
-        .image-section {
-            flex: 0.7;  /* Reduced from 1 to make it smaller */
-            background-image: url("{{ url_for('static', filename='images/hydroponic.png') }}");
-            background-size: cover;
-            background-position: center;
-            border-radius: 30px;
-        }
-
-        .logo {
-            width: 300px;
-            height: 300px;
-
-        }
-           
-
-        .login-form {
-            width: 100%;
-            max-width: 600px;
-        }
-
-        .welcome-text {
-            text-align: left;
-            margin-bottom: var(--spacing-xl);
-        }
-
-        .welcome-text h1 {
-            font-size: 2.5rem;
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .welcome-text p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .form-group {
-            margin-bottom: var(--spacing-md);
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: var(--spacing-sm);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-        }
-
-        .forgot-password {
-            display: block;
-            text-align: right;
-            color: var(--primary);
-            text-decoration: underline;
-            font-size: 0.9rem;
-            margin-bottom: var(--spacing-md);
-        }
-
-
-        .login-button {
-            width: 100%;
-            height: 50px;
-            background: var(--primary);
-            color: white;
-            padding: var(--spacing-sm);
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-            cursor: pointer;
-            margin-bottom: var(--spacing-md);
-        }
-
-        .login-button:hover {
-            background: var(--primary-light);
-        }
-
-        .divider {
-            text-align: center;
-            margin: var(--spacing-md) 0;
-            color: var(--text-secondary);
-        }
-
-        .google-button {
-            width: 100%;
-            height: 50px;
-            padding: var(--spacing-sm);
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        .google-button img {
-            width: 18px;
-            height: 18px;
-            margin-right: var(--spacing-sm);
-        }
-
-        @media (max-width: 768px) {
-            .image-section {
-                display: none;
-            }
-        }
-    </style>
-    <!-- Add Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-</head>
-<body>
-    <div class="login-container">
-        <div class="login-form-section">
-            <img src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo" class="logo">
-            
-            <div class="login-form">
-                <div class="welcome-text">
-                    <h1>Welcome back!</h1>
-                    <p>Enter your Credentials to access your account</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
                 </div>
 
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
-                    </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                </div>
 
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                    </div>
+                <a href="#" class="forgot-password" id="resetPassword">Forgot password?</a>
 
-                    <a href="#" class="forgot-password" id="resetPassword">Forgot password?</a>
+                <button type="submit" class="login-button">Login</button>
+            </form>
 
-                    <button type="submit" class="login-button">Login</button>
-                </form>
+            <div class="divider">New User?</div>
 
-                <div class="divider">New User?</div>
-
-                <button class="google-button" id="registerButton">
-                    Register with Email
-                </button>
-                
-                <div id="error-message" style="color: red; margin-top: 10px; text-align: center;"></div>
+            <div class="info-message">
+                To register a new account, please contact your local greenhouse administrator.
             </div>
+            
+            <div id="error-message" style="color: red; margin-top: 10px; text-align: center;"></div>
         </div>
-        <div class="image-section"></div>
     </div>
+    <div class="image-section"></div>
+</div>
+{% endblock %}
 
-    <script>
-        // Firebase configuration - replace with your Firebase project config
-        const firebaseConfig = {
-            apiKey: "AIzaSyC2-95FPg6b7vOXJQxbXOlUXEb05ETJTwk",
-            authDomain: "codenameamber-7b92a.firebaseapp.com",
-            projectId: "codenameamber-7b92a",
-            storageBucket: "codenameamber-7b92a.firebasestorage.app",
-            messagingSenderId: "948347816183",
-            appId: "1:948347816183:web:e5e1514e3b4c752dbd2bf2",
-            measurementId: "G-0LD4X3RQZ5"
-        };
-        
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        
-        // Handle login form submission
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorElement = document.getElementById('error-message');
-            
-            try {
-                // Sign in with email and password using Firebase
-                const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
-                // Get the ID token
-                const idToken = await userCredential.user.getIdToken();
-                
-                // Send the token to the server
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ idToken })
-                });
-                
-                const data = await response.json();
-                if (data.status === 'success') {
-                    window.location.href = '/dashboard';
-                } else {
-                    errorElement.textContent = data.message || 'Login failed. Please try again.';
-                }
-            } catch (error) {
-                console.error('Firebase Error:', error);
-                errorElement.textContent = error.message || 'Login failed. Please try again.';
-            }
-        });
-        
-        // Handle password reset
-        document.getElementById('resetPassword').addEventListener('click', async function(e) {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const errorElement = document.getElementById('error-message');
-            
-            if (!email) {
-                errorElement.textContent = 'Please enter your email address to reset password';
-                return;
-            }
-            
-            try {
-                await firebase.auth().sendPasswordResetEmail(email);
-                errorElement.textContent = 'Password reset email sent. Check your inbox.';
-                errorElement.style.color = 'green';
-            } catch (error) {
-                errorElement.textContent = error.message;
-            }
-        });
-        
-        // Handle registration
-        document.getElementById('registerButton').addEventListener('click', function() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorElement = document.getElementById('error-message');
-            
-            if (!email || !password) {
-                errorElement.textContent = 'Please enter both email and password to register';
-                return;
-            }
-            
-            firebase.auth().createUserWithEmailAndPassword(email, password)
-                .then(async (userCredential) => {
-                    // Get the ID token
-                    const idToken = await userCredential.user.getIdToken();
-                    
-                    // Send the token to the server
-                    const response = await fetch('/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ idToken })
-                    });
-                    
-                    const data = await response.json();
-                    if (data.status === 'success') {
-                        window.location.href = '/dashboard';
-                    } else {
-                        errorElement.textContent = data.message || 'Registration failed. Please try again.';
-                    }
-                })
-                .catch((error) => {
-                    errorElement.textContent = error.message;
-                });
-        });
-    </script>
-</body>
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/firebase-init.js') }}"></script>
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}
