@@ -24,8 +24,11 @@
 
   {% call card.card('USER PROFILE', 'card--profile') %}
     <div class="profile__header">
-      <!-- Fix the default profile picture path to use logo.png which we know exists -->
-      <img src="{{ user.picture if user and user.picture else url_for('static', filename='default-avatar.png') }}" alt="Profile Picture" class="profile__image">
+      <!-- Using a known existing image (lokatech-logo.png) as fallback -->
+      <img src="{{ user.picture if user and user.picture}}" 
+           alt="Profile Picture" 
+           class="profile__image"
+           onerror="this.src='{{ url_for('static', filename='images/default-avatar.png') }}'">
       <div class="profile__info">
         <h2>{{ user.name if user else 'Guest User' }}</h2>
         <p>{{ user.email if user else 'Not logged in' }}</p>
