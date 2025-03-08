@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% import "macros/gauges.html" as gauges %}
+{% import "macros/card.html" as card %}
+{% import "macros/controls.html" as controls %}
+{% import "macros/status.html" as status %}
+{% import "macros/navigation.html" as navigation %}
+
+{% block title %}Profile - Greenhouse Monitoring{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="header">
+    <div class="header__content">
+      <h1>Hello, {{ user.name if user else 'Guest' }}!</h1>
+      <p>Manage your account and preferences</p>
+    </div>
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+  </header>
+
+  {% call card.card('USER PROFILE', 'card--profile') %}
+    <div class="profile__header">
+      <!-- Fix the default profile picture path to use logo.png which we know exists -->
+      <img src="{{ user.picture if user and user.picture else url_for('static', filename='default-avatar.png') }}" alt="Profile Picture" class="profile__image">
+      <div class="profile__info">
+        <h2>{{ user.name if user else 'Guest User' }}</h2>
+        <p>{{ user.email if user else 'Not logged in' }}</p>
+      </div>
+    </div>
+  {% endcall %}
+
+  <div class="grid grid--3col">
+    {% call card.card('ACCOUNT SETTINGS') %}
+      <ul class="profile__list">
+        <li class="profile__list-item">
+          <i class="fas fa-user"></i> 
+          <span>Profile Information</span>
+        </li>
+        <li class="profile__list-item">
+          <i class="fas fa-lock"></i> 
+          <span>Change Password</span>
+        </li>
+        <li class="profile__list-item">
+          <i class="fas fa-sign-out-alt"></i> 
+          <a href="/logout">Logout</a>
+        </li>
+      </ul>
+    {% endcall %}
+
+    {% call card.card('PREFERENCES') %}
+      <ul class="profile__list">
+        <li class="profile__list-item">
+          <i class="fas fa-moon"></i> 
+          <span>Dark Mode</span>
+          <label class="switch">
+            <input type="checkbox" id="darkModeSwitch">
+            <span class="switch__slider"></span>
+          </label>
+        </li>
+        <li class="profile__list-item">
+          <i class="fas fa-bell"></i> 
+          <span>Notifications</span>
+          <label class="switch">
+            <input type="checkbox" id="notificationsSwitch" checked>
+            <span class="switch__slider"></span>
+          </label>
+        </li>
+      </ul>
+    {% endcall %}
+
+    {% call card.card('ADMIN SETTINGS') %}
+      <ul class="profile__list">
+        <li class="profile__list-item">
+          <i class="fas fa-users-cog"></i> 
+          <span>User Management</span>
+        </li>
+        <li class="profile__list-item">
+          <i class="fas fa-cogs"></i> 
+          <span>Device Configuration</span>
+        </li>
+      </ul>
+    {% endcall %}
+  </div>
+</div>
+
+{{ navigation.bottom_nav('profile') }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Toggle switches
+    document.getElementById('darkModeSwitch').addEventListener('change', function() {
+      console.log('Dark mode toggled:', this.checked);
+      // Add dark mode implementation later
+    });
+    
+    document.getElementById('notificationsSwitch').addEventListener('change', function() {
+      console.log('Notifications toggled:', this.checked);
+      // Add notification settings implementation later
+    });
+  });
+</script>
+{% endblock %}
