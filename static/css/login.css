@@ -5,7 +5,7 @@
 }
 
 .login-form-section {
-    flex: 1;
+    flex: 0.7;
     padding: var(--spacing-xl);
     display: flex;
     flex-direction: column;
@@ -15,7 +15,7 @@
 }
 
 .image-section {
-    flex: 0.6;
+    flex: 0.4;
     background-image: url("../images/hydroponic.webp");
     background-size: cover;
     background-position: center;

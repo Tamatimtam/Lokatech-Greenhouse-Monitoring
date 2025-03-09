@@ -17,7 +17,7 @@
 <div class="container">
   <header class="header">
     <div class="header__content">
-      <h1>Hello, Asep!</h1>
+      <h1>Hello, {{ user.name if user else 'Guest' }}!</h1>
       <p>Welcome back to Greenhouse Monitoring System</p>
     </div>
       <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
