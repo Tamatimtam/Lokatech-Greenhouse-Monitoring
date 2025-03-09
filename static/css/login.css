@@ -82,6 +82,7 @@
     font-size: 1rem;
     cursor: pointer;
     margin-bottom: var(--spacing-md);
+    transition: 400ms ease;
 }
 
 .login-button:hover {
