@@ -1,0 +1,109 @@
+/* Additional styling for the profile page */
+
+/* Profile edit modal styles */
+.profile-edit {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-edit__picture {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid #eee;
+}
+
+.profile-edit__preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+  margin-bottom: var(--spacing-md);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.profile-edit__actions {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.profile-edit__upload-btn {
+  background-color: var(--primary);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.profile-edit__upload-btn:hover {
+  background-color: var(--primary-light);
+}
+
+/* Hide the default file input */
+.hidden-input {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 100px; /* Positioned above the bottom nav */
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: var(--primary);
+  color: white;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  font-weight: 500;
+}
+
+.toast--visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Dark mode support */
+body.dark-mode {
+  --background: #1a1a1a;
+  --surface: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+}
+
+body.dark-mode .card {
+  background-color: #2d2d2d;
+}
+
+body.dark-mode .form-control {
+  background-color: #3a3a3a;
+  color: #ffffff;
+  border-color: #444444;
+}
+
+body.dark-mode .form-control:disabled {
+  background-color: #333333;
+  color: #b0b0b0;
+}
+
+/* Add responsive styling */
+@media (max-width: 480px) {
+  .profile-edit__preview {
+    width: 100px;
+    height: 100px;
+  }
+}

@@ -5,6 +5,7 @@
 @import 'components/status.css';
 @import 'components/navigation.css';
 @import 'components/profile.css';
+@import 'components/modal.css'; /* Add this line */
 @import 'layout.css';
 
 /* Dashboard specific styles that don't fit in components */

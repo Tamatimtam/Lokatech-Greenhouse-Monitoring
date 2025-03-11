@@ -4,11 +4,13 @@
 {% import "macros/controls.html" as controls %}
 {% import "macros/status.html" as status %}
 {% import "macros/navigation.html" as navigation %}
+{% import "macros/modal.html" as modal %}
 
 {% block title %}Profile - Greenhouse Monitoring{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-page.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 {% endblock %}
 
@@ -25,10 +27,10 @@
   {% call card.card('USER PROFILE', 'card--profile') %}
     <div class="profile__header">
       <!-- Using a known existing image (lokatech-logo.png) as fallback -->
-      <img src="{{ user.picture if user and user.picture}}" 
+      <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
            alt="Profile Picture" 
            class="profile__image"
-           onerror="this.src='{{ url_for('static', filename='images/default-avatar.png') }}'">
+           id="mainProfileImage">
       <div class="profile__info">
         <h2>{{ user.name if user else 'Guest User' }}</h2>
         <p>{{ user.email if user else 'Not logged in' }}</p>
@@ -39,7 +41,7 @@
   <div class="grid grid--3col">
     {% call card.card('ACCOUNT SETTINGS') %}
       <ul class="profile__list">
-        <li class="profile__list-item">
+        <li class="profile__list-item" id="openProfileModal" style="cursor: pointer;">
           <i class="fas fa-user"></i> 
           <span>Profile Information</span>
         </li>
@@ -88,15 +90,60 @@
       </ul>
     {% endcall %}
   </div>
+  
+  {% call modal.modal('profileModal', 'Profile Information') %}
+    <div class="profile-edit">
+      <div class="profile-edit__picture">
+        <img 
+          src="{{ user.picture if user and user.picture else url_for('static', filename='images/default-avatar.png') }}" 
+          alt="Profile Picture Preview" 
+          id="profilePicturePreview"
+          class="profile-edit__preview"
+        >
+        <div class="profile-edit__actions">
+          <label for="profilePictureInput" class="profile-edit__upload-btn">
+            <i class="fas fa-camera"></i> Change Picture
+          </label>
+          <input type="file" id="profilePictureInput" accept="image/*" class="hidden-input">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="displayName">Display Name</label>
+        <input type="text" id="displayName" value="{{ user.name if user else 'Guest User' }}" class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="emailAddress">Email Address</label>
+        <input type="email" id="emailAddress" value="{{ user.email if user else '' }}" disabled class="form-control">
+        <small>Email cannot be changed</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="userRole">Role</label>
+        <input type="text" id="userRole" value="Administrator" disabled class="form-control">
+      </div>
+    </div>
+  {% endcall %}
 </div>
 
 {{ navigation.bottom_nav('profile') }}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+<script src="{{ url_for('static', filename='js/profile-page.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Toggle switches
+    // Initialize the profile modal
+    initModal('profileModal', 'openProfileModal', function(modal, closeModal) {
+      const displayName = document.getElementById('displayName').value;
+      console.log('Saving profile with name:', displayName);
+      closeModal();
+      // Here you would typically send the data to a server
+    });
+    
+    // Toggle switches (existing code)
     document.getElementById('darkModeSwitch').addEventListener('change', function() {
       console.log('Dark mode toggled:', this.checked);
       // Add dark mode implementation later
