@@ -26,7 +26,6 @@
 
   {% call card.card('USER PROFILE', 'card--profile') %}
     <div class="profile__header">
-      <!-- Using a known existing image (lokatech-logo.png) as fallback -->
       <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
            alt="Profile Picture" 
            class="profile__image"
@@ -38,41 +37,20 @@
     </div>
   {% endcall %}
 
-  <div class="grid grid--3col">
+  <div class="grid grid--2col">
     {% call card.card('ACCOUNT SETTINGS') %}
       <ul class="profile__list">
         <li class="profile__list-item" id="openProfileModal" style="cursor: pointer;">
           <i class="fas fa-user"></i> 
           <span>Profile Information</span>
         </li>
-        <li class="profile__list-item">
+        <li class="profile__list-item" id="openPasswordModal" style="cursor: pointer;">
           <i class="fas fa-lock"></i> 
           <span>Change Password</span>
         </li>
         <li class="profile__list-item">
           <i class="fas fa-sign-out-alt"></i> 
           <a href="/logout">Logout</a>
-        </li>
-      </ul>
-    {% endcall %}
-
-    {% call card.card('PREFERENCES') %}
-      <ul class="profile__list">
-        <li class="profile__list-item">
-          <i class="fas fa-moon"></i> 
-          <span>Dark Mode</span>
-          <label class="switch">
-            <input type="checkbox" id="darkModeSwitch">
-            <span class="switch__slider"></span>
-          </label>
-        </li>
-        <li class="profile__list-item">
-          <i class="fas fa-bell"></i> 
-          <span>Notifications</span>
-          <label class="switch">
-            <input type="checkbox" id="notificationsSwitch" checked>
-            <span class="switch__slider"></span>
-          </label>
         </li>
       </ul>
     {% endcall %}
@@ -125,6 +103,57 @@
       </div>
     </div>
   {% endcall %}
+  
+  {% call modal.modal('passwordModal', 'Change Password') %}
+    <div class="password-edit">
+      <div class="form-group">
+        <label for="currentPassword">Current Password</label>
+        <div class="password-input-container">
+          <input type="password" id="currentPassword" class="form-control" placeholder="Enter your current password" required>
+          <button type="button" class="password-toggle" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <div class="password-input-container">
+          <input type="password" id="newPassword" class="form-control" placeholder="Enter your new password" required>
+          <button type="button" class="password-toggle" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="password-strength">
+          <div class="strength-meter">
+            <div class="strength-meter__bar" id="passwordStrength"></div>
+          </div>
+          <span class="strength-text" id="strengthText">Password strength</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <div class="password-input-container">
+          <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm your new password" required>
+          <button type="button" class="password-toggle" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <small id="passwordMatch"></small>
+      </div>
+      
+      <div class="password-requirements">
+        <h4>Password Requirements:</h4>
+        <ul class="requirements-list">
+          <li id="length-check"><i class="fas fa-circle"></i> Minimum 8 characters</li>
+          <li id="uppercase-check"><i class="fas fa-circle"></i> At least 1 uppercase letter</li>
+          <li id="number-check"><i class="fas fa-circle"></i> At least 1 number</li>
+          <li id="special-check"><i class="fas fa-circle"></i> At least 1 special character</li>
+        </ul>
+      </div>
+    </div>
+  {% endcall %}
 </div>
 
 {{ navigation.bottom_nav('profile') }}
@@ -133,26 +162,4 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
 <script src="{{ url_for('static', filename='js/profile-page.js') }}"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the profile modal
-    initModal('profileModal', 'openProfileModal', function(modal, closeModal) {
-      const displayName = document.getElementById('displayName').value;
-      console.log('Saving profile with name:', displayName);
-      closeModal();
-      // Here you would typically send the data to a server
-    });
-    
-    // Toggle switches (existing code)
-    document.getElementById('darkModeSwitch').addEventListener('change', function() {
-      console.log('Dark mode toggled:', this.checked);
-      // Add dark mode implementation later
-    });
-    
-    document.getElementById('notificationsSwitch').addEventListener('change', function() {
-      console.log('Notifications toggled:', this.checked);
-      // Add notification settings implementation later
-    });
-  });
-</script>
 {% endblock %}
