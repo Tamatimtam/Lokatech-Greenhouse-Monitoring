@@ -29,7 +29,7 @@
       {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
       {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
     {% endcall %}
-    
+
     {% call card.card('EXHAUST FAN 1') %}
       {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
       {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
@@ -48,7 +48,7 @@
       {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
       {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
     {% endcall %}
-    
+
     {% call card.card('EXHAUST FAN 1') %}
       {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
       {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
@@ -70,43 +70,14 @@
 {% block scripts %}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    // Define gauge settings
-    const gauges = [
-      { id: 'temperature-gauge', value: 50, max: 100, color: '#286247' },
-      { id: 'humidity-gauge', value: 75, max: 100, color: '#333333' },
-      { id: 'light-gauge', value: 25, max: 100, color: '#F9D949' },
-      { id: 'more-gauge', value: 25, max: 100, color: '#EB6B6B' }
-    ];
-    
-    // Set up all gauges
-    gauges.forEach(gauge => {
-      setupGauge(gauge.id, gauge.value, gauge.max, gauge.color);
-    });
-    
     // Toggle switches
     document.getElementById('fan-switch').addEventListener('change', function() {
       console.log('Exhaust fan toggled:', this.checked);
     });
-    
+
     document.getElementById('lights-switch').addEventListener('change', function() {
       console.log('Lights toggled:', this.checked);
     });
   });
-  
-  function setupGauge(id, value, max, color) {
-    const gaugeElement = document.getElementById(id);
-    const circle = gaugeElement.querySelector('.svg-circle');
-    const valueDisplay = gaugeElement.querySelector('.value');
-    const circumference = 2 * Math.PI * 54;
-    
-    // Update the display value
-    valueDisplay.textContent = value;
-    
-    // Update the gauge
-    circle.style.stroke = color;
-    const offset = circumference - (value / max) * circumference;
-    circle.style.strokeDasharray = `${circumference} ${circumference}`;
-    circle.style.strokeDashoffset = offset;
-  }
 </script>
 {% endblock %}
