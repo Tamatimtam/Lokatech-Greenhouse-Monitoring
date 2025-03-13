@@ -4,6 +4,14 @@
  * including preferences, modal interactions, and profile data management
  */
 
+// Mock user data for demonstration
+const mockUsers = [
+  { id: 1, username: 'john_doe', email: 'john@example.com', role: 'Administrator' },
+  { id: 2, username: 'jane_smith', email: 'jane@example.com', role: 'Editor' },
+  { id: 3, username: 'bob_johnson', email: 'bob@example.com', role: 'Viewer' },
+  { id: 4, username: 'alice_green', email: 'alice@example.com', role: 'Editor' }
+];
+
 document.addEventListener('DOMContentLoaded', function() {
   // Initialize the profile modal with enhanced functionality
   const profileModalControl = initModal('profileModal', 'openProfileModal', function(modal, closeModal) {
@@ -60,6 +68,13 @@ document.addEventListener('DOMContentLoaded', function() {
     showToast('Password changed successfully!');
   });
   
+  // Initialize user management modal
+  const userManagementModalControl = initModal('userManagementModal', 'openUserManagementModal', function(modal, closeModal) {
+    // We don't need to do anything special on save button click for this modal
+    // as users are added via the Add User button
+    closeModal();
+  });
+  
   // Set up password visibility toggles
   setupPasswordToggles();
   
@@ -68,6 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Profile picture preview functionality
   setupProfilePictureUpload();
+  
+  // User management setup
+  setupUserManagement();
 });
 
 /**
@@ -281,3 +299,99 @@ function setupPasswordValidation() {
 function showValidationError(message) {
   alert(message);
 }
+
+/**
+ * Set up user management functionality
+ */
+function setupUserManagement() {
+  // Populate user table with mock data
+  populateUserTable();
+  
+  // Set up add user functionality
+  const addUserBtn = document.getElementById('addUserBtn');
+  if (addUserBtn) {
+    addUserBtn.addEventListener('click', function() {
+      addNewUser();
+    });
+  }
+}
+
+/**
+ * Populate the user table with mock data
+ */
+function populateUserTable() {
+  const tableBody = document.getElementById('userTableBody');
+  if (!tableBody) return;
+  
+  // Clear existing content
+  tableBody.innerHTML = '';
+  
+  // Add each user row
+  mockUsers.forEach(user => {
+    const row = document.createElement('tr');
+    row.dataset.userId = user.id;
+    
+    row.innerHTML = `
+      <td>${user.username}</td>
+      <td>${user.email}</td>
+      <td>
+        <button class="delete-user-btn" data-user-id="${user.id}" title="Delete User">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+      </td>
+    `;
+    
+    tableBody.appendChild(row);
+  });
+  
+  // Add delete button functionality
+  document.querySelectorAll('.delete-user-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const userId = this.getAttribute('data-user-id');
+      deleteUser(userId);
+    });
+  });
+}
+
+/**
+ * Add a new user based on form inputs
+ */
+function addNewUser() {
+  const usernameInput = document.getElementById('newUsername');
+  const emailInput = document.getElementById('newUserEmail');
+  const passwordInput = document.getElementById('newUserPassword');
+  
+  // Simple validation
+  if (!usernameInput.value || !emailInput.value || !passwordInput.value) {
+    showValidationError('All fields are required');
+    return;
+  }
+  
+  if (!validateEmail(emailInput.value)) {
+    showValidationError('Please enter a valid email address');
+    return;
+  }
+  
+  // Create new user object
+  const newUser = {
+    id: mockUsers.length + 1,
+    username: usernameInput.value,
+    email: emailInput.value
+  };
+  
+  // Add to mock users array
+  mockUsers.push(newUser);
+  
+  // Refresh the table
+  populateUserTable();
+  
+  // Show success message
+  showToast('User added successfully!');
+  
+  // Clear the form
+  usernameInput.value = '';
+  emailInput.value = '';
+  passwordInput.value = '';
+}
+
+// ...existing code...

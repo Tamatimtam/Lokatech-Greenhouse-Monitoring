@@ -208,3 +208,269 @@
     height: 100px;
   }
 }
+
+/* User Management Styles */
+.user-management {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.user-form {
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid #eee;
+}
+
+.user-form h4,
+.user-list h4 {
+  margin-bottom: var(--spacing-md);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.form-actions {
+  margin-top: var(--spacing-md);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-light);
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--spacing-md);
+}
+
+.users-table th,
+.users-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.users-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid #ddd;
+}
+
+.users-table tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.delete-user-btn {
+  background: none;
+  border: none;
+  color: #ff4d4d;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.delete-user-btn:hover {
+  background-color: rgba(255, 77, 77, 0.1);
+}
+
+/* Make the user management modal wider */
+#userManagementModal .modal__content {
+  max-width: 700px;
+}
+
+/* Enhanced User Management Styles */
+.user-management {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.card-like {
+  background-color: #fff;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eee;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--primary);
+}
+
+.section-icon {
+  font-size: 1.2rem;
+  color: var(--primary);
+  margin-right: var(--spacing-sm);
+}
+
+.user-form h4,
+.user-list h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.form-icon {
+  width: 20px;
+  margin-right: var(--spacing-xs);
+  color: var(--primary);
+}
+
+.form-actions {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 98, 71, 0.2);
+}
+
+/* Table styling improvements */
+.table-responsive {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid #eee;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.users-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: #f9f9f9;
+}
+
+.table-header-icon {
+  margin-right: var(--spacing-xs);
+  color: var(--primary);
+  width: 16px;
+}
+
+.users-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.users-table tr:hover {
+  background-color: #f0f7f4;
+}
+
+/* Role badges */
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.role-admin {
+  background-color: #ffcccb;
+  color: #d32f2f;
+}
+
+.role-editor {
+  background-color: #fff0c2;
+  color: #ff8f00;
+}
+
+.role-viewer {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+/* Delete button styling */
+.delete-user-btn {
+  background-color: #fff;
+  border: 1px solid #ff4d4d;
+  color: #ff4d4d;
+  cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.delete-user-btn:hover {
+  background-color: #ff4d4d;
+  color: white;
+}
+
+/* Make the user management modal wider */
+#userManagementModal .modal__content {
+  max-width: 700px;
+}
+
+/* Media queries for responsive design */
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+  
+  .users-table th, 
+  .users-table td {
+    padding: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .table-header-icon,
+  .section-icon {
+    display: none;
+  }
+}

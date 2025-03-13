@@ -10,6 +10,9 @@
   background-color: rgba(0, 0, 0, 0.5);
   justify-content: center;
   align-items: center;
+  padding: var(--spacing-md);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .modal--active {
@@ -20,12 +23,13 @@
   background-color: var(--surface);
   border-radius: var(--radius-md);
   padding: var(--spacing-lg);
-  width: 90%;
+  width: 100%;
   max-width: 500px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
+  margin: auto;
 }
 
 .modal__header {
