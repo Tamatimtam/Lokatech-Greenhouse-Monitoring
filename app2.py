@@ -53,7 +53,7 @@ def profile():
 def login():
     id_token = request.json['idToken']
     try:
-        google_user = auth.verify_id_token(id_token)
+        google_user = auth.verify_id_token(id_token, clock_skew_seconds=20)
         session['user'] = {
             'email': google_user['email'],
             'name': google_user.get('name', google_user['email'].split('@')[0]),
