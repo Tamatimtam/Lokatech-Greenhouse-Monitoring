@@ -1,38 +1,28 @@
 /**
- * Profile page specific functionality
- * This file handles all interactions specific to the profile page
- * including preferences, modal interactions, and profile data management
+ * Profile page functionality
+ * Combines modal functionality and profile-specific features
  */
 
 // Mock user data for demonstration
 const mockUsers = [
-  { id: 1, username: 'john_doe', email: 'john@example.com', role: 'Administrator' },
-  { id: 2, username: 'jane_smith', email: 'jane@example.com', role: 'Editor' },
-  { id: 3, username: 'bob_johnson', email: 'bob@example.com', role: 'Viewer' },
-  { id: 4, username: 'alice_green', email: 'alice@example.com', role: 'Editor' }
+  { id: 1, username: 'john_doe', email: 'john@example.com' },
+  { id: 2, username: 'jane_smith', email: 'jane@example.com' },
+  { id: 3, username: 'bob_johnson', email: 'bob@example.com' },
+  { id: 4, username: 'alice_green', email: 'alice@example.com' }
 ];
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize the profile modal with enhanced functionality
+  // Initialize the profile modal
   const profileModalControl = initModal('profileModal', 'openProfileModal', function(modal, closeModal) {
-    // Get values from form
     const displayName = document.getElementById('displayName').value;
     
-    // Simple validation
     if (!displayName.trim()) {
-      alert('Please enter a valid display name');
+      showValidationError('Please enter a valid display name');
       return;
     }
     
-    console.log('Saving profile with name:', displayName);
-    
-    // Update the profile display in the UI without refreshing
     updateProfileDisplay(displayName);
-    
-    // Close modal after successful update
     closeModal();
-    
-    // Show a success message
     showToast('Profile updated successfully!');
   });
   
@@ -42,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
-    // Validate inputs
     if (!currentPassword) {
       showValidationError('Current password is required');
       return;
@@ -58,34 +47,93 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // In a real app, we would send this to the server
-    console.log('Password change requested');
-    
-    // Close the modal
     closeModal();
-    
-    // Show a success message
     showToast('Password changed successfully!');
   });
   
   // Initialize user management modal
-  const userManagementModalControl = initModal('userManagementModal', 'openUserManagementModal', function(modal, closeModal) {
-    // We don't need to do anything special on save button click for this modal
-    // as users are added via the Add User button
-    closeModal();
+  const userManagementModalControl = initModal('userManagementModal', 'openUserManagementModal');
+  
+  // Set up other functionality
+  setupPasswordToggles();
+  setupPasswordValidation();
+  setupProfilePictureUpload();
+  setupUserManagement();
+});
+
+/**
+ * Initialize a modal component
+ * @param {string} modalId - The ID of the modal element
+ * @param {string} openerId - The ID of the element that opens the modal
+ * @param {Function} onSave - Optional callback function when save button is clicked
+ */
+function initModal(modalId, openerId, onSave = null) {
+  const modal = document.getElementById(modalId);
+  const opener = document.getElementById(openerId);
+  const closeBtn = document.getElementById('close' + modalId);
+  const cancelBtn = document.getElementById('cancel' + modalId);
+  const saveBtn = document.getElementById('save' + modalId);
+  
+  if (!modal || !opener) {
+    console.error(`Modal initialization failed: Elements not found. Modal: ${modalId}, Opener: ${openerId}`);
+    return;
+  }
+  
+  // Open modal function
+  function openModal() {
+    modal.classList.add('modal--active');
+    document.body.style.overflow = 'hidden';
+  }
+  
+  // Close modal function
+  function closeModal() {
+    modal.classList.remove('modal--active');
+    document.body.style.overflow = '';
+  }
+  
+  // Event listeners
+  opener.addEventListener('click', openModal);
+  
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeModal);
+  }
+  
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeModal);
+  }
+  
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
+      if (onSave && typeof onSave === 'function') {
+        onSave(modal, closeModal);
+      } else {
+        closeModal();
+      }
+    });
+  }
+  
+  // Close when clicking outside
+  modal.addEventListener('click', function(event) {
+    if (event.target === modal) {
+      closeModal();
+    }
   });
   
-  // Set up password visibility toggles
-  setupPasswordToggles();
-  
-  // Set up password validation
-  setupPasswordValidation();
-  
-  // Profile picture preview functionality
-  setupProfilePictureUpload();
-  
-  // User management setup
-  setupUserManagement();
+  // Return control functions
+  return {
+    open: openModal,
+    close: closeModal
+  };
+}
+
+// Register global Escape key handler for modals
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    document.querySelectorAll('.modal--active').forEach(activeModal => {
+      activeModal.classList.remove('modal--active');
+      document.body.style.overflow = '';
+    });
+  }
 });
 
 /**
@@ -96,7 +144,6 @@ function setupProfilePictureUpload() {
   const previewImage = document.getElementById('profilePicturePreview');
   const mainProfileImage = document.getElementById('mainProfileImage');
   
-  // Handle file selection
   if (fileInput) {
     fileInput.addEventListener('change', function() {
       const file = this.files[0];
@@ -104,24 +151,18 @@ function setupProfilePictureUpload() {
         const reader = new FileReader();
         
         reader.onload = function(e) {
-          // Set the preview image source
           previewImage.src = e.target.result;
-          previewImage.style.display = 'block';
           
-          // Also update the main profile image
           if (mainProfileImage) {
             mainProfileImage.src = e.target.result;
           }
           
-          // Store in session storage for demo purposes
           sessionStorage.setItem('profile_picture', e.target.result);
         };
         
         reader.readAsDataURL(file);
       }
     });
-  } else {
-    console.error('Profile picture input element not found');
   }
 }
 
@@ -129,19 +170,16 @@ function setupProfilePictureUpload() {
  * Update profile display in the UI
  */
 function updateProfileDisplay(name) {
-  // Update header greeting
   const headerTitle = document.querySelector('.header__content h1');
   if (headerTitle) {
     headerTitle.textContent = `Hello, ${name}!`;
   }
   
-  // Update profile card
   const profileName = document.querySelector('.profile__info h2');
   if (profileName) {
     profileName.textContent = name;
   }
   
-  // Store in session storage for demo purposes
   sessionStorage.setItem('user_name', name);
 }
 
@@ -149,7 +187,6 @@ function updateProfileDisplay(name) {
  * Display a toast notification
  */
 function showToast(message) {
-  // Create toast element if it doesn't exist
   let toast = document.getElementById('toast-notification');
   
   if (!toast) {
@@ -159,19 +196,22 @@ function showToast(message) {
     document.body.appendChild(toast);
   }
   
-  // Set message and show toast
   toast.textContent = message;
   toast.classList.add('toast--visible');
   
-  // Hide after 3 seconds
   setTimeout(() => {
     toast.classList.remove('toast--visible');
   }, 3000);
 }
 
 /**
- * Set up password visibility toggle buttons
+ * Show validation error message
  */
+function showValidationError(message) {
+  alert(message);
+}
+
+// ... Password functionality ...
 function setupPasswordToggles() {
   const toggles = document.querySelectorAll('.password-toggle');
   
@@ -180,7 +220,6 @@ function setupPasswordToggles() {
       const input = this.previousElementSibling;
       const icon = this.querySelector('i');
       
-      // Toggle password visibility
       if (input.type === 'password') {
         input.type = 'text';
         icon.classList.remove('fa-eye');
@@ -194,9 +233,6 @@ function setupPasswordToggles() {
   });
 }
 
-/**
- * Check if a password meets all requirements
- */
 function isPasswordValid(password) {
   const minLength = 8;
   const hasUpperCase = /[A-Z]/.test(password);
@@ -206,9 +242,6 @@ function isPasswordValid(password) {
   return password.length >= minLength && hasUpperCase && hasNumber && hasSpecial;
 }
 
-/**
- * Set up real-time password validation feedback
- */
 function setupPasswordValidation() {
   const newPassword = document.getElementById('newPassword');
   const confirmPassword = document.getElementById('confirmPassword');
@@ -228,28 +261,23 @@ function setupPasswordValidation() {
     });
   }
   
-  // Check password requirements
   function validatePassword(password) {
-    // Check individual requirements
     const lengthCheck = document.getElementById('length-check');
     const uppercaseCheck = document.getElementById('uppercase-check');
     const numberCheck = document.getElementById('number-check');
     const specialCheck = document.getElementById('special-check');
     
-    // Update requirement indicators
     updateRequirement(lengthCheck, password.length >= 8);
     updateRequirement(uppercaseCheck, /[A-Z]/.test(password));
     updateRequirement(numberCheck, /[0-9]/.test(password));
     updateRequirement(specialCheck, /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password));
     
-    // Calculate strength
     let strength = 0;
     if (password.length >= 8) strength += 25;
     if (/[A-Z]/.test(password)) strength += 25;
     if (/[0-9]/.test(password)) strength += 25;
     if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 25;
     
-    // Update strength meter
     passwordStrength.style.width = strength + '%';
     passwordStrength.className = 'strength-meter__bar';
     
@@ -265,7 +293,6 @@ function setupPasswordValidation() {
     }
   }
   
-  // Update requirement indicators
   function updateRequirement(element, isValid) {
     if (isValid) {
       element.classList.add('valid');
@@ -276,7 +303,6 @@ function setupPasswordValidation() {
     }
   }
   
-  // Check if passwords match
   function validatePasswordMatch(password, confirmPassword) {
     if (!confirmPassword) {
       passwordMatch.textContent = '';
@@ -293,40 +319,22 @@ function setupPasswordValidation() {
   }
 }
 
-/**
- * Show validation error message
- */
-function showValidationError(message) {
-  alert(message);
-}
-
-/**
- * Set up user management functionality
- */
+// ... User management functionality ...
 function setupUserManagement() {
-  // Populate user table with mock data
   populateUserTable();
   
-  // Set up add user functionality
   const addUserBtn = document.getElementById('addUserBtn');
   if (addUserBtn) {
-    addUserBtn.addEventListener('click', function() {
-      addNewUser();
-    });
+    addUserBtn.addEventListener('click', addNewUser);
   }
 }
 
-/**
- * Populate the user table with mock data
- */
 function populateUserTable() {
   const tableBody = document.getElementById('userTableBody');
   if (!tableBody) return;
   
-  // Clear existing content
   tableBody.innerHTML = '';
   
-  // Add each user row
   mockUsers.forEach(user => {
     const row = document.createElement('tr');
     row.dataset.userId = user.id;
@@ -344,7 +352,6 @@ function populateUserTable() {
     tableBody.appendChild(row);
   });
   
-  // Add delete button functionality
   document.querySelectorAll('.delete-user-btn').forEach(button => {
     button.addEventListener('click', function() {
       const userId = this.getAttribute('data-user-id');
@@ -353,15 +360,11 @@ function populateUserTable() {
   });
 }
 
-/**
- * Add a new user based on form inputs
- */
 function addNewUser() {
   const usernameInput = document.getElementById('newUsername');
   const emailInput = document.getElementById('newUserEmail');
   const passwordInput = document.getElementById('newUserPassword');
   
-  // Simple validation
   if (!usernameInput.value || !emailInput.value || !passwordInput.value) {
     showValidationError('All fields are required');
     return;
@@ -372,26 +375,36 @@ function addNewUser() {
     return;
   }
   
-  // Create new user object
   const newUser = {
     id: mockUsers.length + 1,
     username: usernameInput.value,
     email: emailInput.value
   };
   
-  // Add to mock users array
   mockUsers.push(newUser);
-  
-  // Refresh the table
   populateUserTable();
-  
-  // Show success message
   showToast('User added successfully!');
   
-  // Clear the form
   usernameInput.value = '';
   emailInput.value = '';
   passwordInput.value = '';
 }
 
-// ...existing code...
+function deleteUser(userId) {
+  if (!confirm('Are you sure you want to delete this user?')) {
+    return;
+  }
+  
+  const index = mockUsers.findIndex(user => user.id == userId);
+  
+  if (index !== -1) {
+    mockUsers.splice(index, 1);
+    populateUserTable();
+    showToast('User deleted successfully!');
+  }
+}
+
+function validateEmail(email) {
+  const re = /\S+@\S+\.\S+/;
+  return re.test(email);
+}
