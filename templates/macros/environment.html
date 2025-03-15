@@ -3,7 +3,7 @@
 {% macro env_variable_row(variable, icon, value, unit, color, gauge_id, sections) %}
 <div class="env-variable-row">
   <div class="env-variable-gauge">
-    {{ gauges.env_gauge(variable + ' Average', icon, value, unit, color, gauge_id) }}
+    {{ gauges.env_gauge(variable + ' Rata-rata', icon, value, unit, color, gauge_id) }}
   </div>
   <div class="env-variable-sections">
     {% for section in sections %}

@@ -6,7 +6,7 @@
 {% import "macros/navigation.html" as navigation %}
 {% import "macros/environment.html" as environment %}
 
-{% block title %}Home - Greenhouse Monitoring{% endblock %}
+{% block title %}Beranda - Monitoring Greenhouse{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -18,16 +18,16 @@
 <div class="container">
   <header class="header">
     <div class="header__content">
-      <h1>Hello, {{ user.name if user else 'Guest' }}!</h1>
-      <p>Welcome back to Greenhouse Monitoring System</p>
+      <h1>Halo, {{ user.name if user else 'Pengguna' }}!</h1>
+      <p>Selamat datang kembali di Sistem Monitoring Greenhouse</p>
     </div>
-      <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+      <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
   </header>
 
-  {% call card.card('ENVIRONMENTAL CONDITIONS', 'card--env') %}
+  {% call card.card('KONDISI LINGKUNGAN', 'card--env') %}
     {% set env_variables = [
       {
-        'name': 'Temperature',
+        'name': 'Suhu',
         'icon': 'temperature-high',
         'value': 25,
         'unit': '°C',
@@ -40,7 +40,7 @@
         ]
       },
       {
-        'name': 'Humidity',
+        'name': 'Kelembaban',
         'icon': 'tint',
         'value': 65,
         'unit': '%',
@@ -53,7 +53,7 @@
         ]
       },
       {
-        'name': 'Light',
+        'name': 'Cahaya',
         'icon': 'sun',
         'value': 45,
         'unit': '%',
@@ -81,15 +81,15 @@
   {% endcall %}
 
   <div class="grid grid--2col">
-    {% call card.card('QUICK CONTROLS') %}
-      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
-      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
+    {% call card.card('KONTROL CEPAT') %}
+      {{ controls.control_switch('Kipas Exhaust', 'fan', 'fan-switch', true) }}
+      {{ controls.control_switch('Lampu', 'lightbulb', 'lights-switch', true) }}
     {% endcall %}
 
-    {% call card.card('STATUS SUMMARY') %}
-      {{ status.status_item('Temperature is within optimal range', 'temperature-high', '#286247') }}
-      {{ status.status_item('Humidity is slightly above optimal range', 'tint', '#333333') }}
-      {{ status.status_item('Light levels are optimal for growth', 'sun', '#F9D949') }}
+    {% call card.card('RINGKASAN STATUS') %}
+      {{ status.status_item('Suhu berada dalam rentang optimal', 'temperature-high', '#286247') }}
+      {{ status.status_item('Kelembaban sedikit di atas rentang optimal', 'tint', '#333333') }}
+      {{ status.status_item('Tingkat cahaya optimal untuk pertumbuhan', 'sun', '#F9D949') }}
     {% endcall %}
   </div>
 </div>
@@ -114,11 +114,11 @@
 
     // Toggle switches
     document.getElementById('fan-switch').addEventListener('change', function() {
-      console.log('Exhaust fan toggled:', this.checked);
+      console.log('Kipas exhaust diubah:', this.checked);
     });
 
     document.getElementById('lights-switch').addEventListener('change', function() {
-      console.log('Lights toggled:', this.checked);
+      console.log('Lampu diubah:', this.checked);
     });
   });
 

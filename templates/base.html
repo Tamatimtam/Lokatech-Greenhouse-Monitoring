@@ -1,27 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Lokatani.id{% endblock %}</title>
-    
+
     <!-- Common CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="icon" type="image/x-icon" href=" {{url_for('static', filename='images/logo.ico')}}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Page-specific CSS -->
     {% block styles %}{% endblock %}
-    
+
     <!-- Common scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    
+
     {% block head_scripts %}{% endblock %}
 </head>
 <body>
     {% block content %}{% endblock %}
-    
+
     {% block scripts %}{% endblock %}
 </body>
 </html>
