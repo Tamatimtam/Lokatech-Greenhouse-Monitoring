@@ -1,0 +1,20 @@
+{% import "macros/gauges.html" as gauges %}
+
+{% macro env_variable_row(variable, icon, value, unit, color, gauge_id, sections) %}
+<div class="env-variable-row">
+  <div class="env-variable-gauge">
+    {{ gauges.env_gauge(variable + ' Average', icon, value, unit, color, gauge_id) }}
+  </div>
+  <div class="env-variable-sections">
+    {% for section in sections %}
+    <div class="section-reading">
+      <span class="section-name">{{ section.name }}</span>
+      <span class="section-value">{{ section.value }}{{ unit }}</span>
+      <span class="section-indicator">
+        <i class="fas fa-{{ section.trend_icon }}" style="color: {{ section.trend_color }};"></i>
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}

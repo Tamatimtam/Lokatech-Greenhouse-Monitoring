@@ -19,30 +19,30 @@
     padding: var(--spacing-lg);
     width: 100%;
 }
-  
+
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--spacing-lg);
 }
-  
+
 .header__content h1 {
     font-size: 1.5rem;
     margin-bottom: var(--spacing-xs);
 }
-  
+
 .header__content p {
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
-  
+
 /* Update logo size to match layout.css for consistency */
 .logo {
     width: 90px;
     height: auto;
 }
-  
+
 .card {
     background-color: var(--surface);
     border-radius: var(--radius-md);
@@ -50,7 +50,7 @@
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-lg);
 }
-  
+
 .card-title {
     text-align: center;
     margin-bottom: var(--spacing-lg);
@@ -58,35 +58,35 @@
     text-transform: uppercase;
     font-size: 1rem;
 }
-  
+
 .environmental-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: var(--spacing-md);
 }
-  
+
 @media (max-width: 768px) {
     .environmental-grid {
       grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .dashboard-grid {
       grid-template-columns: 1fr;
     }
 }
-  
+
 @media (max-width: 480px) {
     .environmental-grid {
       grid-template-columns: 1fr;
     }
 }
-  
+
 .env-item {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
-  
+
 .env-item-title {
     font-size: 0.8rem;
     color: var(--text-secondary);
@@ -95,7 +95,7 @@
     align-items: center;
     gap: var(--spacing-xs);
 }
-  
+
 .circular-gauge {
     position: relative;
     width: 120px;
@@ -104,31 +104,31 @@
     justify-content: center;
     align-items: center;
 }
-  
+
 .gauge-value {
     position: absolute;
     font-size: 1.5rem;
     font-weight: bold;
 }
-  
+
 .gauge-unit {
     font-size: 0.8rem;
     position: absolute;
     top: 25px;
     right: 30px;
 }
-  
+
 .svg-circle {
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
 }
-  
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-lg);
 }
-  
+
 .control-item {
     display: flex;
     justify-content: space-between;
@@ -136,31 +136,31 @@
     padding: var(--spacing-md) 0;
     border-bottom: 1px solid #eee;
 }
-  
+
 .control-item:last-child {
     border-bottom: none;
 }
-  
+
 .control-label {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
     font-weight: 500;
 }
-  
+
 .switch {
     position: relative;
     display: inline-block;
     width: 50px;
     height: 24px;
 }
-  
+
 .switch input {
     opacity: 0;
     width: 0;
     height: 0;
 }
-  
+
 .slider {
     position: absolute;
     cursor: pointer;
@@ -172,7 +172,7 @@
     transition: .4s;
     border-radius: 34px;
 }
-  
+
 .slider:before {
     position: absolute;
     content: "";
@@ -184,22 +184,22 @@
     transition: .4s;
     border-radius: 50%;
 }
-  
+
 input:checked + .slider {
     background-color: var(--primary);
 }
-  
+
 input:checked + .slider:before {
     transform: translateX(26px);
 }
-  
+
 .status-item {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-md);
 }
-  
+
 .status-icon {
     width: 24px;
     height: 24px;
@@ -207,11 +207,11 @@ input:checked + .slider:before {
     align-items: center;
     justify-content: center;
 }
-  
+
 .status-text {
     font-size: 0.95rem;
 }
-  
+
 .bottom-nav {
     position: fixed;
     bottom: 0;
@@ -223,7 +223,7 @@ input:checked + .slider:before {
     padding: var(--spacing-sm) 0;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 }
-  
+
 .nav-item {
     display: flex;
     flex-direction: column;
@@ -233,11 +233,131 @@ input:checked + .slider:before {
     font-size: 0.8rem;
     padding: var(--spacing-sm);
 }
-  
+
 .nav-item.active {
     color: var(--primary);
 }
-  
+
 .nav-icon {
     margin-bottom: var(--spacing-xs);
+}
+
+/* New styles for environmental variable rows */
+.env-variable-row {
+  display: flex;
+  flex-direction: row; /* Keep row layout for gauge and sections */
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid #eee;
+  width: 100%; /* Ensure it takes full width */
+}
+
+.env-variable-row:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.env-variable-gauge {
+  flex: 0 0 auto;
+  margin-right: var(--spacing-lg);
+}
+
+.env-variable-sections {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  gap: var(--spacing-md);
+}
+
+.section-reading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.section-reading:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.section-name {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.section-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.section-indicator {
+  font-size: 1rem;
+}
+
+/* Make gauge container more compact for this layout */
+.env-variable-row .gauge {
+  margin: 0;
+}
+
+.env-variable-row .gauge__circle {
+  width: 100px;
+  height: 100px;
+}
+
+.env-variable-row .gauge__circle svg {
+  width: 100px;
+  height: 100px;
+}
+
+/* Ensure the card content stacks the rows properly */
+.card--env .card__content {
+  display: flex;
+  flex-direction: column; /* Stack the rows vertically */
+  gap: var(--spacing-md);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .env-variable-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .env-variable-gauge {
+    margin-right: 0;
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    justify-content: center;
+  }
+
+  .env-variable-sections {
+    flex-wrap: wrap;
+  }
+
+  .section-reading {
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .env-variable-sections {
+    flex-direction: column;
+  }
+
+  .section-reading {
+    margin-bottom: var(--spacing-sm);
+  }
 }

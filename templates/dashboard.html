@@ -4,6 +4,7 @@
 {% import "macros/controls.html" as controls %}
 {% import "macros/status.html" as status %}
 {% import "macros/navigation.html" as navigation %}
+{% import "macros/environment.html" as environment %}
 
 {% block title %}Home - Greenhouse Monitoring{% endblock %}
 
@@ -24,10 +25,59 @@
   </header>
 
   {% call card.card('ENVIRONMENTAL CONDITIONS', 'card--env') %}
-    {{ gauges.env_gauge('Temperature', 'temperature-high', 25, '°C', '#286247', 'temperature-gauge') }}
-    {{ gauges.env_gauge('Humidity', 'tint', 25, '%', '#333333', 'humidity-gauge') }}
-    {{ gauges.env_gauge('Light Levels', 'sun', 25, '%', '#F9D949', 'light-gauge') }}
-    {{ gauges.env_gauge('More Sensors', 'microchip', 25, '%', '#EB6B6B', 'more-gauge') }}
+    {% set env_variables = [
+      {
+        'name': 'Temperature',
+        'icon': 'temperature-high',
+        'value': 25,
+        'unit': '°C',
+        'color': '#286247',
+        'gauge_id': 'temperature-gauge',
+        'sections': [
+          {'name': 'Penyemaian', 'value': 24, 'trend_icon': 'arrow-down', 'trend_color': '#3498db'},
+          {'name': 'Peremajaan', 'value': 26, 'trend_icon': 'equals', 'trend_color': '#27ae60'},
+          {'name': 'Dewasa', 'value': 25, 'trend_icon': 'arrow-up', 'trend_color': '#e74c3c'}
+        ]
+      },
+      {
+        'name': 'Humidity',
+        'icon': 'tint',
+        'value': 65,
+        'unit': '%',
+        'color': '#333333',
+        'gauge_id': 'humidity-gauge',
+        'sections': [
+          {'name': 'Penyemaian', 'value': 68, 'trend_icon': 'arrow-up', 'trend_color': '#3498db'},
+          {'name': 'Peremajaan', 'value': 65, 'trend_icon': 'equals', 'trend_color': '#27ae60'},
+          {'name': 'Dewasa', 'value': 62, 'trend_icon': 'arrow-down', 'trend_color': '#e74c3c'}
+        ]
+      },
+      {
+        'name': 'Light',
+        'icon': 'sun',
+        'value': 45,
+        'unit': '%',
+        'color': '#F9D949',
+        'gauge_id': 'light-gauge',
+        'sections': [
+          {'name': 'Penyemaian', 'value': 40, 'trend_icon': 'arrow-down', 'trend_color': '#3498db'},
+          {'name': 'Peremajaan', 'value': 45, 'trend_icon': 'equals', 'trend_color': '#27ae60'},
+          {'name': 'Dewasa', 'value': 50, 'trend_icon': 'arrow-up', 'trend_color': '#e74c3c'}
+        ]
+      }
+    ] %}
+
+    {% for var in env_variables %}
+      {{ environment.env_variable_row(
+        var.name,
+        var.icon,
+        var.value,
+        var.unit,
+        var.color,
+        var.gauge_id,
+        var.sections
+      ) }}
+    {% endfor %}
   {% endcall %}
 
   <div class="grid grid--2col">
@@ -52,36 +102,37 @@
   document.addEventListener('DOMContentLoaded', function() {
     // Define gauge settings
     const gauges = [
-      { id: 'temperature-gauge', value: 50, max: 100, color: '#286247' },
-      { id: 'humidity-gauge', value: 75, max: 100, color: '#333333' },
-      { id: 'light-gauge', value: 25, max: 100, color: '#F9D949' },
-      { id: 'more-gauge', value: 25, max: 100, color: '#EB6B6B' }
+      { id: 'temperature-gauge', value: 25, max: 50, color: '#286247' },
+      { id: 'humidity-gauge', value: 65, max: 100, color: '#333333' },
+      { id: 'light-gauge', value: 45, max: 100, color: '#F9D949' }
     ];
-    
+
     // Set up all gauges
     gauges.forEach(gauge => {
       setupGauge(gauge.id, gauge.value, gauge.max, gauge.color);
     });
-    
+
     // Toggle switches
     document.getElementById('fan-switch').addEventListener('change', function() {
       console.log('Exhaust fan toggled:', this.checked);
     });
-    
+
     document.getElementById('lights-switch').addEventListener('change', function() {
       console.log('Lights toggled:', this.checked);
     });
   });
-  
+
   function setupGauge(id, value, max, color) {
     const gaugeElement = document.getElementById(id);
+    if (!gaugeElement) return;
+
     const circle = gaugeElement.querySelector('.svg-circle');
     const valueDisplay = gaugeElement.querySelector('.value');
     const circumference = 2 * Math.PI * 54;
-    
+
     // Update the display value
     valueDisplay.textContent = value;
-    
+
     // Update the gauge
     circle.style.stroke = color;
     const offset = circumference - (value / max) * circumference;
