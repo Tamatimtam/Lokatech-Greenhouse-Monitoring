@@ -4,6 +4,7 @@
 ```
 simpleLogin/
 ├── app2.py                # Main Flask application
+├── blueprints/         # Blueprint modules
 ├── hardwareSimulation/    # Hardware simulation code
 ├── static/               # Static assets
 │   ├── css/             # CSS files and components

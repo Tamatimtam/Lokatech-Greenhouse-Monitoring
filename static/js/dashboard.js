@@ -17,16 +17,16 @@ const SystemMonitor = {
         if (this.connectionTimeout) {
             clearTimeout(this.connectionTimeout);
         }
-        
+
         this.lastUpdateTime = Date.now();
         this.status.connected = connected;
-        
+
         UI.updateConnectionStatusUI(connected);
-        
+
         if (connected) {
             UI.hideError();
         }
-        
+
         // Set timeout for connection loss detection
         this.connectionTimeout = setTimeout(() => {
             if ((Date.now() - this.lastUpdateTime) > 10000) {
@@ -40,7 +40,7 @@ const SystemMonitor = {
     // Update node and sensor status
     updateNodeStatus(data) {
         if (!data || !data.sections) return false;
-        
+
         // Reset all node statuses first
         Object.keys(this.status.nodes).forEach(section => {
             this.status.nodes[section].online = false;
@@ -52,9 +52,9 @@ const SystemMonitor = {
         // Update with new data
         for (const [section, values] of Object.entries(data.sections)) {
             if (!this.status.nodes[section]) continue;
-            
+
             this.status.nodes[section].online = true;
-            
+
             // Update sensor status
             if (values.hasOwnProperty('temp')) this.status.nodes[section].sensors.temp = true;
             if (values.hasOwnProperty('humidity')) this.status.nodes[section].sensors.humidity = true;
@@ -63,7 +63,7 @@ const SystemMonitor = {
 
         // Update master node status (dewasa node)
         this.status.masterNode = this.status.nodes.dewasa.online;
-        
+
         return true;
     }
 };
@@ -95,7 +95,7 @@ const UI = {
     updateConnectionStatusUI(connected) {
         this.elements.connectionStatus.className = connected ? 'connection-status online' : 'connection-status offline';
         this.elements.connectionIcon.className = connected ? 'fas fa-check-circle' : 'fas fa-circle-exclamation';
-        this.elements.connectionText.textContent = connected ? 'Terhubung' : 'Tidak terhubung';
+        this.elements.connectionText.textContent = connected ? 'Sitem IoT Terhubung' : 'Sitem IoT Tidak terhubung';
     },
 
     showError(message) {
@@ -112,11 +112,11 @@ const UI = {
         ['temperature-gauge', 'humidity-gauge', 'light-gauge'].forEach(id => {
             this.updateGauge(id, null, 100, '#ccc');
         });
-        
+
         // Reset all section values
         const sections = ['penyemaian', 'peremajaan', 'dewasa'];
         const types = ['temp', 'humidity', 'light'];
-        
+
         sections.forEach(section => {
             types.forEach(type => {
                 const elements = document.querySelectorAll(`[data-section="${section}"][data-type="${type}"]`);
@@ -127,7 +127,7 @@ const UI = {
                 });
             });
         });
-        
+
         this.updateStatusSummary();
     },
 
@@ -137,7 +137,7 @@ const UI = {
 
         const circle = gaugeElement.querySelector('.svg-circle');
         const valueDisplay = gaugeElement.querySelector('.value');
-        
+
         // Update display value
         valueDisplay.textContent = value !== null && value !== undefined ? value : '--';
 
@@ -172,7 +172,7 @@ const UI = {
     updateStatusSummary() {
         const status = SystemMonitor.status;
         this.elements.statusContainer.innerHTML = '';
-        
+
         if (!status.connected) {
             this.elements.statusContainer.innerHTML = `
                 <div class="status-item">
@@ -182,12 +182,12 @@ const UI = {
             `;
             return;
         }
-        
+
         // Check offline nodes
         const offlineNodes = Object.entries(status.nodes)
             .filter(([_, status]) => !status.online)
             .map(([section, _]) => this.translateSection(section));
-        
+
         if (offlineNodes.length > 0) {
             this.elements.statusContainer.innerHTML += `
                 <div class="status-item">
@@ -196,14 +196,14 @@ const UI = {
                 </div>
             `;
         }
-        
+
         // Check sensor status for online nodes
         Object.entries(status.nodes).forEach(([section, nodeStatus]) => {
             if (nodeStatus.online) {
                 const failedSensors = Object.entries(nodeStatus.sensors)
                     .filter(([_, working]) => !working)
                     .map(([sensor, _]) => this.translateSensor(sensor));
-                
+
                 if (failedSensors.length > 0) {
                     this.elements.statusContainer.innerHTML += `
                         <div class="status-item">
@@ -214,7 +214,7 @@ const UI = {
                 }
             }
         });
-        
+
         // All good
         if (this.elements.statusContainer.innerHTML === '') {
             this.elements.statusContainer.innerHTML = `
@@ -284,10 +284,10 @@ const DataManager = {
 
         // Update system status
         SystemMonitor.updateNodeStatus(data);
-        
+
         // Update connection status
         SystemMonitor.updateConnectionStatus(true);
-        
+
         // Update gauges with averages
         if (data.averages) {
             UI.updateGauge('temperature-gauge', data.averages.temp, 50, '#286247');
@@ -316,17 +316,17 @@ const DataManager = {
 document.addEventListener('DOMContentLoaded', async function() {
     // Initialize UI
     UI.initialize();
-    
+
     // Initial state
     SystemMonitor.updateConnectionStatus(false);
     UI.resetDisplay();
-    
+
     // Check for initial data
     const initialData = window.initialSensorData;
     if (initialData && initialData.sections && initialData.averages) {
         DataManager.updateDisplay(initialData);
     }
-    
+
     // Start polling
     setInterval(async () => {
         try {
