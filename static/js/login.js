@@ -17,12 +17,19 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         const idToken = await userCredential.user.getIdToken();
 
         // Send this security token to our server
-        const response = await fetch('/login', {
-            method: 'POST', // We're sending data, not just getting it
-            headers: {'Content-Type': 'application/json',},
-            body: JSON.stringify({ idToken }) // Convert the token to JSON format
+        const response = await fetch('/auth/login', {  // Updated URL to match blueprint
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ idToken: idToken })  // Properly format the JSON data
         });
-
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         // Get the server's response and convert it from JSON
         const data = await response.json();
         if (data.status === 'success') {
