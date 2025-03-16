@@ -12,75 +12,6 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
-  .error-message {
-    color: #e74c3c;
-    text-align: center;
-    padding: 15px;
-    margin: 10px 0;
-    border: 1px solid #e74c3c;
-    border-radius: 5px;
-    background-color: rgba(231, 76, 60, 0.1);
-  }
-  
-  .sensor-offline {
-    opacity: 0.5;
-  }
-  
-  .sensor-error {
-    position: relative;
-  }
-  
-  .sensor-error:after {
-    content: '!';
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: #e74c3c;
-    color: white;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-  }
-  
-  .connection-status {
-    display: flex;
-    align-items: center;
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    margin-bottom: 10px;
-    margin-top: var(--spacing-sm);
-  }
-  
-  .connection-status.online {
-    background-color: rgba(39, 174, 96, 0.2);
-    color: #27ae60;
-  }
-  
-  .connection-status.offline {
-    background-color: rgba(231, 76, 60, 0.2);
-    color: #e74c3c;
-  }
-  
-  .connection-status i {
-    margin-right: 5px;
-  }
-  
-  .blink {
-    animation: blink 1.5s infinite;
-  }
-  
-  @keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-  }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -97,7 +28,7 @@
     <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
   </header>
 
-  <div id="system-error" class="error-message" style="display: none;">
+  <div id="system-error" class="error-message">
     <i class="fas fa-triangle-exclamation"></i>
     <span id="error-message">Tidak ada koneksi ke jaringan ESP</span>
   </div>
