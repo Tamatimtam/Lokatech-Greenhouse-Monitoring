@@ -12,6 +12,75 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  .error-message {
+    color: #e74c3c;
+    text-align: center;
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid #e74c3c;
+    border-radius: 5px;
+    background-color: rgba(231, 76, 60, 0.1);
+  }
+  
+  .sensor-offline {
+    opacity: 0.5;
+  }
+  
+  .sensor-error {
+    position: relative;
+  }
+  
+  .sensor-error:after {
+    content: '!';
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #e74c3c;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+  
+  .connection-status {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+    margin-top: var(--spacing-sm);
+  }
+  
+  .connection-status.online {
+    background-color: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+  }
+  
+  .connection-status.offline {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+  }
+  
+  .connection-status i {
+    margin-right: 5px;
+  }
+  
+  .blink {
+    animation: blink 1.5s infinite;
+  }
+  
+  @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -20,49 +89,58 @@
     <div class="header__content">
       <h1>Halo, {{ user.name if user else 'Pengguna' }}!</h1>
       <p>Selamat datang kembali di Sistem Monitoring Greenhouse</p>
+      <div id="connection-status" class="connection-status offline">
+        <i class="fas fa-circle-exclamation"></i>
+        <span>Menunggu koneksi...</span>
+      </div>
     </div>
-      <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
   </header>
+
+  <div id="system-error" class="error-message" style="display: none;">
+    <i class="fas fa-triangle-exclamation"></i>
+    <span id="error-message">Tidak ada koneksi ke jaringan ESP</span>
+  </div>
 
   {% call card.card('KONDISI LINGKUNGAN', 'card--env') %}
     {% set env_variables = [
       {
         'name': 'Suhu',
         'icon': 'temperature-high',
-        'value': 25,
+        'value': '--',
         'unit': '°C',
         'color': '#286247',
         'gauge_id': 'temperature-gauge',
         'sections': [
-          {'name': 'Penyemaian', 'value': 24, 'trend_icon': 'arrow-down', 'trend_color': '#3498db'},
-          {'name': 'Peremajaan', 'value': 26, 'trend_icon': 'equals', 'trend_color': '#27ae60'},
-          {'name': 'Dewasa', 'value': 25, 'trend_icon': 'arrow-up', 'trend_color': '#e74c3c'}
+          {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
+          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
         ]
       },
       {
         'name': 'Kelembaban',
         'icon': 'tint',
-        'value': 65,
+        'value': '--',
         'unit': '%',
         'color': '#333333',
         'gauge_id': 'humidity-gauge',
         'sections': [
-          {'name': 'Penyemaian', 'value': 68, 'trend_icon': 'arrow-up', 'trend_color': '#3498db'},
-          {'name': 'Peremajaan', 'value': 65, 'trend_icon': 'equals', 'trend_color': '#27ae60'},
-          {'name': 'Dewasa', 'value': 62, 'trend_icon': 'arrow-down', 'trend_color': '#e74c3c'}
+          {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
+          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
         ]
       },
       {
         'name': 'Cahaya',
         'icon': 'sun',
-        'value': 45,
+        'value': '--',
         'unit': '%',
         'color': '#F9D949',
         'gauge_id': 'light-gauge',
         'sections': [
-          {'name': 'Penyemaian', 'value': 40, 'trend_icon': 'arrow-down', 'trend_color': '#3498db'},
-          {'name': 'Peremajaan', 'value': 45, 'trend_icon': 'equals', 'trend_color': '#27ae60'},
-          {'name': 'Dewasa', 'value': 50, 'trend_icon': 'arrow-up', 'trend_color': '#e74c3c'}
+          {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
+          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
         ]
       }
     ] %}
@@ -82,14 +160,17 @@
 
   <div class="grid grid--2col">
     {% call card.card('KONTROL CEPAT') %}
-      {{ controls.control_switch('Kipas Exhaust', 'fan', 'fan-switch', true) }}
-      {{ controls.control_switch('Lampu', 'lightbulb', 'lights-switch', true) }}
+      {{ controls.control_switch('Kipas Exhaust', 'fan', 'fan-switch', false) }}
+      {{ controls.control_switch('Lampu', 'lightbulb', 'lights-switch', false) }}
     {% endcall %}
 
     {% call card.card('RINGKASAN STATUS') %}
-      {{ status.status_item('Suhu berada dalam rentang optimal', 'temperature-high', '#286247') }}
-      {{ status.status_item('Kelembaban sedikit di atas rentang optimal', 'tint', '#333333') }}
-      {{ status.status_item('Tingkat cahaya optimal untuk pertumbuhan', 'sun', '#F9D949') }}
+      <div id="status-container">
+        <div class="status-message">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Menunggu data sensor...</span>
+        </div>
+      </div>
     {% endcall %}
   </div>
 </div>
@@ -99,45 +180,7 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Define gauge settings
-    const gauges = [
-      { id: 'temperature-gauge', value: 25, max: 50, color: '#286247' },
-      { id: 'humidity-gauge', value: 65, max: 100, color: '#333333' },
-      { id: 'light-gauge', value: 45, max: 100, color: '#F9D949' }
-    ];
-
-    // Set up all gauges
-    gauges.forEach(gauge => {
-      setupGauge(gauge.id, gauge.value, gauge.max, gauge.color);
-    });
-
-    // Toggle switches
-    document.getElementById('fan-switch').addEventListener('change', function() {
-      console.log('Kipas exhaust diubah:', this.checked);
-    });
-
-    document.getElementById('lights-switch').addEventListener('change', function() {
-      console.log('Lampu diubah:', this.checked);
-    });
-  });
-
-  function setupGauge(id, value, max, color) {
-    const gaugeElement = document.getElementById(id);
-    if (!gaugeElement) return;
-
-    const circle = gaugeElement.querySelector('.svg-circle');
-    const valueDisplay = gaugeElement.querySelector('.value');
-    const circumference = 2 * Math.PI * 54;
-
-    // Update the display value
-    valueDisplay.textContent = value;
-
-    // Update the gauge
-    circle.style.stroke = color;
-    const offset = circumference - (value / max) * circumference;
-    circle.style.strokeDasharray = `${circumference} ${circumference}`;
-    circle.style.strokeDashoffset = offset;
-  }
+    window.initialSensorData = {{ sensor_data|tojson|safe if sensor_data else 'null' }};
 </script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}
