@@ -361,3 +361,76 @@ input:checked + .slider:before {
     margin-bottom: var(--spacing-sm);
   }
 }
+
+/* Error message styles */
+.error-message {
+  color: #e74c3c;
+  text-align: center;
+  padding: var(--spacing-md);
+  margin: var(--spacing-sm) 0;
+  border: 1px solid #e74c3c;
+  border-radius: var(--radius-sm);
+  background-color: rgba(231, 76, 60, 0.1);
+  display: none;  /* Hide by default */
+}
+
+/* Sensor status indicators */
+.sensor-offline {
+  opacity: 0.5;
+}
+
+.sensor-error {
+  position: relative;
+}
+
+.sensor-error:after {
+  content: '!';
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #e74c3c;
+  color: var(--surface);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+/* Connection status styles */
+.connection-status {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-lg);
+  font-size: 0.8rem;
+  margin-bottom: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.connection-status.online {
+  background-color: rgba(39, 174, 96, 0.2);
+  color: #27ae60;
+}
+
+.connection-status.offline {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+.connection-status i {
+  margin-right: var(--spacing-xs);
+}
+
+/* Animation */
+.blink {
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
