@@ -1,0 +1,3 @@
+"""
+Blueprint initialization module
+"""
