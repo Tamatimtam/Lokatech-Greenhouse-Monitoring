@@ -265,7 +265,7 @@ const UI = {
 const DataManager = {
     async fetchData() {
         try {
-            const response = await fetch('/api/sensor-data');
+            const response = await fetch('/api/sensor/data');
             if (!response.ok) {
                 throw new Error(`Server returned ${response.status}`);
             }
