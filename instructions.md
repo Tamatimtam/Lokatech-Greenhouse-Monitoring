@@ -200,7 +200,6 @@ Border Radius:
 - GET /api/sensor/data: Get latest sensor readings and status
 - POST /auth/login: Authenticate user
 - GET /auth/logout: Log out user
-- GET /auth/session-test: Test session status
 
 ## Flask Application Structure
 
