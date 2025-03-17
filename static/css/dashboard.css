@@ -128,23 +128,6 @@
 
 
 
-.nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-decoration: none;
-    color: var(--text-secondary);
-    font-size: 0.8rem;
-    padding: var(--spacing-sm);
-}
-
-.nav-item.active {
-    color: var(--primary);
-}
-
-.nav-icon {
-    margin-bottom: var(--spacing-xs);
-}
 
 /* New styles for environmental variable rows */
 .env-variable-row {
