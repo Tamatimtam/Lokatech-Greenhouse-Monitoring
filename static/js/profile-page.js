@@ -3,14 +3,6 @@
  * Combines modal functionality and profile-specific features
  */
 
-// Mock user data for demonstration
-const mockUsers = [
-  { id: 1, username: 'john_doe', email: 'john@example.com' },
-  { id: 2, username: 'jane_smith', email: 'jane@example.com' },
-  { id: 3, username: 'bob_johnson', email: 'bob@example.com' },
-  { id: 4, username: 'alice_green', email: 'alice@example.com' }
-];
-
 // Mock log data for demonstration
 const mockLogs = [
   { id: 1, timestamp: '2023-11-10 08:23:15', user: 'john_doe', action: 'Logged into system', type: 'login', status: 'success' },
@@ -70,9 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
     showToast('Password changed successfully!');
   });
   
-  // Initialize user management modal
-  const userManagementModalControl = initModal('userManagementModal', 'openUserManagementModal');
-  
   // Initialize log viewer modal
   const logViewerModalControl = initModal('logViewerModal', 'openLogViewerModal');
   
@@ -80,7 +69,6 @@ document.addEventListener('DOMContentLoaded', function() {
   setupPasswordToggles();
   setupPasswordValidation();
   setupProfilePictureUpload();
-  setupUserManagement();
   setupLogViewer();
 });
 
@@ -340,96 +328,6 @@ function setupPasswordValidation() {
       passwordMatch.className = 'password-match-invalid';
     }
   }
-}
-
-// ... User management functionality ...
-function setupUserManagement() {
-  populateUserTable();
-  
-  const addUserBtn = document.getElementById('addUserBtn');
-  if (addUserBtn) {
-    addUserBtn.addEventListener('click', addNewUser);
-  }
-}
-
-function populateUserTable() {
-  const tableBody = document.getElementById('userTableBody');
-  if (!tableBody) return;
-  
-  tableBody.innerHTML = '';
-  
-  mockUsers.forEach(user => {
-    const row = document.createElement('tr');
-    row.dataset.userId = user.id;
-    
-    row.innerHTML = `
-      <td>${user.username}</td>
-      <td>${user.email}</td>
-      <td>
-        <button class="delete-user-btn" data-user-id="${user.id}" title="Delete User">
-          <i class="fas fa-trash-alt"></i>
-        </button>
-      </td>
-    `;
-    
-    tableBody.appendChild(row);
-  });
-  
-  document.querySelectorAll('.delete-user-btn').forEach(button => {
-    button.addEventListener('click', function() {
-      const userId = this.getAttribute('data-user-id');
-      deleteUser(userId);
-    });
-  });
-}
-
-function addNewUser() {
-  const usernameInput = document.getElementById('newUsername');
-  const emailInput = document.getElementById('newUserEmail');
-  const passwordInput = document.getElementById('newUserPassword');
-  
-  if (!usernameInput.value || !emailInput.value || !passwordInput.value) {
-    showValidationError('All fields are required');
-    return;
-  }
-  
-  if (!validateEmail(emailInput.value)) {
-    showValidationError('Please enter a valid email address');
-    return;
-  }
-  
-  const newUser = {
-    id: mockUsers.length + 1,
-    username: usernameInput.value,
-    email: emailInput.value
-  };
-  
-  mockUsers.push(newUser);
-  populateUserTable();
-  showToast('User added successfully!');
-  
-  usernameInput.value = '';
-  emailInput.value = '';
-  passwordInput.value = '';
-}
-
-function deleteUser(userId) {
-  if (!confirm('Are you sure you want to delete this user?')) {
-    return;
-  }
-  
-  const index = mockUsers.findIndex(user => user.id == userId);
-  
-  if (index !== -1) {
-    mockUsers.splice(index, 1);
-    populateUserTable();
-    showToast('User deleted successfully!');
-  }
-}
-
-function validateEmail(email) {
-  const re = /\S+@\S+\.\S+/;
-  return re.test(email);
 }
 
 /**
