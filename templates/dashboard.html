@@ -4,8 +4,9 @@
 {% import "macros/controls.html" as controls %}
 {% import "macros/status.html" as status %}
 {% import "macros/navigation.html" as navigation %}
+{% import "macros/environment.html" as environment %}
 
-{% block title %}Home - Greenhouse Monitoring{% endblock %}
+{% block title %}Beranda - Monitoring Greenhouse{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -17,29 +18,90 @@
 <div class="container">
   <header class="header">
     <div class="header__content">
-      <h1>Hello, Asep!</h1>
-      <p>Welcome back to Greenhouse Monitoring System</p>
+      <h1>Halo, {{ user.name if user else 'Pengguna' }}!</h1>
+      <p>Selamat datang kembali di Sistem Monitoring Greenhouse</p>
+      <div id="connection-status" class="connection-status offline">
+        <i class="fas fa-circle-exclamation"></i>
+        <span>Menunggu koneksi...</span>
+      </div>
     </div>
-      <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
   </header>
 
-  {% call card.card('ENVIRONMENTAL CONDITIONS', 'card--env') %}
-    {{ gauges.env_gauge('Temperature', 'temperature-high', 25, '°C', '#286247', 'temperature-gauge') }}
-    {{ gauges.env_gauge('Humidity', 'tint', 25, '%', '#333333', 'humidity-gauge') }}
-    {{ gauges.env_gauge('Light Levels', 'sun', 25, '%', '#F9D949', 'light-gauge') }}
-    {{ gauges.env_gauge('More Sensors', 'microchip', 25, '%', '#EB6B6B', 'more-gauge') }}
+  <div id="system-error" class="error-message">
+    <i class="fas fa-triangle-exclamation"></i>
+    <span id="error-message">Tidak ada koneksi ke jaringan ESP</span>
+  </div>
+
+  {% call card.card('KONDISI LINGKUNGAN', 'card--env') %}
+    {% set env_variables = [
+      {
+        'name': 'Suhu',
+        'icon': 'temperature-high',
+        'value': '--',
+        'unit': '°C',
+        'color': '#286247',
+        'gauge_id': 'temperature-gauge',
+        'sections': [
+          {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
+          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
+        ]
+      },
+      {
+        'name': 'Kelembaban',
+        'icon': 'tint',
+        'value': '--',
+        'unit': '%',
+        'color': '#333333',
+        'gauge_id': 'humidity-gauge',
+        'sections': [
+          {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
+          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
+        ]
+      },
+      {
+        'name': 'Cahaya',
+        'icon': 'sun',
+        'value': '--',
+        'unit': '%',
+        'color': '#F9D949',
+        'gauge_id': 'light-gauge',
+        'sections': [
+          {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
+          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
+        ]
+      }
+    ] %}
+
+    {% for var in env_variables %}
+      {{ environment.env_variable_row(
+        var.name,
+        var.icon,
+        var.value,
+        var.unit,
+        var.color,
+        var.gauge_id,
+        var.sections
+      ) }}
+    {% endfor %}
   {% endcall %}
 
   <div class="grid grid--2col">
-    {% call card.card('QUICK CONTROLS') %}
-      {{ controls.control_switch('Exhaust Fan', 'fan', 'fan-switch', true) }}
-      {{ controls.control_switch('Lights', 'lightbulb', 'lights-switch', true) }}
+    {% call card.card('KONTROL CEPAT') %}
+      {{ controls.control_switch('Kipas Exhaust', 'fan', 'fan-switch', false) }}
+      {{ controls.control_switch('Lampu', 'lightbulb', 'lights-switch', false) }}
     {% endcall %}
 
-    {% call card.card('STATUS SUMMARY') %}
-      {{ status.status_item('Temperature is within optimal range', 'temperature-high', '#286247') }}
-      {{ status.status_item('Humidity is slightly above optimal range', 'tint', '#333333') }}
-      {{ status.status_item('Light levels are optimal for growth', 'sun', '#F9D949') }}
+    {% call card.card('RINGKASAN STATUS') %}
+      <div id="status-container">
+        <div class="status-message">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Menunggu data sensor...</span>
+        </div>
+      </div>
     {% endcall %}
   </div>
 </div>
@@ -49,44 +111,7 @@
 
 {% block scripts %}
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Define gauge settings
-    const gauges = [
-      { id: 'temperature-gauge', value: 50, max: 100, color: '#286247' },
-      { id: 'humidity-gauge', value: 75, max: 100, color: '#333333' },
-      { id: 'light-gauge', value: 25, max: 100, color: '#F9D949' },
-      { id: 'more-gauge', value: 25, max: 100, color: '#EB6B6B' }
-    ];
-    
-    // Set up all gauges
-    gauges.forEach(gauge => {
-      setupGauge(gauge.id, gauge.value, gauge.max, gauge.color);
-    });
-    
-    // Toggle switches
-    document.getElementById('fan-switch').addEventListener('change', function() {
-      console.log('Exhaust fan toggled:', this.checked);
-    });
-    
-    document.getElementById('lights-switch').addEventListener('change', function() {
-      console.log('Lights toggled:', this.checked);
-    });
-  });
-  
-  function setupGauge(id, value, max, color) {
-    const gaugeElement = document.getElementById(id);
-    const circle = gaugeElement.querySelector('.svg-circle');
-    const valueDisplay = gaugeElement.querySelector('.value');
-    const circumference = 2 * Math.PI * 54;
-    
-    // Update the display value
-    valueDisplay.textContent = value;
-    
-    // Update the gauge
-    circle.style.stroke = color;
-    const offset = circumference - (value / max) * circumference;
-    circle.style.strokeDasharray = `${circumference} ${circumference}`;
-    circle.style.strokeDashoffset = offset;
-  }
+    window.initialSensorData = {{ sensor_data|tojson|safe if sensor_data else 'null' }};
 </script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

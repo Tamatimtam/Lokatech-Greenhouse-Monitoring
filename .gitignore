@@ -21,3 +21,4 @@ node_modules/.Linux
 __pycache__
 *.json
 secrets
+.*

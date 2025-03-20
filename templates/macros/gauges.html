@@ -6,8 +6,8 @@
   </div>
   <div class="gauge__circle" id="{{ gauge_id }}">
     <svg width="120" height="120" viewBox="0 0 120 120">
-      <circle cx="60" cy="60" r="54" fill="none" stroke="#e6e6e6" stroke-width="12"/>
-      <circle cx="60" cy="60" r="54" fill="none" stroke="{{ color }}" stroke-width="12" stroke-dasharray="339.292" stroke-dashoffset="85" class="gauge__svg-circle svg-circle"/>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="#e6e6e6" stroke-width="12" stroke-linecap="round"/>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="{{ color }}" stroke-width="12" stroke-dasharray="339.292" stroke-dashoffset="85" stroke-linecap="round" class="gauge__svg-circle svg-circle"/>
     </svg>
     <div class="gauge__value">
       <span class="gauge__number value">{{ value }}</span>
