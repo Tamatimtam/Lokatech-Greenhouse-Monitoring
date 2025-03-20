@@ -263,13 +263,31 @@ const UI = {
 
 // Data Management
 const DataManager = {
+    debug: true, // Enable debug logging
+
+    log(...args) {
+        if (this.debug) console.log('[DataManager]', ...args);
+    },
+
     async fetchData() {
         try {
+            this.log('Fetching sensor data...');
             const response = await fetch('/api/sensor/data');
+            
+            this.log('Response status:', response.status);
+            
+            if (response.status === 404) {
+                this.log('No data available from sensors');
+                return null;
+            }
+            
             if (!response.ok) {
                 throw new Error(`Server returned ${response.status}`);
             }
-            return await response.json();
+            
+            const data = await response.json();
+            this.log('Received data:', data);
+            return data;
         } catch (error) {
             console.error('Error fetching sensor data:', error);
             throw error;
@@ -277,34 +295,50 @@ const DataManager = {
     },
 
     updateDisplay(data) {
-        if (!data || !data.sections || !data.averages) {
-            UI.showError("Data sensor tidak valid");
+        this.log('Updating display with data:', data);
+
+        if (!data || !data.sections) {
+            UI.showError("Menunggu data sensor...");
             return;
         }
 
         // Update system status
         SystemMonitor.updateNodeStatus(data);
 
-        // Update connection status
-        SystemMonitor.updateConnectionStatus(true);
+        // Update connection status if we have any valid data
+        const hasAnyData = Object.values(data.sections).some(section => 
+            Object.keys(section).length > 0
+        );
+        
+        this.log('Has any data:', hasAnyData);
+        SystemMonitor.updateConnectionStatus(hasAnyData);
 
-        // Update gauges with averages
+        // Update gauges with averages (if available)
         if (data.averages) {
+            this.log('Updating gauges with averages:', data.averages);
             UI.updateGauge('temperature-gauge', data.averages.temp, 50, '#286247');
             UI.updateGauge('humidity-gauge', data.averages.humidity, 100, '#333333');
             UI.updateGauge('light-gauge', data.averages.light, 100, '#F9D949');
         }
 
-        // Update section values
+        // Update sections that have data
         Object.entries(data.sections).forEach(([section, values]) => {
-            ['temp', 'humidity', 'light'].forEach(type => {
-                UI.updateSectionValue(
-                    section,
-                    type,
-                    values[type],
-                    values.trends ? values.trends[type] : null
-                );
-            });
+            this.log(`Updating section ${section} with values:`, values);
+            if (Object.keys(values).length > 0) { // Only update if section has data
+                ['temp', 'humidity', 'light'].forEach(type => {
+                    UI.updateSectionValue(
+                        section,
+                        type,
+                        values[type],
+                        values.trends ? values.trends[type] : 'equals'
+                    );
+                });
+            } else {
+                this.log(`Section ${section} is empty, marking as offline`);
+                ['temp', 'humidity', 'light'].forEach(type => {
+                    UI.updateSectionValue(section, type, null, null);
+                });
+            }
         });
 
         // Update status summary
@@ -331,8 +365,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     setInterval(async () => {
         try {
             const data = await DataManager.fetchData();
-            DataManager.updateDisplay(data);
+            if (data) {
+                DataManager.updateDisplay(data);
+            } else {
+                // Don't show error for missing data, just update UI accordingly
+                SystemMonitor.updateConnectionStatus(false);
+                UI.showError("Menunggu data dari sensor...");
+            }
         } catch (error) {
+            console.error('Error in data update loop:', error);
             SystemMonitor.updateConnectionStatus(false);
             UI.showError("Gagal memuat data sensor. Coba lagi nanti.");
         }
