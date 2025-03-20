@@ -9,36 +9,36 @@
 {% block content %}
 <div class="login-container">
     <div class="login-form-section">
-        <img src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo" class="logo">
-        
+        <img src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id" style="width: 200px;">
+
         <div class="login-form">
             <div class="welcome-text">
-                <h1>Welcome back!</h1>
-                <p>Enter your Credentials to access your account</p>
+                <h1>Selamat Datang Kembali!</h1>
+                <p>Masukkan kredensial Anda untuk mengakses akun</p>
             </div>
 
             <form id="loginForm">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    <input type="email" id="email" name="email" placeholder="Masukkan email Anda" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    <label for="password">Kata Sandi</label>
+                    <input type="password" id="password" name="password" placeholder="Masukkan kata sandi Anda" required>
                 </div>
 
-                <a href="#" class="forgot-password" id="resetPassword">Forgot password?</a>
+                <a href="#" class="forgot-password" id="resetPassword">Lupa kata sandi?</a>
 
-                <button type="submit" class="login-button">Login</button>
+                <button type="submit" class="login-button">Masuk</button>
             </form>
 
-            <div class="divider">New User?</div>
+            <div class="divider">Pengguna Baru?</div>
 
             <div class="info-message">
-                To register a new account, please contact your local greenhouse administrator.
+                Untuk mendaftarkan akun baru, silakan hubungi administrator greenhouse setempat.
             </div>
-            
+
             <div id="error-message" style="color: red; margin-top: 10px; text-align: center;"></div>
         </div>
     </div>

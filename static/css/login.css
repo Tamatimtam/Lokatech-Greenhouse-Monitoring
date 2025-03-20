@@ -5,7 +5,7 @@
 }
 
 .login-form-section {
-    flex: 1;
+    flex: 0.7;
     padding: var(--spacing-xl);
     display: flex;
     flex-direction: column;
@@ -15,17 +15,13 @@
 }
 
 .image-section {
-    flex: 0.6;
+    flex: 0.4;
     background-image: url("../images/hydroponic.webp");
     background-size: cover;
     background-position: center;
     border-radius: 30px;
 }
 
-.logo {
-    width: 100px;
-    height: 100px;
-}
 
 .login-form {
     width: 100%;
@@ -86,6 +82,7 @@
     font-size: 1rem;
     cursor: pointer;
     margin-bottom: var(--spacing-md);
+    transition: 400ms ease;
 }
 
 .login-button:hover {

@@ -1,61 +1,58 @@
-from flask import Flask, render_template, session, redirect, request    #For flask stuff
-import firebase_admin                                                   #
-from firebase_admin import credentials, auth                            #creds for init, auth
-from functools import wraps
-import secrets  # Adding this to generate a random key
+from flask import Flask, render_template, session, redirect, request, jsonify
+import firebase_admin
+from firebase_admin import credentials, auth
+import secrets
 import os
+import json
+import logging
+from datetime import datetime, timedelta
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('GreenhouseApp')
 
-#INIT FLASK
+# INIT FLASK
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)  # This creates a 32-character random hex string
+app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
 
-#INIT FIREBASE
+# INIT FIREBASE
 local_path = os.path.join(os.path.dirname(__file__), "secrets", "firebase-credentials.json")
 cloud_path = "/secrets/firebase-credentials.json"
 credentials_path = local_path if os.path.exists(local_path) else cloud_path
-cred = credentials.Certificate(credentials_path)
-firebase_admin.initialize_app(cred)
 
-def isloggedin(f):
-    @wraps(f)
-    def dummy(*args, **kwargs):
-        if 'user' not in session:
-            return redirect("/")
-        return f(*args, **kwargs)
-    return dummy
+try:
+    cred = credentials.Certificate(credentials_path)
+    firebase_admin.initialize_app(cred)
+    logger.info("Firebase initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize Firebase: {e}")
 
+# Register blueprints
+from blueprints.auth import bp as auth_bp
+from blueprints.dashboard import bp as dashboard_bp
+from blueprints.sensor import bp as sensor_bp
+from blueprints.controls import bp as controls_bp
+from blueprints.profile import bp as profile_bp
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(dashboard_bp)
+app.register_blueprint(sensor_bp)
+app.register_blueprint(controls_bp)
+app.register_blueprint(profile_bp)
+
+# Root route for login page
 @app.route("/")
 def index():
     return render_template("login.html")
 
-@app.route("/dashboard")
-def dashboard():
-    return render_template("dashboard.html")
-
-@app.route("/controls")
-def controls():
-    return render_template("controls.html")
-
-@app.route("/login", methods=["POST"])
-def login():
-    id_token = request.json['idToken']
-    try:
-        google_user = auth.verify_id_token(id_token)
-        session['user'] = {
-            'email' : google_user['email'],
-            'name' : google_user.get('name', google_user['email'].split('@')[0]),
-            'picture': google_user.get('picture', 'default_avatar.png')
-        }
-        return {'status':'success'}
-    except:
-        return {'status' : 'error', 'message': 'Invalid credentials'}, 400
-    
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/")
-
 if __name__ == '__main__':
+    logger.info(f"Starting Flask application on port {port}")
     app.run(debug=True, port=port, host='0.0.0.0')

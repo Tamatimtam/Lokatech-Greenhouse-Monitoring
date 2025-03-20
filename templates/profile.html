@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% import "macros/gauges.html" as gauges %}
+{% import "macros/card.html" as card %}
+{% import "macros/controls.html" as controls %}
+{% import "macros/status.html" as status %}
+{% import "macros/navigation.html" as navigation %}
+{% import "macros/modal.html" as modal %}
+
+{% block title %}Profile - Greenhouse Monitoring{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile-page.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="header">
+    <div class="header__content">
+      <h1>Hello, {{ user.name if user else 'Guest' }}!</h1>
+      <p>Manage your account and preferences</p>
+    </div>
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+  </header>
+
+  {% call card.card('USER PROFILE', 'card--profile') %}
+    <div class="profile__header">
+      <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
+           alt="Profile Picture" 
+           class="profile__image"
+           id="mainProfileImage">
+      <div class="profile__info">
+        <h2>{{ user.name if user else 'Guest User' }}</h2>
+        <p>{{ user.email if user else 'Not logged in' }}</p>
+      </div>
+    </div>
+  {% endcall %}
+
+  <!-- Changed from grid--2col to grid--1col to make it full width -->
+  <div class="grid grid--1col">
+    {% call card.card('ACCOUNT SETTINGS') %}
+      <ul class="profile__list">
+        <li class="profile__list-item" id="openProfileModal" style="cursor: pointer;">
+          <i class="fas fa-user"></i> 
+          <span>Profile Information</span>
+        </li>
+        <li class="profile__list-item" id="openPasswordModal" style="cursor: pointer;">
+          <i class="fas fa-lock"></i> 
+          <span>Change Password</span>
+        </li>
+        <li class="profile__list-item">
+          <i class="fas fa-sign-out-alt"></i> 
+          <a href="/logout">Logout</a>
+        </li>
+      </ul>
+    {% endcall %}
+  </div>
+  
+  {% call modal.modal('profileModal', 'Profile Information') %}
+    <div class="profile-edit">
+      <div class="profile-edit__picture">
+        <img 
+          src="{{ user.picture if user and user.picture else url_for('static', filename='images/default-avatar.png') }}" 
+          alt="Profile Picture Preview" 
+          id="profilePicturePreview"
+          class="profile-edit__preview"
+        >
+        <div class="profile-edit__actions">
+          <label for="profilePictureInput" class="profile-edit__upload-btn">
+            <i class="fas fa-camera"></i> Change Picture
+          </label>
+          <input type="file" id="profilePictureInput" accept="image/*" class="hidden-input">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="displayName">Display Name</label>
+        <input type="text" id="displayName" value="{{ user.name if user else 'Guest User' }}" class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="emailAddress">Email Address</label>
+        <input type="email" id="emailAddress" value="{{ user.email if user else '' }}" disabled class="form-control">
+        <small>Email cannot be changed</small>
+      </div>
+      
+      <div class="form-group">
+        <label for="userRole">Role</label>
+        <input type="text" id="userRole" value="Administrator" disabled class="form-control">
+      </div>
+    </div>
+  {% endcall %}
+  
+  {% call modal.modal('passwordModal', 'Change Password') %}
+    <div class="password-edit">
+      <div class="form-group">
+        <label for="currentPassword">Current Password</label>
+        <div class="password-input-container">
+          <input type="password" id="currentPassword" class="form-control" placeholder="Enter your current password" required>
+          <button type="button" class="password-toggle" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <div class="password-input-container">
+          <input type="password" id="newPassword" class="form-control" placeholder="Enter your new password" required>
+          <button type="button" class="password-toggle" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div class="password-strength">
+          <div class="strength-meter">
+            <div class="strength-meter__bar" id="passwordStrength"></div>
+          </div>
+          <span class="strength-text" id="strengthText">Password strength</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <div class="password-input-container">
+          <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm your new password" required>
+          <button type="button" class="password-toggle" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        <small id="passwordMatch"></small>
+      </div>
+      
+      <div class="password-requirements">
+        <h4>Password Requirements:</h4>
+        <ul class="requirements-list">
+          <li id="length-check"><i class="fas fa-circle"></i> Minimum 8 characters</li>
+          <li id="uppercase-check"><i class="fas fa-circle"></i> At least 1 uppercase letter</li>
+          <li id="number-check"><i class="fas fa-circle"></i> At least 1 number</li>
+          <li id="special-check"><i class="fas fa-circle"></i> At least 1 special character</li>
+        </ul>
+      </div>
+    </div>
+  {% endcall %}
+</div>
+
+{{ navigation.bottom_nav('profile') }}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/profile-page.js') }}"></script>
+{% endblock %}
