@@ -24,6 +24,9 @@ class SensorDataManager:
             logger.info("Connected to MQTT broker")
         except Exception as e:
             logger.error(f"Failed to connect to MQTT broker: {e}")
+        
+        # Add debug flag
+        self.debug = True
     
     def on_connect(self, client, userdata, flags, rc):
         """Callback when connection is established"""
@@ -40,34 +43,63 @@ class SensorDataManager:
     def on_message(self, client, userdata, msg):
         """Callback when message is received"""
         try:
+            if self.debug:
+                logger.debug(f"Raw MQTT message received: {msg.payload.decode()}")
+            
             data = json.loads(msg.payload.decode())
+            
+            if self.debug:
+                logger.debug(f"Parsed MQTT data: {json.dumps(data, indent=2)}")
+            
             self.validate_and_store_data(data)
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in MQTT message: {e}")
+            logger.error(f"Raw message: {msg.payload.decode()}")
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")
     
     def validate_and_store_data(self, data):
         """Validate and store received sensor data"""
+        # Log the validation attempt
+        if self.debug:
+            logger.debug(f"Validating data structure: {json.dumps(data, indent=2)}")
+        
         required_fields = ['timestamp', 'sections', 'averages']
-        if not all(field in data for field in required_fields):
-            logger.error("Received data missing required fields")
+        
+        # Check required fields
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            logger.error(f"Missing required fields: {missing_fields}")
             return False
+            
+        # Validate sections (allow empty sections)
+        if not isinstance(data['sections'], dict):
+            logger.error("'sections' must be an object")
+            return False
+            
+        # Accept data even if some sections are empty
+        if self.debug:
+            logger.debug(f"Active sections: {list(filter(lambda x: x[1], data['sections'].items()))}")
         
         self.latest_data = data
         self.last_update = datetime.now()
-        logger.debug("Updated sensor data successfully")
+        logger.info("Updated sensor data successfully")
+        logger.debug(f"Stored data: {json.dumps(self.latest_data, indent=2)}")
         return True
     
     def get_data(self):
         """Get the latest sensor data if available and recent"""
         if not self.latest_data or not self.last_update:
+            logger.warning("No data available or no updates received yet")
             return None
             
         # Check if data is stale (older than 15 seconds)
         if datetime.now() - self.last_update > timedelta(seconds=15):
-            logger.warning("Sensor data is stale")
+            logger.warning(f"Data is stale. Last update: {self.last_update}")
             return None
+        
+        if self.debug:
+            logger.debug(f"Returning data: {json.dumps(self.latest_data, indent=2)}")
             
         return self.latest_data
 
