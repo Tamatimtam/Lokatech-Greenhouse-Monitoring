@@ -48,8 +48,8 @@ DHT dht(DHTPIN, DHTTYPE);
 BH1750 lightMeter;
 
 // WiFi configuration
-const char* ssid = "punyarei";      // Replace with your WiFi SSID
-const char* password = "tesrei123";  // Replace with your WiFi password
+const char* ssid = "Direktorat Kemendikbud";      // Replace with your WiFi SSID
+const char* password = "NadiemGantengSih";  // Replace with your WiFi password
 
 // MQTT configuration
 const char* mqtt_server = "broker.emqx.io";
