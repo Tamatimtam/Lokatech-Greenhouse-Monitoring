@@ -1,5 +1,10 @@
 # Greenhouse Monitoring System - Hardware Setup Guide
 
+## Tested and Confirmed Working Files
+1. DeWasaNode_Master.ino (all features working, individual sensor error works on the front end)
+
+## Not yet Tested Files
+
 ## Overview
 
 This document provides complete instructions for setting up the hardware components of our greenhouse monitoring system. The system consists of three ESP32 nodes monitoring different growth zones:
@@ -478,3 +483,213 @@ For reference, here's the JSON data format sent by the master node to MQTT:
 After completing this setup, you should have a fully functional greenhouse monitoring system with three sensor nodes communicating via ESP-NOW, with the master node publishing data to an MQTT broker for the web dashboard to display.
 
 For any questions or issues, please contact the system administrator or review the firmware code in the INO files for detailed implementation notes.
+
+# Fuzzy Logic Control System
+
+## Overview
+
+The greenhouse monitoring system now implements a fuzzy logic control system that automatically manages the fans and lights based on environmental conditions. This implementation runs on the Dewasa (master) node, which aggregates sensor data from all sections and makes control decisions.
+
+## Design Considerations
+
+The fuzzy logic system takes into account several important constraints:
+
+1. **Shared Control Systems**: All greenhouse sections (Dewasa, Penyemaian, Peremajaan) share a single lighting system and a single ventilation system that can only be turned fully ON or OFF.
+
+2. **Multiple Input Parameters**: The system considers temperature, humidity, and light level from all three sections.
+
+3. **Priority Management**: Different plant growth stages may have different environmental requirements, which are weighted in the decision-making process.
+
+## Fuzzy Logic Variables and Membership Functions
+
+### What are Membership Functions?
+
+In fuzzy logic, a membership function defines how much a value belongs to a particular category (fuzzy set). For example, a temperature of 18°C might be 100% COLD, while 21°C might be 60% COLD and 40% OPTIMAL.
+
+These functions are typically represented as triangular or trapezoidal shapes that overlap, allowing a value to partially belong to multiple categories at once.
+
+### Input Variables and Membership Functions
+
+1. **Temperature**
+   - **Range**: 15-35°C
+   - **Fuzzy Sets**:
+     - COLD: 15-22°C 
+       * Full membership (100%): ≤18°C
+       * Partial membership: 18-22°C (decreasing linearly from 100% to 0%)
+     - OPTIMAL: 20-25°C 
+       * Full membership (100%): 22-23°C
+       * Partial membership: 20-22°C (increasing linearly from 0% to 100%)
+       * Partial membership: 23-25°C (decreasing linearly from 100% to 0%)
+     - HOT: 23-35°C
+       * Full membership (100%): ≥28°C
+       * Partial membership: 23-28°C (increasing linearly from 0% to 100%)
+
+   **Example**: At 21°C:
+   * COLD membership: 25% (partially cold)
+   * OPTIMAL membership: 50% (partially optimal)
+   * HOT membership: 0% (not hot at all)
+
+2. **Humidity**
+   - **Range**: 20-100%
+   - **Fuzzy Sets**:
+     - DRY: 20-50% 
+       * Full membership (100%): ≤30%
+       * Partial membership: 30-50% (decreasing linearly from 100% to 0%)
+     - NORMAL: 40-70% 
+       * Full membership (100%): 50-60%
+       * Partial membership: 40-50% (increasing linearly from 0% to 100%)
+       * Partial membership: 60-70% (decreasing linearly from 100% to 0%)
+     - HUMID: 60-100%
+       * Full membership (100%): ≥80%
+       * Partial membership: 60-80% (increasing linearly from 0% to 100%)
+
+   **Example**: At 65% humidity:
+   * DRY membership: 0% (not dry at all)
+   * NORMAL membership: 50% (partially normal)
+   * HUMID membership: 25% (slightly humid)
+
+3. **Light Level**
+   - **Range**: 0-100%
+   - **Fuzzy Sets**:
+     - DARK: 0-40% 
+       * Full membership (100%): ≤20%
+       * Partial membership: 20-40% (decreasing linearly from 100% to 0%)
+     - MEDIUM: 30-70% 
+       * Full membership (100%): 45-55%
+       * Partial membership: 30-45% (increasing linearly from 0% to 100%)
+       * Partial membership: 55-70% (decreasing linearly from 100% to 0%)
+     - BRIGHT: 60-100%
+       * Full membership (100%): ≥80%
+       * Partial membership: 60-80% (increasing linearly from 0% to 100%)
+
+   **Example**: At 30% light:
+   * DARK membership: 50% (partially dark)
+   * MEDIUM membership: 0% (barely medium)
+   * BRIGHT membership: 0% (not bright at all)
+
+### Visual Representation of Membership Functions
+
+Temperature membership functions would look something like this:
+```
+    Membership
+    100% |   COLD     OPTIMAL     HOT
+         |    /\        /\        /\
+         |   /  \      /  \      /  \
+         |  /    \    /    \    /    \
+     0% |_/______\__/______\__/______\___
+         15      20      25      30     35
+                Temperature (°C)
+```
+
+### Output Variables
+
+1. **Fan Control**
+   - Binary output: ON or OFF
+   - Based on defuzzified value with threshold at 0.5
+   
+2. **Light Control**
+   - Binary output: ON or OFF
+   - Based on defuzzified value with threshold at 0.5
+
+## Fuzzy Rule Base
+
+### Fan Control Rules
+
+| Rule | Temperature | Humidity | Light | Fan Output |
+|------|-------------|----------|-------|------------|
+| 1    | HOT         | *        | *     | ON         |
+| 2    | OPTIMAL     | HUMID    | *     | ON         |
+| 3    | OPTIMAL     | NORMAL   | *     | OFF        |
+| 4    | OPTIMAL     | DRY      | *     | OFF        |
+| 5    | COLD        | HUMID    | *     | ON  |
+| 6    | COLD        | NORMAL   | *     | OFF        |
+| 7    | COLD        | DRY      | *     | OFF        |
+
+_* = Any value (doesn't affect this rule)_
+
+### Light Control Rules
+
+| Rule | Light  | Light Output |
+|------|--------|--------------|
+| 1    | DARK   | ON           |
+| 2    | MEDIUM | OFF          |
+| 3    | BRIGHT | OFF          |
+
+_Note: Light control is based solely on light level, ignoring temperature and humidity_
+
+## How Defuzzification Works
+
+Let's walk through a complete example to show how the system makes decisions:
+
+### Example: Temperature = 24°C, Humidity = 75%, Light = 30%
+
+1. **Step 1: Calculate membership values**
+
+   Temperature (24°C):
+   * COLD: 0% (not cold)
+   * OPTIMAL: 50% (partially optimal)
+   * HOT: 20% (slightly hot)
+
+   Humidity (75%):
+   * DRY: 0% (not dry)
+   * NORMAL: 0% (not normal)
+   * HUMID: 75% (mostly humid)
+
+   Light (30%):
+   * DARK: 50% (partially dark)
+   * MEDIUM: 0% (not medium)
+   * BRIGHT: 0% (not bright)
+
+2. **Step 2: Apply rules for fan control**
+
+   Rule 1: IF temperature is HOT (20%) THEN fan is ON = 20%
+   Rule 2: IF temperature is OPTIMAL (50%) AND humidity is HUMID (75%) THEN fan is ON = min(50%, 75%) = 50%
+   Rule 3: IF temperature is OPTIMAL (50%) AND humidity is NORMAL (0%) THEN fan is OFF = min(50%, 0%) = 0%
+   Rule 4: IF temperature is OPTIMAL (50%) AND humidity is DRY (0%) THEN fan is OFF = min(50%, 0%) = 0%
+   Rule 5: IF temperature is COLD (0%) AND humidity is HUMID (75%) THEN fan is ON = min(0%, 75%) = 0%
+   Rule 6: IF temperature is COLD (0%) AND humidity is NORMAL (0%) THEN fan is OFF = min(0%, 0%) = 0%
+   Rule 7: IF temperature is COLD (0%) AND humidity is DRY (0%) THEN fan is OFF = min(0%, 0%) = 0%
+
+4. **Step 4: Apply rules for light control**
+
+   Rule 1: IF light is DARK (50%) THEN light is ON = 50%
+   Rule 2: IF light is MEDIUM (0%) THEN light is OFF = 0%
+   Rule 3: IF light is BRIGHT (0%) THEN light is OFF = 0%
+
+6. **Step 6: Make final decisions**
+
+   Fan: 50% ON vs 0% OFF → Fan turns ON (50% > 0%)
+   Light: 50% ON vs 0% OFF → Light turns ON (50% > 0%)
+
+## Cross-Section Aggregation
+
+Each section's data is aggregated to make a final decision for the entire greenhouse. The system uses a weighted average approach, giving more importance to sections with more critical conditions.
+
+## Example Scenarios
+
+### Scenario 1: Hot Afternoon
+
+If temperature readings are high across all sections (above 30°C), the fan will automatically turn ON regardless of other conditions to prevent overheating.
+
+### Scenario 2: Early Morning
+
+If light levels are low (below 30%) and temperature is in the COLD range, the lights will turn ON to provide both light and heat for the plants.
+
+### Scenario 3: High Humidity
+
+If humidity reaches the HUMID range with OPTIMAL temperature, fans will turn ON to reduce moisture and prevent fungal diseases, even if this means sacrificing some heat.
+
+## Implementation Notes
+
+The fuzzy logic system is implemented in the DeWasaNode_Master.ino file. The controller:
+
+1. Collects data from all nodes via ESP-NOW
+2. Processes data through the fuzzy logic system
+3. Makes control decisions
+4. Applies the controls by activating relays for the fan and lights (Relay controls is not yet implemented. Only the DHT and BH1750 is finalized)
+5. Includes the control state in MQTT messages for monitoring
+
+## Maintenance and Calibration
+
+Regularly calibrate the sensors and adjust the membership functions as needed to ensure accurate control decisions. Monitor the system's performance and make adjustments based on observed conditions and plant health.
+
