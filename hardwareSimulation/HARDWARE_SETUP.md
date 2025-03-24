@@ -3,7 +3,9 @@
 ## Tested and Confirmed Working Files
 1. DeWasaNode_Master.ino (all features working, individual sensor error works on the front end)
 
-## Not yet Tested Files
+## Not yet Tested Files (assume bugged or not working yet)
+1. PenyemainNode.ino
+2. PeremajaanNode.ino
 
 ## Overview
 
