@@ -1,5 +1,87 @@
 /* Additional styling for the profile page */
 
+/* --- PROFILE COMPONENT STYLES (from components/profile.css) --- */
+/* Profile Component Styles */
+.profile__image {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+  margin-right: var(--spacing-md);
+  /* Add box shadow to enhance profile image appearance */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.profile__header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+}
+
+.profile__info h2 {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.profile__info p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Fix for potential conflicts with header class */
+.profile .header {
+  margin-bottom: 0;
+}
+
+.profile__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.profile__list-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid #eee;
+}
+
+.profile__list-item:last-child {
+  border-bottom: none;
+}
+
+.profile__list-item i {
+  margin-right: var(--spacing-md);
+  color: var(--primary);
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.profile__list-item span, 
+.profile__list-item a {
+  flex-grow: 1;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.profile__list-item a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.profile__list-item .switch {
+  margin-left: auto;
+}
+
+.card--profile .card__content {
+  padding: 0;
+}
+
+/* --- EXISTING PROFILE PAGE STYLES --- */
+
 /* Profile edit modal styles */
 .profile-edit {
   display: flex;
@@ -202,7 +284,17 @@
 }
 
 /* Add responsive styling */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .profile__header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile__image {
+    margin-right: 0;
+    margin-bottom: var(--spacing-md);
+  }
+  
   .profile-edit__preview {
     width: 100px;
     height: 100px;
