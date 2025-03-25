@@ -4,68 +4,90 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize the profile modal
-  const profileModalControl = initModal('profileModal', 'openProfileModal', function(modal, closeModal) {
-    const displayName = document.getElementById('displayName').value;
-    
-    if (!displayName.trim()) {
-      showValidationError('Please enter a valid display name');
-      return;
-    }
-    
-    updateProfileDisplay(displayName);
-    closeModal();
-    showToast('Profile updated successfully!');
-  });
-  
-  // Initialize the password change modal
-  const passwordModalControl = initModal('passwordModal', 'openPasswordModal', function(modal, closeModal) {
-    const currentPassword = document.getElementById('currentPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    if (!currentPassword) {
-      showValidationError('Current password is required');
-      return;
-    }
-    
-    if (!isPasswordValid(newPassword)) {
-      showValidationError('Please meet all password requirements');
-      return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-      showValidationError('Passwords do not match');
-      return;
-    }
-    
-    closeModal();
-    showToast('Password changed successfully!');
-  });
+  // Initialize modals with their specific validation logic
+  initModal('profileModal', 'openProfileModal', handleProfileUpdate);
+  initModal('passwordModal', 'openPasswordModal', handlePasswordUpdate);
   
   // Set up other functionality
   setupPasswordToggles();
   setupPasswordValidation();
   setupProfilePictureUpload();
+  
+  // Register global Escape key handler for modals
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      closeAllModals();
+    }
+  });
 });
+
+/**
+ * Profile update handler
+ * @param {HTMLElement} modal - The modal element
+ * @param {Function} closeModal - Function to close the modal
+ */
+function handleProfileUpdate(modal, closeModal) {
+  const displayName = document.getElementById('displayName').value;
+  
+  if (!displayName.trim()) {
+    showValidationError('Harap masukkan nama tampilan yang valid');
+    return;
+  }
+  
+  updateProfileDisplay(displayName);
+  closeModal();
+  showToast('Profil berhasil diperbarui!');
+}
+
+/**
+ * Password update handler
+ * @param {HTMLElement} modal - The modal element
+ * @param {Function} closeModal - Function to close the modal
+ */
+function handlePasswordUpdate(modal, closeModal) {
+  const currentPassword = document.getElementById('currentPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  
+  // Validate inputs
+  if (!currentPassword) {
+    showValidationError('Kata sandi saat ini diperlukan');
+    return;
+  }
+  
+  if (!isPasswordValid(newPassword)) {
+    showValidationError('Harap penuhi semua persyaratan kata sandi');
+    return;
+  }
+  
+  if (newPassword !== confirmPassword) {
+    showValidationError('Kata sandi tidak cocok');
+    return;
+  }
+  
+  closeModal();
+  showToast('Kata sandi berhasil diubah!');
+}
 
 /**
  * Initialize a modal component
  * @param {string} modalId - The ID of the modal element
  * @param {string} openerId - The ID of the element that opens the modal
  * @param {Function} onSave - Optional callback function when save button is clicked
+ * @returns {Object|null} - Modal control functions or null if initialization failed
  */
 function initModal(modalId, openerId, onSave = null) {
   const modal = document.getElementById(modalId);
   const opener = document.getElementById(openerId);
-  const closeBtn = document.getElementById('close' + modalId);
-  const cancelBtn = document.getElementById('cancel' + modalId);
-  const saveBtn = document.getElementById('save' + modalId);
   
   if (!modal || !opener) {
     console.error(`Modal initialization failed: Elements not found. Modal: ${modalId}, Opener: ${openerId}`);
-    return;
+    return null;
   }
+  
+  const closeBtn = document.getElementById('close' + modalId);
+  const cancelBtn = document.getElementById('cancel' + modalId);
+  const saveBtn = document.getElementById('save' + modalId);
   
   // Open modal function
   function openModal() {
@@ -77,18 +99,20 @@ function initModal(modalId, openerId, onSave = null) {
   function closeModal() {
     modal.classList.remove('modal--active');
     document.body.style.overflow = '';
+    
+    // Clear form fields if needed
+    const formInputs = modal.querySelectorAll('input:not([disabled])');
+    formInputs.forEach(input => {
+      if (input.type === 'file') return; // Don't clear file inputs
+      input.value = '';
+    });
   }
   
   // Event listeners
   opener.addEventListener('click', openModal);
   
-  if (closeBtn) {
-    closeBtn.addEventListener('click', closeModal);
-  }
-  
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', closeModal);
-  }
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
   
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
@@ -114,15 +138,15 @@ function initModal(modalId, openerId, onSave = null) {
   };
 }
 
-// Register global Escape key handler for modals
-document.addEventListener('keydown', function(event) {
-  if (event.key === 'Escape') {
-    document.querySelectorAll('.modal--active').forEach(activeModal => {
-      activeModal.classList.remove('modal--active');
-      document.body.style.overflow = '';
-    });
-  }
-});
+/**
+ * Close all active modals
+ */
+function closeAllModals() {
+  document.querySelectorAll('.modal--active').forEach(activeModal => {
+    activeModal.classList.remove('modal--active');
+  });
+  document.body.style.overflow = '';
+}
 
 /**
  * Set up profile picture upload and preview functionality
@@ -132,47 +156,44 @@ function setupProfilePictureUpload() {
   const previewImage = document.getElementById('profilePicturePreview');
   const mainProfileImage = document.getElementById('mainProfileImage');
   
-  if (fileInput) {
-    fileInput.addEventListener('change', function() {
-      const file = this.files[0];
-      if (file) {
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-          previewImage.src = e.target.result;
-          
-          if (mainProfileImage) {
-            mainProfileImage.src = e.target.result;
-          }
-          
-          sessionStorage.setItem('profile_picture', e.target.result);
-        };
-        
-        reader.readAsDataURL(file);
-      }
-    });
-  }
+  if (!fileInput) return;
+  
+  fileInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+      const imageData = e.target.result;
+      
+      if (previewImage) previewImage.src = imageData;
+      if (mainProfileImage) mainProfileImage.src = imageData;
+      
+      sessionStorage.setItem('profile_picture', imageData);
+    };
+    
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
  * Update profile display in the UI
+ * @param {string} name - The display name to update
  */
 function updateProfileDisplay(name) {
   const headerTitle = document.querySelector('.header__content h1');
-  if (headerTitle) {
-    headerTitle.textContent = `Hello, ${name}!`;
-  }
-  
   const profileName = document.querySelector('.profile__info h2');
-  if (profileName) {
-    profileName.textContent = name;
-  }
+  
+  if (headerTitle) headerTitle.textContent = `Halo, ${name}!`;
+  if (profileName) profileName.textContent = name;
   
   sessionStorage.setItem('user_name', name);
 }
 
 /**
  * Display a toast notification
+ * @param {string} message - The message to display
  */
 function showToast(message) {
   let toast = document.getElementById('toast-notification');
@@ -187,19 +208,26 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add('toast--visible');
   
-  setTimeout(() => {
+  // Clear any existing timeout to prevent issues
+  if (toast.timeoutId) clearTimeout(toast.timeoutId);
+  
+  toast.timeoutId = setTimeout(() => {
     toast.classList.remove('toast--visible');
   }, 3000);
 }
 
 /**
  * Show validation error message
+ * @param {string} message - The error message
  */
 function showValidationError(message) {
   alert(message);
+  // Could be improved with a more user-friendly error display
 }
 
-// ... Password functionality ...
+/**
+ * Set up password visibility toggles
+ */
 function setupPasswordToggles() {
   const toggles = document.querySelectorAll('.password-toggle');
   
@@ -208,19 +236,19 @@ function setupPasswordToggles() {
       const input = this.previousElementSibling;
       const icon = this.querySelector('i');
       
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-      } else {
-        input.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-      }
+      const isPasswordVisible = input.type === 'text';
+      
+      input.type = isPasswordVisible ? 'password' : 'text';
+      icon.className = isPasswordVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
     });
   });
 }
 
+/**
+ * Check if a password meets security requirements
+ * @param {string} password - The password to validate
+ * @returns {boolean} - Whether the password is valid
+ */
 function isPasswordValid(password) {
   const minLength = 8;
   const hasUpperCase = /[A-Z]/.test(password);
@@ -230,6 +258,9 @@ function isPasswordValid(password) {
   return password.length >= minLength && hasUpperCase && hasNumber && hasSpecial;
 }
 
+/**
+ * Set up password validation UI
+ */
 function setupPasswordValidation() {
   const newPassword = document.getElementById('newPassword');
   const confirmPassword = document.getElementById('confirmPassword');
@@ -237,72 +268,93 @@ function setupPasswordValidation() {
   const strengthText = document.getElementById('strengthText');
   const passwordMatch = document.getElementById('passwordMatch');
   
-  if (newPassword) {
-    newPassword.addEventListener('input', function() {
-      validatePassword(this.value);
-    });
-  }
+  if (!newPassword || !confirmPassword) return;
   
-  if (confirmPassword) {
-    confirmPassword.addEventListener('input', function() {
-      validatePasswordMatch(newPassword.value, this.value);
-    });
-  }
+  newPassword.addEventListener('input', function() {
+    validatePassword(this.value);
+    
+    // Re-check match if confirm password has a value
+    if (confirmPassword.value) {
+      validatePasswordMatch(this.value, confirmPassword.value);
+    }
+  });
   
+  confirmPassword.addEventListener('input', function() {
+    validatePasswordMatch(newPassword.value, this.value);
+  });
+  
+  /**
+   * Validate password strength and update UI
+   * @param {string} password - The password to validate
+   */
   function validatePassword(password) {
-    const lengthCheck = document.getElementById('length-check');
-    const uppercaseCheck = document.getElementById('uppercase-check');
-    const numberCheck = document.getElementById('number-check');
-    const specialCheck = document.getElementById('special-check');
+    const requirements = [
+      { id: 'length-check', test: () => password.length >= 8 },
+      { id: 'uppercase-check', test: () => /[A-Z]/.test(password) },
+      { id: 'number-check', test: () => /[0-9]/.test(password) },
+      { id: 'special-check', test: () => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) }
+    ];
     
-    updateRequirement(lengthCheck, password.length >= 8);
-    updateRequirement(uppercaseCheck, /[A-Z]/.test(password));
-    updateRequirement(numberCheck, /[0-9]/.test(password));
-    updateRequirement(specialCheck, /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password));
-    
+    // Update each requirement indicator
     let strength = 0;
-    if (password.length >= 8) strength += 25;
-    if (/[A-Z]/.test(password)) strength += 25;
-    if (/[0-9]/.test(password)) strength += 25;
-    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 25;
+    requirements.forEach(req => {
+      const isValid = req.test();
+      updateRequirement(document.getElementById(req.id), isValid);
+      if (isValid) strength += 25;
+    });
     
-    passwordStrength.style.width = strength + '%';
-    passwordStrength.className = 'strength-meter__bar';
-    
-    if (strength <= 25) {
-      passwordStrength.classList.add('weak');
-      strengthText.textContent = 'Weak';
-    } else if (strength <= 75) {
-      passwordStrength.classList.add('medium');
-      strengthText.textContent = 'Medium';
-    } else {
-      passwordStrength.classList.add('strong');
-      strengthText.textContent = 'Strong';
+    // Update strength meter
+    if (passwordStrength) {
+      passwordStrength.style.width = strength + '%';
+      passwordStrength.className = 'strength-meter__bar';
+      
+      if (strength <= 25) {
+        passwordStrength.classList.add('weak');
+        if (strengthText) strengthText.textContent = 'Lemah';
+      } else if (strength <= 75) {
+        passwordStrength.classList.add('medium');
+        if (strengthText) strengthText.textContent = 'Sedang';
+      } else {
+        passwordStrength.classList.add('strong');
+        if (strengthText) strengthText.textContent = 'Kuat';
+      }
     }
   }
   
+  /**
+   * Update a requirement indicator
+   * @param {HTMLElement} element - The requirement element
+   * @param {boolean} isValid - Whether the requirement is met
+   */
   function updateRequirement(element, isValid) {
+    if (!element) return;
+    
     if (isValid) {
       element.classList.add('valid');
-      element.querySelector('i').className = 'fas fa-check-circle';
+      const icon = element.querySelector('i');
+      if (icon) icon.className = 'fas fa-check-circle';
     } else {
       element.classList.remove('valid');
-      element.querySelector('i').className = 'fas fa-circle';
+      const icon = element.querySelector('i');
+      if (icon) icon.className = 'fas fa-circle';
     }
   }
   
+  /**
+   * Validate password match and update UI
+   * @param {string} password - The original password
+   * @param {string} confirmPassword - The confirmation password
+   */
   function validatePasswordMatch(password, confirmPassword) {
+    if (!passwordMatch) return;
+    
     if (!confirmPassword) {
       passwordMatch.textContent = '';
       return;
     }
     
-    if (password === confirmPassword) {
-      passwordMatch.textContent = 'Passwords match';
-      passwordMatch.className = 'password-match-valid';
-    } else {
-      passwordMatch.textContent = 'Passwords do not match';
-      passwordMatch.className = 'password-match-invalid';
-    }
+    const doPasswordsMatch = password === confirmPassword;
+    passwordMatch.textContent = doPasswordsMatch ? 'Kata sandi cocok' : 'Kata sandi tidak cocok';
+    passwordMatch.className = doPasswordsMatch ? 'password-match-valid' : 'password-match-invalid';
   }
 }

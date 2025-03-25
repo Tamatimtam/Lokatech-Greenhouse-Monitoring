@@ -6,7 +6,7 @@
 {% import "macros/navigation.html" as navigation %}
 {% import "macros/modal.html" as modal %}
 
-{% block title %}Profile - Greenhouse Monitoring{% endblock %}
+{% block title %}Profil - Greenhouse Monitoring{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
@@ -18,86 +18,86 @@
 <div class="container">
   <header class="header">
     <div class="header__content">
-      <h1>Hello, {{ user.name if user else 'Guest' }}!</h1>
-      <p>Manage your account and preferences</p>
+      <h1>Halo, {{ user.name if user else 'Tamu' }}!</h1>
+      <p>Kelola akun dan preferensi Anda</p>
     </div>
     <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
   </header>
 
-  {% call card.card('USER PROFILE', 'card--profile') %}
+  {% call card.card('PROFIL PENGGUNA', 'card--profile') %}
     <div class="profile__header">
       <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
-           alt="Profile Picture" 
+           alt="Foto Profil" 
            class="profile__image"
            id="mainProfileImage">
       <div class="profile__info">
-        <h2>{{ user.name if user else 'Guest User' }}</h2>
-        <p>{{ user.email if user else 'Not logged in' }}</p>
+        <h2>{{ user.name if user else 'Pengguna Tamu' }}</h2>
+        <p>{{ user.email if user else 'Belum masuk' }}</p>
       </div>
     </div>
   {% endcall %}
 
   <!-- Changed from grid--2col to grid--1col to make it full width -->
   <div class="grid grid--1col">
-    {% call card.card('ACCOUNT SETTINGS') %}
+    {% call card.card('PENGATURAN AKUN') %}
       <ul class="profile__list">
         <li class="profile__list-item" id="openProfileModal" style="cursor: pointer;">
           <i class="fas fa-user"></i> 
-          <span>Profile Information</span>
+          <span>Informasi Profil</span>
         </li>
         <li class="profile__list-item" id="openPasswordModal" style="cursor: pointer;">
           <i class="fas fa-lock"></i> 
-          <span>Change Password</span>
+          <span>Ubah Kata Sandi</span>
         </li>
         <li class="profile__list-item">
           <i class="fas fa-sign-out-alt"></i> 
-          <a href="/logout">Logout</a>
+          <a href="/logout">Keluar</a>
         </li>
       </ul>
     {% endcall %}
   </div>
   
-  {% call modal.modal('profileModal', 'Profile Information') %}
+  {% call modal.modal('profileModal', 'Informasi Profil') %}
     <div class="profile-edit">
       <div class="profile-edit__picture">
         <img 
           src="{{ user.picture if user and user.picture else url_for('static', filename='images/default-avatar.png') }}" 
-          alt="Profile Picture Preview" 
+          alt="Pratinjau Foto Profil" 
           id="profilePicturePreview"
           class="profile-edit__preview"
         >
         <div class="profile-edit__actions">
           <label for="profilePictureInput" class="profile-edit__upload-btn">
-            <i class="fas fa-camera"></i> Change Picture
+            <i class="fas fa-camera"></i> Ubah Foto
           </label>
           <input type="file" id="profilePictureInput" accept="image/*" class="hidden-input">
         </div>
       </div>
 
       <div class="form-group">
-        <label for="displayName">Display Name</label>
-        <input type="text" id="displayName" value="{{ user.name if user else 'Guest User' }}" class="form-control">
+        <label for="displayName">Nama Tampilan</label>
+        <input type="text" id="displayName" value="{{ user.name if user else 'Pengguna Tamu' }}" class="form-control">
       </div>
       
       <div class="form-group">
-        <label for="emailAddress">Email Address</label>
+        <label for="emailAddress">Alamat Email</label>
         <input type="email" id="emailAddress" value="{{ user.email if user else '' }}" disabled class="form-control">
-        <small>Email cannot be changed</small>
+        <small>Email tidak dapat diubah</small>
       </div>
       
       <div class="form-group">
-        <label for="userRole">Role</label>
+        <label for="userRole">Peran</label>
         <input type="text" id="userRole" value="Administrator" disabled class="form-control">
       </div>
     </div>
   {% endcall %}
   
-  {% call modal.modal('passwordModal', 'Change Password') %}
+  {% call modal.modal('passwordModal', 'Ubah Kata Sandi') %}
     <div class="password-edit">
       <div class="form-group">
-        <label for="currentPassword">Current Password</label>
+        <label for="currentPassword">Kata Sandi Saat Ini</label>
         <div class="password-input-container">
-          <input type="password" id="currentPassword" class="form-control" placeholder="Enter your current password" required>
+          <input type="password" id="currentPassword" class="form-control" placeholder="Masukkan kata sandi Anda saat ini" required>
           <button type="button" class="password-toggle" tabindex="-1">
             <i class="fas fa-eye"></i>
           </button>
@@ -105,9 +105,9 @@
       </div>
       
       <div class="form-group">
-        <label for="newPassword">New Password</label>
+        <label for="newPassword">Kata Sandi Baru</label>
         <div class="password-input-container">
-          <input type="password" id="newPassword" class="form-control" placeholder="Enter your new password" required>
+          <input type="password" id="newPassword" class="form-control" placeholder="Masukkan kata sandi baru Anda" required>
           <button type="button" class="password-toggle" tabindex="-1">
             <i class="fas fa-eye"></i>
           </button>
@@ -116,14 +116,14 @@
           <div class="strength-meter">
             <div class="strength-meter__bar" id="passwordStrength"></div>
           </div>
-          <span class="strength-text" id="strengthText">Password strength</span>
+          <span class="strength-text" id="strengthText">Kekuatan kata sandi</span>
         </div>
       </div>
       
       <div class="form-group">
-        <label for="confirmPassword">Confirm Password</label>
+        <label for="confirmPassword">Konfirmasi Kata Sandi</label>
         <div class="password-input-container">
-          <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm your new password" required>
+          <input type="password" id="confirmPassword" class="form-control" placeholder="Konfirmasi kata sandi baru Anda" required>
           <button type="button" class="password-toggle" tabindex="-1">
             <i class="fas fa-eye"></i>
           </button>
@@ -132,12 +132,12 @@
       </div>
       
       <div class="password-requirements">
-        <h4>Password Requirements:</h4>
+        <h4>Persyaratan Kata Sandi:</h4>
         <ul class="requirements-list">
-          <li id="length-check"><i class="fas fa-circle"></i> Minimum 8 characters</li>
-          <li id="uppercase-check"><i class="fas fa-circle"></i> At least 1 uppercase letter</li>
-          <li id="number-check"><i class="fas fa-circle"></i> At least 1 number</li>
-          <li id="special-check"><i class="fas fa-circle"></i> At least 1 special character</li>
+          <li id="length-check"><i class="fas fa-circle"></i> Minimal 8 karakter</li>
+          <li id="uppercase-check"><i class="fas fa-circle"></i> Minimal 1 huruf kapital</li>
+          <li id="number-check"><i class="fas fa-circle"></i> Minimal 1 angka</li>
+          <li id="special-check"><i class="fas fa-circle"></i> Minimal 1 karakter khusus</li>
         </ul>
       </div>
     </div>
