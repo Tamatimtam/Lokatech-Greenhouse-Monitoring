@@ -500,8 +500,6 @@ The fuzzy logic system takes into account several important constraints:
 
 2. **Multiple Input Parameters**: The system considers temperature, humidity, and light level from all three sections.
 
-3. **Priority Management**: Different plant growth stages may have different environmental requirements, which are weighted in the decision-making process.
-
 ## Fuzzy Logic Variables and Membership Functions
 
 ### What are Membership Functions?
@@ -512,7 +510,7 @@ These functions are typically represented as triangular or trapezoidal shapes th
 
 ### Input Variables and Membership Functions
 
-1. **Temperature**
+1. **Temperature** 
    - **Range**: 15-35°C
    - **Fuzzy Sets**:
      - COLD: 15-22°C 
@@ -531,24 +529,24 @@ These functions are typically represented as triangular or trapezoidal shapes th
    * OPTIMAL membership: 50% (partially optimal)
    * HOT membership: 0% (not hot at all)
 
-2. **Humidity**
+2. **Humidity | Source: https://www.mdpi.com/2304-8158/10/7/1524**
    - **Range**: 20-100%
    - **Fuzzy Sets**:
-     - DRY: 20-50% 
-       * Full membership (100%): ≤30%
-       * Partial membership: 30-50% (decreasing linearly from 100% to 0%)
-     - NORMAL: 40-70% 
-       * Full membership (100%): 50-60%
-       * Partial membership: 40-50% (increasing linearly from 0% to 100%)
-       * Partial membership: 60-70% (decreasing linearly from 100% to 0%)
-     - HUMID: 60-100%
-       * Full membership (100%): ≥80%
-       * Partial membership: 60-80% (increasing linearly from 0% to 100%)
+     - DRY: 20-70% 
+       * Full membership (100%): ≤50%
+       * Partial membership: 50-70% (decreasing linearly from 100% to 0%)
+     - NORMAL: 65-95% 
+       * Full membership (100%): 80-90%
+       * Partial membership: 65-80% (increasing linearly from 0% to 100%)
+       * Partial membership: 90-95% (decreasing linearly from 100% to 0%)
+     - HUMID: 90-100%
+       * Full membership (100%): ≥95%
+       * Partial membership: 90-95% (increasing linearly from 0% to 100%)
 
-   **Example**: At 65% humidity:
+   **Example**: At 85% humidity:
    * DRY membership: 0% (not dry at all)
-   * NORMAL membership: 50% (partially normal)
-   * HUMID membership: 25% (slightly humid)
+   * NORMAL membership: 100% (optimal for kale)
+   * HUMID membership: 0% (not humid)
 
 3. **Light Level**
    - **Range**: 0-100%
@@ -578,7 +576,7 @@ Temperature membership functions would look something like this:
          |    /\        /\        /\
          |   /  \      /  \      /  \
          |  /    \    /    \    /    \
-     0% |_/______\__/______\__/______\___
+     0%  |_/______\__/______\__/______\___
          15      20      25      30     35
                 Temperature (°C)
 ```
@@ -603,7 +601,7 @@ Temperature membership functions would look something like this:
 | 2    | OPTIMAL     | HUMID    | *     | ON         |
 | 3    | OPTIMAL     | NORMAL   | *     | OFF        |
 | 4    | OPTIMAL     | DRY      | *     | OFF        |
-| 5    | COLD        | HUMID    | *     | ON  |
+| 5    | COLD        | HUMID    | *     | OFF  |
 | 6    | COLD        | NORMAL   | *     | OFF        |
 | 7    | COLD        | DRY      | *     | OFF        |
 
@@ -648,7 +646,7 @@ Let's walk through a complete example to show how the system makes decisions:
    Rule 2: IF temperature is OPTIMAL (50%) AND humidity is HUMID (75%) THEN fan is ON = min(50%, 75%) = 50%
    Rule 3: IF temperature is OPTIMAL (50%) AND humidity is NORMAL (0%) THEN fan is OFF = min(50%, 0%) = 0%
    Rule 4: IF temperature is OPTIMAL (50%) AND humidity is DRY (0%) THEN fan is OFF = min(50%, 0%) = 0%
-   Rule 5: IF temperature is COLD (0%) AND humidity is HUMID (75%) THEN fan is ON = min(0%, 75%) = 0%
+   Rule 5: IF temperature is COLD (0%) AND humidity is HUMID (75%) THEN fan is OFF = min(0%, 75%) = 0%
    Rule 6: IF temperature is COLD (0%) AND humidity is NORMAL (0%) THEN fan is OFF = min(0%, 0%) = 0%
    Rule 7: IF temperature is COLD (0%) AND humidity is DRY (0%) THEN fan is OFF = min(0%, 0%) = 0%
 
@@ -662,10 +660,6 @@ Let's walk through a complete example to show how the system makes decisions:
 
    Fan: 50% ON vs 0% OFF → Fan turns ON (50% > 0%)
    Light: 50% ON vs 0% OFF → Light turns ON (50% > 0%)
-
-## Cross-Section Aggregation
-
-Each section's data is aggregated to make a final decision for the entire greenhouse. The system uses a weighted average approach, giving more importance to sections with more critical conditions.
 
 ## Example Scenarios
 
