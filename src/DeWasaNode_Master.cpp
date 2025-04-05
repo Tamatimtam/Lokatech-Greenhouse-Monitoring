@@ -46,7 +46,7 @@ ESPNowManager* espNowManager;
 MQTTManager* mqttManager;
 
 // Function prototypes
-void onDataReceived(const SensorData& data);
+// void onDataReceived(const SensorData& data); // Callback no longer needed here
 
 void setup() {
   // Initialize serial communication
@@ -62,40 +62,48 @@ void setup() {
   
   // Initialize sensor manager
   sensorManager->begin();
-  
-  // Initialize ESP-NOW
-  if (!espNowManager->begin()) {
-    Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize ESP-NOW");
-  }
-  
-  // Add peer nodes to ESP-NOW
-  if (espNowManager->addPeer(penyemaianMac)) {
-    Serial.println("[DeWasaNode_Master] Penyemaian node added as ESP-NOW peer");
-  }
-  
-  if (espNowManager->addPeer(peremajaanMac)) {
-    Serial.println("[DeWasaNode_Master] Peremajaan node added as ESP-NOW peer");
-  }
-  
-  // Register callback for ESP-NOW data reception
-  espNowManager->registerDataCallback(onDataReceived);
-  
-  // Initialize MQTT (this will connect to WiFi)
+
+  // Initialize MQTT first (this will connect to WiFi)
   if (!mqttManager->begin()) {
-    Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT");
+    Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT (and WiFi)");
+    // Consider halting or retrying if WiFi/MQTT is critical
+  } else {
+      // Connect to MQTT broker only after WiFi is up via mqttManager->begin()
+      if (mqttManager->connect()) {
+        Serial.println("[DeWasaNode_Master] Connected to MQTT broker");
+      } else {
+         Serial.println("[DeWasaNode_Master] WARNING: Failed to connect to MQTT broker initially.");
+      }
   }
-  
-  // Connect to MQTT broker
-  if (mqttManager->connect()) {
-    Serial.println("[DeWasaNode_Master] Connected to MQTT broker");
-    
-    // Ensure ESP-NOW uses channel 6 after WiFi connection
-    Serial.println("[DeWasaNode_Master] Setting WiFi channel to 6 for ESP-NOW compatibility...");
-    if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
-        Serial.println("[DeWasaNode_Master] ERROR: Failed to set WiFi channel post-connection!");
-    } else {
-        Serial.println("[DeWasaNode_Master] WiFi channel set to 6 successfully.");
-    }
+
+  // Now initialize ESP-NOW, passing the MAC of the node sending CombinedData (Peremajaan)
+  // This requires WiFi to be initialized (which mqttManager->begin() does)
+  if (!espNowManager->begin(peremajaanMac)) {
+    Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize ESP-NOW Manager");
+    // Handle error, maybe halt or retry
+  } else {
+    Serial.println("[DeWasaNode_Master] ESP-NOW Manager initialized.");
+  }
+
+  // Add Peremajaan as a peer (optional but good practice for receiving)
+  if (espNowManager->addPeer(peremajaanMac)) {
+    Serial.println("[DeWasaNode_Master] Peremajaan node added as ESP-NOW peer.");
+  } else {
+     Serial.println("[DeWasaNode_Master] WARNING: Failed to add Peremajaan as ESP-NOW peer.");
+  }
+
+  // Ensure ESP-NOW uses channel 6 AFTER WiFi connection is established
+  // Check if WiFi is connected before setting channel
+  if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("[DeWasaNode_Master] Setting WiFi channel to 6 for ESP-NOW compatibility...");
+      if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+          Serial.println("[DeWasaNode_Master] ERROR: Failed to set WiFi channel post-connection!");
+      } else {
+          Serial.println("[DeWasaNode_Master] WiFi channel set to 6 successfully.");
+      }
+  } else {
+      Serial.println("[DeWasaNode_Master] WARNING: WiFi not connected, cannot guarantee ESP-NOW channel setting.");
+      // ESP-NOW might still work if the default channel happens to be 6, but it's less reliable.
   }
   
   Serial.println("[DeWasaNode_Master] Setup completed");
@@ -160,24 +168,5 @@ void loop() {
   delay(10);
 }
 
-// Callback function for ESP-NOW data reception
-void onDataReceived(const SensorData& data) {
-  Serial.println("[DeWasaNode_Master] Data received via ESP-NOW:");
-  Serial.print("  Node: ");
-  Serial.println(data.nodeName);
-  
-  if (data.temperatureValid) {
-    Serial.print("  Temperature: ");
-    Serial.println(data.temperature);
-  }
-  
-  if (data.humidityValid) {
-    Serial.print("  Humidity: ");
-    Serial.println(data.humidity);
-  }
-  
-  if (data.lightValid) {
-    Serial.print("  Light: ");
-    Serial.println(data.lightIntensity);
-  }
-}
+// Callback function no longer needed here, as ESPNowManager handles reception internally
+// void onDataReceived(const SensorData& data) { ... }
