@@ -53,15 +53,27 @@ const SystemMonitor = {
         for (const [section, values] of Object.entries(data.sections)) {
             if (!this.status.nodes[section]) continue;
 
-            this.status.nodes[section].online = true;
+            // Check if the section exists AND has at least one non-null sensor value
+            // Ensure 'values' is not null or undefined before accessing properties
+            const hasValidData = values && (values.temp !== null || values.humidity !== null || values.light !== null);
 
-            // Update sensor status
-            if (values.hasOwnProperty('temp')) this.status.nodes[section].sensors.temp = true;
-            if (values.hasOwnProperty('humidity')) this.status.nodes[section].sensors.humidity = true;
-            if (values.hasOwnProperty('light')) this.status.nodes[section].sensors.light = true;
+            if (hasValidData) {
+                this.status.nodes[section].online = true; // Mark online only if valid data exists
+
+                // Update sensor status based on non-null values
+                this.status.nodes[section].sensors.temp = values.temp !== null;
+                this.status.nodes[section].sensors.humidity = values.humidity !== null;
+                this.status.nodes[section].sensors.light = values.light !== null;
+            } else {
+                 this.status.nodes[section].online = false; // Explicitly mark as offline if no valid data
+                 // Reset sensor status for this offline node
+                 this.status.nodes[section].sensors.temp = false;
+                 this.status.nodes[section].sensors.humidity = false;
+                 this.status.nodes[section].sensors.light = false;
+            }
         }
 
-        // Update master node status (dewasa node)
+        // Update master node status (dewasa node) - this remains based on its calculated online status
         this.status.masterNode = this.status.nodes.dewasa.online;
 
         return true;
@@ -109,9 +121,11 @@ const UI = {
 
     resetDisplay() {
         // Reset all gauges
-        ['temperature-gauge', 'humidity-gauge', 'light-gauge'].forEach(id => {
+        ['temperature-gauge', 'humidity-gauge'].forEach(id => {
             this.updateGauge(id, null, 100, '#ccc');
         });
+        // Special case for light gauge that now uses lux
+        this.updateGauge('light-gauge', null, 10000, '#ccc');
 
         // Reset all section values
         const sections = ['penyemaian', 'peremajaan', 'dewasa'];
@@ -139,7 +153,12 @@ const UI = {
         const valueDisplay = gaugeElement.querySelector('.value');
 
         // Update display value
-        valueDisplay.textContent = value !== null && value !== undefined ? value : '--';
+        if (id === 'light-gauge' && value !== null && value !== undefined) {
+            // Format lux values for display: add commas for thousands and show 'lux' unit
+            valueDisplay.textContent = value.toLocaleString();
+        } else {
+            valueDisplay.textContent = value !== null && value !== undefined ? value : '--';
+        }
 
         // Update gauge
         if (value !== null && value !== undefined) {
@@ -158,7 +177,12 @@ const UI = {
         const elements = document.querySelectorAll(`[data-section="${section}"][data-type="${type}"]`);
         elements.forEach(el => {
             if (value !== null && value !== undefined && trend) {
-                el.querySelector('.section-value').textContent = value;
+                // Format lux values when displaying light readings
+                if (type === 'light') {
+                    el.querySelector('.section-value').textContent = value.toLocaleString() ;
+                } else {
+                    el.querySelector('.section-value').textContent = value;
+                }
                 el.querySelector('.section-indicator i').className = `fas fa-${trend}`;
                 el.classList.remove('sensor-error', 'sensor-offline');
             } else {
@@ -318,7 +342,7 @@ const DataManager = {
             this.log('Updating gauges with averages:', data.averages);
             UI.updateGauge('temperature-gauge', data.averages.temp, 50, '#286247');
             UI.updateGauge('humidity-gauge', data.averages.humidity, 100, '#333333');
-            UI.updateGauge('light-gauge', data.averages.light, 100, '#F9D949');
+            UI.updateGauge('light-gauge', data.averages.light, 10000, '#F9D949');  // Updated max to 100,000 for lux
         }
 
         // Update sections that have data
@@ -377,5 +401,5 @@ document.addEventListener('DOMContentLoaded', async function() {
             SystemMonitor.updateConnectionStatus(false);
             UI.showError("Gagal memuat data sensor. Coba lagi nanti.");
         }
-    }, 5000);
+    }, 1000);
 });
