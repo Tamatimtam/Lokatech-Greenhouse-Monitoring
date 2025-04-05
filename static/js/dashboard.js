@@ -345,27 +345,36 @@ const DataManager = {
             UI.updateGauge('light-gauge', data.averages.light, 10000, '#F9D949');  // Updated max to 100,000 for lux
         }
 
-        // Update sections that have data
-        Object.entries(data.sections).forEach(([section, values]) => {
-            this.log(`Updating section ${section} with values:`, values);
-            if (Object.keys(values).length > 0) { // Only update if section has data
+        // Define all known sections
+        const allSections = ['penyemaian', 'peremajaan', 'dewasa'];
+
+        // Iterate through all known sections to update their UI consistently
+        allSections.forEach(section => {
+            const nodeIsOnline = SystemMonitor.status.nodes[section]?.online; // Check status determined by updateNodeStatus
+            const values = data.sections[section]; // Get data for this section if it exists in the current payload
+
+            if (nodeIsOnline && values) {
+                // Node is online and data is present in this payload
+                this.log(`Updating online section ${section} with values:`, values);
                 ['temp', 'humidity', 'light'].forEach(type => {
                     UI.updateSectionValue(
                         section,
                         type,
-                        values[type],
+                        values[type], // Use value from payload (could be null if sensor failed but node is online)
                         values.trends ? values.trends[type] : 'equals'
                     );
                 });
             } else {
-                this.log(`Section ${section} is empty, marking as offline`);
+                // Node is offline (either no valid data in updateNodeStatus or section missing from payload)
+                this.log(`Section ${section} is offline or missing from payload, resetting UI`);
                 ['temp', 'humidity', 'light'].forEach(type => {
+                    // Explicitly reset UI elements to '--'
                     UI.updateSectionValue(section, type, null, null);
                 });
             }
         });
 
-        // Update status summary
+        // Update status summary based on the latest SystemMonitor status
         UI.updateStatusSummary();
     }
 };
