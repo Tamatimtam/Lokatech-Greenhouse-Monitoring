@@ -221,8 +221,23 @@ function showToast(message) {
  * @param {string} message - The error message
  */
 function showValidationError(message) {
-  alert(message);
-  // Could be improved with a more user-friendly error display
+  let errorToast = document.getElementById('error-toast');
+  
+  if (!errorToast) {
+    errorToast = document.createElement('div');
+    errorToast.id = 'error-toast';
+    errorToast.className = 'toast toast--error';
+    document.body.appendChild(errorToast);
+  }
+  
+  errorToast.textContent = message;
+  errorToast.classList.add('toast--visible');
+  
+  if (errorToast.timeoutId) clearTimeout(errorToast.timeoutId);
+  
+  errorToast.timeoutId = setTimeout(() => {
+    errorToast.classList.remove('toast--visible');
+  }, 3000);
 }
 
 /**
@@ -357,4 +372,56 @@ function setupPasswordValidation() {
     passwordMatch.textContent = doPasswordsMatch ? 'Kata sandi cocok' : 'Kata sandi tidak cocok';
     passwordMatch.className = doPasswordsMatch ? 'password-match-valid' : 'password-match-invalid';
   }
+}
+
+/**
+ * Profile update handler
+ * @param {HTMLElement} modal - The modal element
+ * @param {Function} closeModal - Function to close the modal
+ */
+function handleProfileUpdate(modal, closeModal) {
+  const displayName = document.getElementById('displayName').value;
+  
+  if (!displayName.trim()) {
+    showValidationError('Harap masukkan nama tampilan yang valid');
+    return;
+  }
+  
+  // Show loading indicator
+  const saveButton = document.getElementById('saveprofileModal');
+  const originalText = saveButton.textContent;
+  saveButton.textContent = 'Menyimpan...';
+  saveButton.disabled = true;
+  
+  // Send update to server
+  fetch('/profile/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ displayName: displayName })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+    
+    if (data.status === 'success') {
+      updateProfileDisplay(displayName);
+      closeModal();
+      showToast('Profil berhasil diperbarui!');
+    } else {
+      showValidationError(data.message || 'Gagal memperbarui profil');
+    }
+  })
+  .catch(error => {
+    // Reset button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+    
+    console.error('Error updating profile:', error);
+    showValidationError('Terjadi kesalahan saat memperbarui profil');
+  });
 }
