@@ -45,7 +45,7 @@ bool ESPNowManager::addPeer(const uint8_t* mac) {
     // Prepare peer info
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, mac, 6);
-    peerInfo.channel = 0;  
+    peerInfo.channel = 6;  // Use channel 6 explicitly
     peerInfo.encrypt = false;
     
     // Add peer
@@ -84,26 +84,42 @@ bool ESPNowManager::sendData(const uint8_t* mac, const SensorData& data) {
 }
 
 void ESPNowManager::onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
+    Serial.print("[ESPNowManager] Received ");
+    Serial.print(len);
+    Serial.print(" bytes. Expected: ");
+    Serial.println(sizeof(SensorData));
+
+    // Print raw data bytes (first few for brevity)
+    Serial.print("[ESPNowManager] Raw data (hex): ");
+    int bytesToPrint = min(len, 16); // Print up to 16 bytes
+    for (int i = 0; i < bytesToPrint; i++) {
+        if (data[i] < 0x10) Serial.print("0"); // Pad with zero if needed
+        Serial.print(data[i], HEX);
+        Serial.print(" ");
+    }
+    if (len > bytesToPrint) Serial.print("...");
+    Serial.println();
+
     // Check if data size matches our struct
     if (len != sizeof(SensorData)) {
-        Serial.println("[ESPNowManager] ERROR: Received data size doesn't match expected size");
+        Serial.println("[ESPNowManager] ERROR: Received data size doesn't match expected size. Aborting processing.");
         return;
     }
     
     // Copy the data
     SensorData receivedData;
     memcpy(&receivedData, data, sizeof(SensorData));
-    receivedData.timestamp = millis(); // Update timestamp to current time
+    // receivedData.timestamp = millis(); // Let's keep the original timestamp for now for debugging
     
-    // Print the source MAC address
-    Serial.print("[ESPNowManager] Received data from: ");
+    // Print the source MAC address with markers
+    Serial.print("[ESPNowManager] Start MAC >>> ");
     for (int i = 0; i < 6; i++) {
         Serial.print(mac[i], HEX);
         if (i < 5) Serial.print(":");
     }
-    Serial.println();
+    Serial.println(" <<< End MAC");
     
-    // Print received data
+    // Print received data (using the copied struct)
     Serial.print("[ESPNowManager] Node name: ");
     Serial.println(receivedData.nodeName);
     

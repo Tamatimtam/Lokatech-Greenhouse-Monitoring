@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
+#include <esp_wifi.h> // Needed for esp_wifi_set_channel
 #include <Wire.h>
 #include <ArduinoJson.h>
 
@@ -8,9 +9,10 @@
 #include "SensorManager.h"
 #include "ESPNowManager.h"
 #include "MQTTManager.h"
+#include "NodeConfig.h" // Include common configuration
 
-// Pin Definitions
-#define DHT_PIN 4  // DHT22 data pin connected to GPIO4
+// Pin Definitions (Moved to NodeConfig.h)
+// #define DHT_PIN 4 // Removed
 
 // Configuration flags
 #define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
@@ -86,6 +88,14 @@ void setup() {
   // Connect to MQTT broker
   if (mqttManager->connect()) {
     Serial.println("[DeWasaNode_Master] Connected to MQTT broker");
+    
+    // Ensure ESP-NOW uses channel 6 after WiFi connection
+    Serial.println("[DeWasaNode_Master] Setting WiFi channel to 6 for ESP-NOW compatibility...");
+    if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+        Serial.println("[DeWasaNode_Master] ERROR: Failed to set WiFi channel post-connection!");
+    } else {
+        Serial.println("[DeWasaNode_Master] WiFi channel set to 6 successfully.");
+    }
   }
   
   Serial.println("[DeWasaNode_Master] Setup completed");

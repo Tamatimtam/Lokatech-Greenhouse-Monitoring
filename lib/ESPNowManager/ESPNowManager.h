@@ -4,18 +4,7 @@
 #include <Arduino.h>
 #include <esp_now.h>
 #include <WiFi.h>
-
-// Define the data structure for receiving sensor readings
-struct SensorData {
-    char nodeName[16]; // Name of the node (penyemaian, peremajaan)
-    float temperature;
-    float humidity;
-    float lightIntensity;
-    bool temperatureValid;
-    bool humidityValid;
-    bool lightValid;
-    unsigned long timestamp;
-};
+#include "../Common/SensorData.h" // Include the common definition
 
 typedef void (*ESPNowDataCallback)(const SensorData&);
 
@@ -41,7 +30,7 @@ private:
     static SensorData _peremajaanData;
     static unsigned long _lastPenyemaianUpdate;
     static unsigned long _lastPeremajaanUpdate;
-    const unsigned long DATA_TIMEOUT = 60000; // Data considered stale after 60 seconds
+    const unsigned long DATA_TIMEOUT = 5000; // Data considered stale after 60 seconds
 };
 
 #endif // ESPNOW_MANAGER_H

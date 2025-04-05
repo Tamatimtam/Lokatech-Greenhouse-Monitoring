@@ -4,9 +4,13 @@
 #include <BH1750.h>
 #include <esp_now.h>
 #include <WiFi.h>
+#include <esp_wifi.h> // Needed for esp_wifi_set_channel
+#include <SensorData.h> // Use angle brackets for library includes
+#include <SensorManager.h> // Include the Sensor Manager library
+#include <NodeConfig.h> // Include common configuration
 
-// Pin Definitions
-#define DHT_PIN 4  // DHT22 data pin connected to GPIO4
+// Pin Definitions (Moved to NodeConfig.h)
+// #define DHT_PIN 4  // Removed
 
 // Configuration flags
 #define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
@@ -15,23 +19,15 @@
 // Master node MAC address (Dewasa)
 uint8_t masterMac[] = {0xE4, 0x65, 0xB8, 0x83, 0xD1, 0x40}; // MAC of the master node
 
-// Define the data structure for sending sensor readings
-struct SensorData {
-    char nodeName[16]; // Name of the node
-    float temperature;
-    float humidity;
-    float lightIntensity;
-    bool temperatureValid;
-    bool humidityValid;
-    bool lightValid;
-    unsigned long timestamp;
-};
-
+// Global variable to hold sensor data to be sent
 SensorData sensorData;
 
-// Sensor objects
-DHT dht(DHT_PIN, DHT22);
-BH1750 lightSensor;
+// Sensor Manager object pointer
+SensorManager* sensorManager;
+
+// Sensor objects are now managed by SensorManager
+// DHT dht(DHT_PIN, DHT22); // Removed
+// BH1750 lightSensor; // Removed
 
 // Timing variables
 unsigned long lastSensorReadTime = 0;
@@ -41,19 +37,24 @@ const unsigned long SEND_INTERVAL = 1000; // Send data to master every 10 second
 
 // ESP-NOW callback function
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    Serial.print("[ESPNow] Last packet send status: ");
+    Serial.print("[ESPNow] Send CB for MAC: ");
+    for (int i = 0; i < 6; i++) {
+        Serial.print(mac_addr[i], HEX);
+        if (i < 5) Serial.print(":");
+    }
+    Serial.print(" - Status: ");
     if (status == ESP_NOW_SEND_SUCCESS) {
         Serial.println("Success");
     } else {
-        Serial.println("Failed");
+        Serial.print("Failed (Code: ");
+        Serial.print(status); // Print the actual error code
+        Serial.println(")");
     }
 }
 
 // Function prototypes
 void readSensors();
-float getRandomTemperature();
-float getRandomHumidity();
-float getRandomLightIntensity();
+// Removed getRandom... prototypes
 
 void setup() {
     // Initialize serial communication
@@ -61,20 +62,13 @@ void setup() {
     delay(1000); // Give serial monitor time to start
     
     Serial.println("\n\n[PeremajaanNode] Starting Peremajaan Node...");
-    
-    // Initialize DHT sensor
-    dht.begin();
-    Serial.println("[PeremajaanNode] DHT22 sensor initialized");
-    
-    // Initialize BH1750 light sensor
-    Wire.begin();
-    if (lightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
-        Serial.println("[PeremajaanNode] BH1750 sensor initialized");
-    } else {
-        Serial.println("[PeremajaanNode] ERROR: Failed to initialize BH1750 sensor!");
-    }
-    
-    // Log simulation mode status
+
+    // Initialize Sensor Manager
+    // Pass the DHT pin and the simulation flags defined earlier
+    sensorManager = new SensorManager(DHT_PIN, TEMP_HUMID_SIMULATION_MODE, LIGHT_SIMULATION_MODE);
+    sensorManager->begin(); // Initializes DHT and BH1750 internally
+
+    // Log simulation mode status (SensorManager handles simulation internally now)
     if (TEMP_HUMID_SIMULATION_MODE) {
         Serial.println("[PeremajaanNode] Temperature & humidity simulation mode ENABLED");
     }
@@ -82,11 +76,11 @@ void setup() {
     if (LIGHT_SIMULATION_MODE) {
         Serial.println("[PeremajaanNode] Light intensity simulation mode ENABLED");
     }
-
-    // Initialize random seed for simulation
-    if (TEMP_HUMID_SIMULATION_MODE || LIGHT_SIMULATION_MODE) {
-        randomSeed(analogRead(0));
-    }
+    
+    // Initialize random seed for simulation (SensorManager handles this if needed)
+    // if (TEMP_HUMID_SIMULATION_MODE || LIGHT_SIMULATION_MODE) { // Removed
+    //     randomSeed(analogRead(0)); // Removed
+    // } // Removed
     
     // Set device as a Wi-Fi Station
     WiFi.mode(WIFI_STA);
@@ -94,6 +88,14 @@ void setup() {
     // Disconnect from any WiFi connections to ensure clean slate
     WiFi.disconnect();
     delay(100);
+
+    // Set WiFi channel to 6 BEFORE initializing ESP-NOW
+    Serial.println("[PeremajaanNode] Setting WiFi channel to 6...");
+    if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+        Serial.println("[PeremajaanNode] ERROR: Failed to set WiFi channel!");
+    } else {
+        Serial.println("[PeremajaanNode] WiFi channel set to 6 successfully.");
+    }
     
     // Print MAC address
     Serial.print("[PeremajaanNode] MAC Address: ");
@@ -112,7 +114,7 @@ void setup() {
     // Register peer (master node)
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, masterMac, 6);
-    peerInfo.channel = 0;  
+    peerInfo.channel = 6;  // Use channel 6 explicitly
     peerInfo.encrypt = false;
     
     // Print master MAC address for debugging
@@ -165,6 +167,12 @@ void loop() {
             delay(10);
         }
         
+        // Check if peer exists before sending
+        if (!esp_now_is_peer_exist(masterMac)) {
+            Serial.println("[PeremajaanNode] ERROR: Master peer not found in ESP-NOW table before sending!");
+            // Optionally try re-adding the peer here if needed
+        }
+
         // Send data via ESP-NOW
         Serial.println("[PeremajaanNode] Sending data to master node...");
         
@@ -203,63 +211,31 @@ void loop() {
 }
 
 void readSensors() {
-    Serial.println("\n[PeremajaanNode] Reading sensors...");
+    Serial.println("\n[PeremajaanNode] Reading sensors via SensorManager...");
     
-    // Read temperature and humidity from DHT22 or simulate
-    if (TEMP_HUMID_SIMULATION_MODE) {
-        sensorData.temperature = getRandomTemperature();
-        sensorData.humidity = getRandomHumidity();
-        sensorData.temperatureValid = true;
-        sensorData.humidityValid = true;
-        Serial.println("[PeremajaanNode] Simulated temperature: " + String(sensorData.temperature) + "°C");
-        Serial.println("[PeremajaanNode] Simulated humidity: " + String(sensorData.humidity) + "%");
-    } else {
-        sensorData.temperature = dht.readTemperature();
-        sensorData.humidity = dht.readHumidity();
-        
-        if (isnan(sensorData.temperature) || isnan(sensorData.humidity)) {
-            Serial.println("[PeremajaanNode] ERROR: Failed to read from DHT sensor!");
-            sensorData.temperatureValid = false;
-            sensorData.humidityValid = false;
-        } else {
-            sensorData.temperatureValid = true;
-            sensorData.humidityValid = true;
-            Serial.println("[PeremajaanNode] Temperature: " + String(sensorData.temperature) + "°C");
-            Serial.println("[PeremajaanNode] Humidity: " + String(sensorData.humidity) + "%");
-        }
-    }
+    // Call the manager to read sensors (handles simulation internally)
+    bool success = sensorManager->readSensors();
     
-    // Read light intensity from BH1750 or simulate
-    if (LIGHT_SIMULATION_MODE) {
-        sensorData.lightIntensity = getRandomLightIntensity();
-        sensorData.lightValid = true;
-        Serial.println("[PeremajaanNode] Simulated light intensity: " + String(sensorData.lightIntensity) + " lux");
+    if (success) {
+        Serial.println("[PeremajaanNode] SensorManager read successful");
     } else {
-        // Read lux directly from sensor
-        float luxReading = lightSensor.readLightLevel();
-        if (luxReading < 0) {
-            Serial.println("[PeremajaanNode] ERROR: Failed to read from BH1750 sensor!");
-            sensorData.lightValid = false;
-        } else {
-            sensorData.lightIntensity = luxReading; // Use raw lux value
-            sensorData.lightValid = true;
-            Serial.println("[PeremajaanNode] Light intensity: " + String(sensorData.lightIntensity) + " lux");
-        }
+        Serial.println("[PeremajaanNode] WARNING: SensorManager reported read failure");
     }
+
+    // Update the global sensorData struct with values from the manager
+    sensorData.temperature = sensorManager->getTemperature();
+    sensorData.humidity = sensorManager->getHumidity();
+    sensorData.lightIntensity = sensorManager->getLightIntensity();
+    
+    sensorData.temperatureValid = sensorManager->isTemperatureValid();
+    sensorData.humidityValid = sensorManager->isHumidityValid();
+    sensorData.lightValid = sensorManager->isLightValid();
+
+    // Optional: Log the retrieved values for debugging
+    Serial.println("  Temp: " + String(sensorData.temperature) + "°C (Valid: " + String(sensorData.temperatureValid ? "Yes" : "No") + ")");
+    Serial.println("  Humidity: " + String(sensorData.humidity) + "% (Valid: " + String(sensorData.humidityValid ? "Yes" : "No") + ")");
+    Serial.println("  Light: " + String(sensorData.lightIntensity) + " lux (Valid: " + String(sensorData.lightValid ? "Yes" : "No") + ")");
 }
 
-float getRandomTemperature() {
-    // Generate random temperature between 20-35°C
-    return 20.0 + (random(1500) / 100.0);
-}
-
-float getRandomHumidity() {
-    // Generate random humidity between 40-90%
-    return 40.0 + (random(5000) / 100.0);
-}
-
-float getRandomLightIntensity() {
-    // Generate random light intensity between 0-10000 lux
-    // Indoor light is typically 50-500 lux, outdoor shade is ~10000 lux
-    return random(10000);
-}
+// Removed getRandomTemperature, getRandomHumidity, getRandomLightIntensity functions
+// as simulation is now handled within SensorManager
