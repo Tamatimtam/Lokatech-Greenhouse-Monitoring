@@ -1,6 +1,6 @@
 from flask import render_template, session
 from . import bp
-from ..auth.utils import isloggedin
+from ..decorators import isloggedin
 from ..sensor.mqtt import sensor_manager
 import logging
 

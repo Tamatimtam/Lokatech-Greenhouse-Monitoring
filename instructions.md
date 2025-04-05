@@ -4,22 +4,25 @@
 ```
 simpleLogin/
 ├── app2.py                # Main Flask application
-├── blueprints/         # Blueprint modules
-├── hardwareSimulation/    # Hardware simulation code
-├── static/               # Static assets
-│   ├── css/             # CSS files and components
-│   ├── images/          # Image assets
-│   └── js/              # JavaScript files
-├── templates/           # HTML templates
-│   └── macros/         # Reusable template components
-└── secrets/            # Sensitive configuration files
+├── blueprints/            # Blueprint modules
+├── Hardware/              # PlatformIO project for ESP32 nodes
+├── static/                # Static assets (CSS, JS, images)
+│   ├── css/
+│   ├── images/
+│   └── js/
+├── templates/             # HTML templates (Jinja2)
+│   └── macros/
+├── secrets/               # Sensitive configuration (e.g., Firebase creds)
+├── Dockerfile             # Containerization configuration
+├── instructions.md        # This file
+├── README.md              # Project overview
+└── requirements.txt       # Python dependencies
 ```
 
 ## Core Files
 - `main.css`: Contains global CSS variables and base styles
 - `base.html`: Base template that all pages extend
-- `app2.py`: Main Flask applicationa
-- `simulator.py`: Hardware simulation for development
+- `app2.py`: Main Flask application
 
 ## Design System
 
@@ -152,8 +155,8 @@ Border Radius:
    - Light
 
 2. Control Panels
-   - Fan controls
-   - Light controls
+   - Fan controls (UI implemented, backend control logic pending)
+   - Light controls (UI implemented, backend control logic pending)
 
 3. Status Indicators
    - Connection status
@@ -256,9 +259,9 @@ simpleLogin/
    - URL prefix: `/api/sensor`
 
 4. **Controls Blueprint** (`blueprints/controls/`)
-   - Control panel interface
-   - Device control endpoints
-   - Control state management
+   - Control panel interface routes (UI implemented)
+   - Device control endpoints (Planned, not implemented)
+   - Control state management (Planned, not implemented)
    - URL prefix: `/controls`
 
 5. **Profile Blueprint** (`blueprints/profile/`)

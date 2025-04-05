@@ -1,6 +1,6 @@
 from flask import render_template, session, request, jsonify
 from . import bp
-from ..auth.utils import isloggedin
+from ..decorators import isloggedin
 import logging
 import firebase_admin
 from firebase_admin import auth

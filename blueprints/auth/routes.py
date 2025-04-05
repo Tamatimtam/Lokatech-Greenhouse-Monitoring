@@ -3,7 +3,7 @@ import firebase_admin
 from firebase_admin import auth
 import logging
 from . import bp
-from .utils import isloggedin
+from ..decorators import isloggedin
 
 logger = logging.getLogger(__name__)
 

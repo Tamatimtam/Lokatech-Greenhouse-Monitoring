@@ -1,7 +1,7 @@
 from flask import jsonify
 from . import bp
 from .mqtt import sensor_manager
-from ..auth.utils import isloggedin
+from ..decorators import isloggedin
 import logging
 
 logger = logging.getLogger(__name__)
