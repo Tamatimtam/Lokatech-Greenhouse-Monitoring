@@ -262,7 +262,7 @@ const UI = {
     translateSensor(sensor) {
         const translations = {
             temp: 'suhu',
-            humidity: 'kelembaban',
+            humidity: 'kelembapan',
             light: 'cahaya'
         };
         return translations[sensor] || sensor;

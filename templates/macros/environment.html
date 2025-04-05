@@ -9,7 +9,7 @@
     {% for section in sections %}
     <div class="section-reading" 
          data-section="{{ section.name }}" 
-         data-type="{{ 'temp' if variable == 'Suhu' else 'humidity' if variable == 'Kelembaban' else 'light' }}">
+         data-type="{{ 'temp' if variable == 'Suhu' else 'humidity' if variable == 'Kelembapan' else 'light' }}">
       <span class="section-name">{{ section.display }}</span>
       <span class="section-value">{{ section.value }}{{ unit }}</span>
       <span class="section-indicator">
