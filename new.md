@@ -10,7 +10,7 @@ This document provides technical details and setup instructions for the greenhou
 
 Each node has temperature, humidity, and light sensors. The data flow uses ESP-NOW in a chain:
 `Penyemaian -> Peremajaan -> Dewasa`
-The Dewasa node acts as the master, receiving combined data from the Peremajaan node and sending the aggregated system status to an MQTT server.
+The Dewasa node acts as the master, receiving combined data from the Peremajaan node, running a fuzzy logic controller based on average environmental conditions to manage actuators (simulated by LEDs), and sending the aggregated system status to an MQTT server.
 
 ## Code Structure and Implementation Status
 
@@ -31,6 +31,7 @@ The project uses PlatformIO and is organized into shared libraries and node-spec
 *   **`SensorManager/`**: Class handling DHT22 (temperature/humidity) and BH1750 (light) sensor operations. Includes simulation capabilities. Used by all nodes.
 *   **`ESPNowManager/`**: Class managing ESP-NOW communication (peer registration, receiving `CombinedData`) on the Master (Dewasa) node. Stores the latest data extracted from `CombinedData` and handles data validity timeouts (`COMBINED_DATA_TIMEOUT` defined in `ESPNowManager.h`).
 *   **`MQTTManager/`**: Class handling WiFi connection and MQTT communication (payload generation, publishing) for the Master node.
+*   **`FuzzyController/`**: Class implementing the fuzzy logic control system (using the `eFLL` library) on the Master node. Takes average sensor readings as input and determines ON/OFF states for actuators.
 
 ## Hardware Requirements
 
@@ -44,6 +45,8 @@ The project uses PlatformIO and is organized into shared libraries and node-spec
 
 ### Additional for Master Node (Dewasa)
 - WiFi connectivity for MQTT communication
+- 2x LEDs (e.g., standard 5mm LEDs)
+- 2x Current-limiting resistors (e.g., 220Ω or 330Ω) for the LEDs
 
 ## Pin Connections & Configuration
 
@@ -76,6 +79,14 @@ ESP32                BH1750
 GND     --------    GND
 GPIO21  --------    SDA   (Default I2C SDA)
 GPIO22  --------    SCL   (Default I2C SCL)
+```
+
+**Actuator Simulation LEDs (Master Node Only)**
+```
+ESP32                Components
+-----                ----------
+GPIO18  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Fan Simulation)
+GPIO19  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Light Simulation)
 ```
 
 ## System Configuration
@@ -197,14 +208,13 @@ The Master node publishes data to the MQTT topic in this format:
     *   **Check Distance/Obstacles.**
 *   **Master Node Crash on Startup:** If the Dewasa node crashes with a `LoadProhibited` error shortly after starting, ensure WiFi/MQTT initialization happens *before* ESP-NOW initialization in `DeWasaNode_Master.cpp`'s `setup()` function (this was fixed previously).
 *   **Incorrect Sensor Validity:** If a working sensor (e.g., simulated light) is marked invalid when another sensor fails on the same node, ensure the node's `.cpp` file correctly uses `sensorManager->isXValid()` flags individually instead of marking all invalid on a general `readSensors()` failure (this was fixed in `PenyemaianNode.cpp`).
+*   **Unexpected Fuzzy Logic Output:** If the Fan/Light LEDs controlled by the fuzzy system behave unexpectedly (e.g., Fan OFF when temperature is HOT), check the detailed debug output in the Dewasa node's Serial Monitor. Verify the calculated averages, the membership degrees for each fuzzy set, and the raw defuzzified output values to understand how the final ON/OFF decision was reached. Ensure the fuzzy sets and rules in `lib/FuzzyController/FuzzyController.cpp` match the intended logic. Check that distinct output sets (`fanOn`/`fanOff`, `lightOn`/`lightOff`) are used for each actuator.
 
-## Fuzzy Logic Control System (**Not Yet Implemented**)
+## Fuzzy Logic Control System (**Implemented**)
 
-### Overview (Planned)
+### Overview
 
-The system is designed to eventually include a fuzzy logic controller on the Dewasa (master) node. This controller will automatically manage actuators like fans and lights based on aggregated environmental conditions to maintain a suitable environment.
-
-*(The following details describe the planned design based on current requirements, not the current implementation)*
+The Dewasa (master) node includes a fuzzy logic controller implemented using the `eFLL` library (`lib/FuzzyController/`). This controller automatically determines the desired state (ON/OFF) for actuators (currently simulated by LEDs on GPIO 18 and 19) based on aggregated environmental conditions.
 
 ### Input Variables and Membership Functions (Planned)
 
@@ -254,7 +264,7 @@ These rules define the control logic:
 
 The fuzzy outputs (e.g., degree of membership for `FAN_ON`) would need to be converted back into crisp control signals (e.g., digital HIGH/LOW for a relay) using a defuzzification method like Centroid.
 
-*(End of Planned Fuzzy Logic Section)*
+*(End of Fuzzy Logic Section)*
 
 ## Security Considerations
 
@@ -262,4 +272,4 @@ The fuzzy outputs (e.g., degree of membership for `FAN_ON`) would need to be con
 *   For production: Enable ESP-NOW encryption, add MQTT username/password, consider TLS for MQTT.
 
 ---
-*Document Updated: 2025-04-05* (Reflects Penyemaian implementation and new data flow)
+*Document Updated: 2025-04-05* (Reflects Fuzzy Logic implementation)
