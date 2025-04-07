@@ -112,5 +112,5 @@
 <script>
     window.initialSensorData = {{ sensor_data|tojson|safe if sensor_data else 'null' }};
 </script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/dashboard/main.js') }}"></script>
 {% endblock %}
