@@ -34,9 +34,43 @@ function handleProfileUpdate(modal, closeModal) {
     return;
   }
   
-  updateProfileDisplay(displayName);
-  closeModal();
-  showToast('Profil berhasil diperbarui!');
+  // Show loading indicator
+  const saveButton = document.getElementById('saveprofileModal');
+  const originalText = saveButton.textContent;
+  saveButton.textContent = 'Menyimpan...';
+  saveButton.disabled = true;
+  
+  // Send update to server
+  fetch('/profile/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ displayName: displayName })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+    
+    if (data.status === 'success') {
+      updateProfileDisplay(displayName);
+      closeModal();
+      showToast('Profil berhasil diperbarui!');
+    } else {
+      showValidationError(data.message || 'Gagal memperbarui profil');
+    }
+  })
+  .catch(error => {
+    // Reset button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+    
+    console.error('Error updating profile:', error);
+    showValidationError('Terjadi kesalahan saat memperbarui profil');
+  });
 }
 
 /**
@@ -65,8 +99,64 @@ function handlePasswordUpdate(modal, closeModal) {
     return;
   }
   
-  closeModal();
-  showToast('Kata sandi berhasil diubah!');
+  // Show loading indicator
+  const saveButton = document.getElementById('savepasswordModal');
+  const originalText = saveButton.textContent;
+  saveButton.textContent = 'Memperbarui...';
+  saveButton.disabled = true;
+  
+  // Send update to server
+  fetch('/profile/password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ 
+      currentPassword: currentPassword,
+      newPassword: newPassword
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Reset button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+    
+    if (data.status === 'success') {
+      // Clear form fields
+      document.getElementById('currentPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+      
+      // Reset password strength UI
+      const strengthMeter = document.getElementById('passwordStrength');
+      if (strengthMeter) {
+        strengthMeter.style.width = '0%';
+        strengthMeter.className = 'strength-meter__bar';
+      }
+      
+      // Reset requirement indicators
+      document.querySelectorAll('.requirements-list li').forEach(item => {
+        item.classList.remove('valid');
+        const icon = item.querySelector('i');
+        if (icon) icon.className = 'fas fa-circle';
+      });
+      
+      closeModal();
+      showToast(data.message);
+    } else {
+      showValidationError(data.message || 'Gagal memperbarui kata sandi');
+    }
+  })
+  .catch(error => {
+    // Reset button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+    
+    console.error('Error updating password:', error);
+    showValidationError('Terjadi kesalahan saat memperbarui kata sandi');
+  });
 }
 
 /**
@@ -372,56 +462,4 @@ function setupPasswordValidation() {
     passwordMatch.textContent = doPasswordsMatch ? 'Kata sandi cocok' : 'Kata sandi tidak cocok';
     passwordMatch.className = doPasswordsMatch ? 'password-match-valid' : 'password-match-invalid';
   }
-}
-
-/**
- * Profile update handler
- * @param {HTMLElement} modal - The modal element
- * @param {Function} closeModal - Function to close the modal
- */
-function handleProfileUpdate(modal, closeModal) {
-  const displayName = document.getElementById('displayName').value;
-  
-  if (!displayName.trim()) {
-    showValidationError('Harap masukkan nama tampilan yang valid');
-    return;
-  }
-  
-  // Show loading indicator
-  const saveButton = document.getElementById('saveprofileModal');
-  const originalText = saveButton.textContent;
-  saveButton.textContent = 'Menyimpan...';
-  saveButton.disabled = true;
-  
-  // Send update to server
-  fetch('/profile/update', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({ displayName: displayName })
-  })
-  .then(response => response.json())
-  .then(data => {
-    // Reset button state
-    saveButton.textContent = originalText;
-    saveButton.disabled = false;
-    
-    if (data.status === 'success') {
-      updateProfileDisplay(displayName);
-      closeModal();
-      showToast('Profil berhasil diperbarui!');
-    } else {
-      showValidationError(data.message || 'Gagal memperbarui profil');
-    }
-  })
-  .catch(error => {
-    // Reset button state
-    saveButton.textContent = originalText;
-    saveButton.disabled = false;
-    
-    console.error('Error updating profile:', error);
-    showValidationError('Terjadi kesalahan saat memperbarui profil');
-  });
 }
