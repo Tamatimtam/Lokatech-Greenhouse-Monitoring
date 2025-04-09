@@ -2,9 +2,9 @@
 
 > Smart IoT monitoring and automation for hydroponic greenhouses at Lokatani
 
-[![Project Status: Active](https://img.shields.io/badge/Project_Status-Active-green?style=for-the-badge)](https://github.com/yourusername/greenhouse-monitoring)
-[![PBL Project](https://img.shields.io/badge/PBL-6th_Semester-blue?style=for-the-badge)](https://github.com/yourusername/greenhouse-monitoring)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Project Status: Active](https://img.shields.io/badge/Project_Status-Active-green?style=for-the-badge)](https://github.com/Tamatimtam/simpleLogin) <!-- Placeholder URL -->
+[![PBL Project](https://img.shields.io/badge/PBL-6th_Semester-blue?style=for-the-badge)](https://github.com/Tamatimtam/simpleLogin) <!-- Placeholder URL -->
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 <div align="center">
 
@@ -14,7 +14,7 @@
 
 ## 🌟 Overview
 
-This smart IoT-based system replaces manual greenhouse cooling with an automated solution for monitoring and controlling environmental conditions in hydroponic greenhouses at Lokatani. Built as a 6th semester Project-Based Learning (PBL) and Special Topic Project.
+This smart IoT-based system provides automated monitoring and control for environmental conditions (temperature, humidity, light) in hydroponic greenhouses at Lokatani, using ESP32 nodes, ESP-NOW, MQTT, and a Flask web application. Built as a 6th semester Project-Based Learning (PBL) and Special Topic Project.
 
 ## 🔍 Why It Matters
 
@@ -24,108 +24,109 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
 | ❌ Inefficient response to changes | ✅ Real-time monitoring and alerts |
 | ❌ Requires constant human attention | ✅ Remote access and management |
 | ❌ Prone to human error | ✅ Data-driven decision making |
-| ❌ Limited environmental data | ✅ Comprehensive data collection & analysis |
+| ❌ Limited environmental data | ✅ Comprehensive data collection |
 
 ## ✨ Features
 
-<table>
-    <tr>
-        <th>Feature</th>
-        <th>Status</th>
-        <th>Description</th>
-    </tr>
-    <tr>
-        <td>Environmental Monitoring</td>
-        <td>🔄 In Progress</td>
-        <td>Temperature, humidity (DHT22), light intensity (BH1750)</td>
-    </tr>
-    <tr>
-        <td>IoT Data Transmission</td>
-        <td>🔄 In Progress</td>
-        <td>ESP32 to cloud backend via MQTT</td>
-    </tr>
-    <tr>
-        <td>User Authentication</td>
-        <td>✅ Implemented</td>
-        <td>Secure access via Firebase</td>
-    </tr>
-    <tr>
-        <td>Data Storage</td>
-        <td>🔄 In Progress</td>
-        <td>Flask API + SQLite database</td>
-    </tr>
-    <tr>
-        <td>Dashboard & Visualization</td>
-        <td>⏱️ Planned</td>
-        <td>Mobile app & web dashboard</td>
-    </tr>
-    <tr>
-        <td>Equipment Control</td>
-        <td>⏱️ Planned</td>
-        <td>Automated fan & exhaust systems</td>
-    </tr>
-    <tr>
-        <td>Alerts & Notifications</td>
-        <td>⏱️ Planned</td>
-        <td>Telegram & email notifications</td>
-    </tr>
-    <tr>
-        <td>Historical Data Analysis</td>
-        <td>⏱️ Planned</td>
-        <td>Trend visualization & reports</td>
-    </tr>
-</table>
+| Feature                     | Status          | Description                                                                                                |
+| :-------------------------- | :-------------- | :--------------------------------------------------------------------------------------------------------- |
+| Environmental Monitoring    | ✅ Implemented  | Temperature (DHT22), Humidity (DHT22), Light Intensity (BH1750) across 3 sections.                          |
+| IoT Data Transmission       | ✅ Implemented  | ESP-NOW chain (Penyemaian -> Peremajaan -> Dewasa) + MQTT from Dewasa node to broker.                        |
+| User Authentication         | ✅ Implemented  | Secure login via Firebase Authentication (Email/Password).                                                   |
+| Data Storage                | ✅ Implemented  | Real-time data stored in backend memory (Python variable via `SensorDataManager`).                           |
+| Dashboard & Visualization | ✅ Implemented  | Web dashboard (Flask/Jinja2) showing real-time gauges, section data, status summary, actuator state/mode. |
+| Equipment Control           | ✅ Implemented  | Fuzzy logic on Dewasa node (auto mode), Manual override via Web UI -> API -> MQTT command.                 |
+| Alerts & Notifications    | ⏱️ Planned     | (e.g., Telegram/email for critical conditions)                                                             |
+| Historical Data Analysis    | ⏱️ Planned     | (e.g., Database storage, trend charts)                                                                     |
+| User Profile Management     | ✅ Implemented  | Basic profile view and update functionality.                                                               |
+| Deployment                  | 🔄 In Progress  | Dockerfile created, CI/CD to Google Cloud Run configured (experimental).                                   |
+| Mobile App                  | ⏱️ Planned     | Kotlin-based mobile application.                                                                           |
 
 ## 🔧 Tech Stack
 
 <div align="center">
 
 ### Hardware
+<img src="https://img.shields.io/badge/PlatformIO-FF7F00?style=for-the-badge&logo=platformio&logoColor=white" alt="PlatformIO"/>
 <img src="https://img.shields.io/badge/ESP32-E7352C?style=for-the-badge&logo=espressif&logoColor=white" alt="ESP32"/>
+<img src="https://img.shields.io/badge/ESP--NOW-00796B?style=for-the-badge" alt="ESP-NOW"/>
 <img src="https://img.shields.io/badge/DHT22-3C7D91?style=for-the-badge" alt="DHT22"/>
 <img src="https://img.shields.io/badge/BH1750-F9A03C?style=for-the-badge" alt="BH1750"/>
-<img src="https://img.shields.io/badge/Relay_Module-565656?style=for-the-badge" alt="Relay Module"/>
+<img src="https://img.shields.io/badge/Relay_Module-565656?style=for-the-badge" alt="Relay Module"/> <!-- Kept Relay Module as requested -->
 
-### Backend
+### Backend & Communication
 <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
 <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask"/>
-<img src="https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white" alt="Google Cloud Run"/>
-<img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
 <img src="https://img.shields.io/badge/MQTT-3C5280?style=for-the-badge&logo=eclipse-mosquitto&logoColor=white" alt="MQTT"/>
+<img src="https://img.shields.io/badge/Firebase_Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase Auth"/>
 
-### Frontend
+### Frontend (Web)
 <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5"/>
 <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3"/>
 <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript"/>
-<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin (planned)"/>
+<img src="https://img.shields.io/badge/Jinja2-B41717?style=for-the-badge&logo=jinja&logoColor=white" alt="Jinja2"/>
 
-### Authentication
-<img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase"/>
+### Frontend (Mobile - Planned)
+<img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin"/>
+
+### Deployment
+<img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
+<img src="https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white" alt="Google Cloud Run"/>
 
 </div>
 
-## 📊 Project Progress
+## 🏗️ Architecture Diagram
 
-<div align="center">
-    <img src="https://img.shields.io/badge/Overall%20Progress-20%25-orange?style=for-the-badge&logo=github" alt="Overall Progress: 20%">
-</div>
+```mermaid
+graph LR
+    subgraph Hardware Nodes
+        direction LR
+        A[Sensors] --> B(Penyemaian Node);
+        B -- ESP-NOW --> C(Peremajaan Node);
+        C -- ESP-NOW --> D(Dewasa Node);
+        D -- Fuzzy Logic --> J[Actuators];
+    end
 
-### Completed
-- ✅ Project foundation and architecture
-- ✅ Firebase authentication integration
-- ✅ Basic Flask app with login system
+    subgraph Backend & Cloud
+        direction TB
+        D -- MQTT Sensor Data --> E{MQTT Broker};
+        F[Flask Backend] -- Subscribes --> E;
+        F -- Stores Data --> G[In-Memory State];
+        I(Flask API) -- Reads Data --> G;
+        I -- MQTT Cmd --> E;
+        E -- MQTT Cmd --> D;
+    end
 
-### In Development
-- 🔄 ESP32 sensor data collection
-- 🔄 MQTT communication setup
-- 🔄 Database schema implementation
+    subgraph Frontend
+        direction TB
+        H[Web UI] -- API Request --> I;
+        I -- API Response --> H;
+        H -- Control Cmd --> I;
+    end
 
-### Coming Soon
-- ⏱️ Data visualization dashboard
-- ⏱️ Automation control logic
-- ⏱️ Mobile application
-- ⏱️ Alert notification system
-- ⏱️ Historical data analytics
+    D -- Manual Override --> J;
+
+    style Hardware Nodes fill:#f9f,stroke:#333,stroke-width:2px
+    style Backend & Cloud fill:#ccf,stroke:#333,stroke-width:2px
+    style Frontend fill:#cfc,stroke:#333,stroke-width:2px
+```
+
+## 📊 Project Status
+
+### Core Functionality
+- ✅ **Hardware:** Sensor reading (DHT22, BH1750), ESP-NOW communication chain, Fuzzy Logic controller (auto mode), MQTT publishing (sensor data + actuator state/mode), MQTT command subscription (manual override).
+- ✅ **Backend:** Flask app structure, Firebase Authentication, MQTT data reception & storage (in-memory), Sensor Data API (`/api/sensor/data`), Control Command API (`/api/controls/set_state`).
+- ✅ **Frontend:** Login page, Dashboard display (gauges, section data, status summary, control switches), Real-time updates via polling, Control switch interaction (sending manual commands), Profile page (basic).
+
+### Key Areas for Future Development
+- ⏱️ **Persistent Data Storage:** Replace in-memory storage with a database (e.g., PostgreSQL, InfluxDB) for historical data.
+- ⏱️ **Hardware Control Refinements:** Implement logic for switching back from "Manual" to "Auto" mode. Use actual relays instead of LEDs.
+- ⏱️ **Alerts & Notifications:** Implement backend logic and notification channels (e.g., email, Telegram) for critical conditions.
+- ⏱️ **Historical Data Visualization:** Add charts/graphs to show trends over time.
+- ⏱️ **Error Handling & Robustness:** Improve error handling across hardware, backend, and frontend.
+- ⏱️ **Deployment:** Refine Docker/Cloud Run deployment, manage secrets securely.
+- ⏱️ **Security:** Implement MQTT authentication, consider ESP-NOW encryption, add CSRF protection to Flask forms/APIs.
+- ⏱️ **Mobile App:** Develop the planned Kotlin mobile application.
 
 ## 👨‍💻 Contributors
 
@@ -186,8 +187,10 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
     </td>
   </tr>
 </table>
+</div>
 
-<link rel="stylesheet" href="static/css/skills.css">
+
+<!-- <link rel="stylesheet" href="static/css/skills.css"> -->
 
 ## 🚀 Quick Setup Guide
 
@@ -195,41 +198,52 @@ This smart IoT-based system replaces manual greenhouse cooling with an automated
 - Python 3.7+
 - Firebase account with credentials
 
-### Installation
+### Installation (Backend/Frontend)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/greenhouse-monitoring.git
-
-# Navigate to the project directory
-cd greenhouse-monitoring
+git clone https://github.com/Tamatimtam/simpleLogin.git # Placeholder URL
+cd simpleLogin
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up Firebase credentials
+# Set up Firebase credentials (if they don't exist)
 mkdir -p secrets
-# Place your firebase-credentials.json file in the secrets directory
+# Place your firebase-credentials.json file in the secrets/ directory
 
-# Run the application
+# Run the Flask application
 python app2.py
 ```
+<div align="left">
+
+### Installation (Hardware)
+
+1.  Install [PlatformIO Core CLI](https://docs.platformio.org/en/latest/core/installation.html) or use the [PlatformIO IDE extension for VS Code](https://platformio.org/platformio-ide).
+2.  Navigate to the `Hardware/` directory: `cd Hardware`
+3.  **Configure:** Update MAC addresses, WiFi credentials, and MQTT topics in `src/DeWasaNode_Master.cpp`, `src/PeremajaanNode.cpp`, and `src/PenyemaianNode.cpp` as needed. Ensure the ESP-NOW channel (default 6) matches your network or is updated consistently across all node files.
+4.  **Build & Upload:** Use PlatformIO commands (e.g., `pio run -e dewasa_master -t upload`, `pio run -e peremajaan_node -t upload`, etc.). See `Hardware/new.md` for details.
+5.  **Monitor:** Use `pio device monitor -b 115200` to view serial output.
+</div>
+
 
 ## 📸 Project Gallery
 
 <div align="center">
-    <details>
+    <details open>
         <summary>📊 <b>View Screenshots</b></summary>
         <br>
-        <p><i>Coming soon as development progresses!</i></p>
-        <img src="https://via.placeholder.com/400x250?text=Dashboard+Preview" width="45%" alt="Dashboard Preview"/>
-        <img src="https://via.placeholder.com/400x250?text=Mobile+App+Concept" width="45%" alt="Mobile App Concept"/>
+        <img src="https://user-images.githubusercontent.com/12345/screenshot_placeholder_1.png" width="45%" alt="Dashboard Screenshot"/> <!-- Placeholder - Replace with actual image URL -->
+        <img src="https://user-images.githubusercontent.com/12345/screenshot_placeholder_2.png" width="45%" alt="Controls Screenshot"/> <!-- Placeholder - Replace with actual image URL -->
+        <!-- Add more screenshots or a GIF here -->
     </details>
 </div>
 
+<div align="left">
+
 ## 📄 License
 
-This project is part of Politeknik Negeri Jakarta's academic curriculum. All rights reserved.
+Distributed under the MIT License. See [LICENSE](https://opensource.org/licenses/MIT) for more information.
 
 ---
 
@@ -237,3 +251,4 @@ This project is part of Politeknik Negeri Jakarta's academic curriculum. All rig
 <p>🌱 <b>Growing Technology for Sustainable Farming</b> 🌱</p>
 <p>Made with ❤️ by LokaTech PBL Team @ PNJ</p>
 </div>
+
