@@ -29,8 +29,10 @@ The system follows a Model-View-Controller (MVC) pattern:
 
 ### Technology Stack
 - **Backend**: Python Flask with Firebase Authentication
-- **Frontend**: HTML, CSS, JavaScript
-- **Data Storage**: Firebase (user profiles) and browser SessionStorage (temporary data)
+- **Frontend**: 
+  - HTML, CSS
+  - JavaScript (modular organization with separate files for profile and password functionality)
+  - Browser SessionStorage (temporary data)
 
 ## Feature Guide
 
@@ -160,13 +162,15 @@ The system enforces strong password policies with visual feedback:
 - **Backend Route**: `blueprints/profile/routes.py` - `update_password()` function
 - **Frontend Template**: `templates/profile.html` - Password modal form
 - **JavaScript**: 
-  - `setupPasswordValidation()`: Sets up real-time validation
-  - `validatePassword()`: Checks password strength
-  - `handlePasswordUpdate()`: Processes the password change
+  - `profile-password.js`: Dedicated file for password functionality
+    - `setupPasswordValidation()`: Sets up real-time validation
+    - `validatePassword()`: Checks password strength
+    - `handlePasswordUpdate()`: Processes the password change
+  - `profile-page.js`: Main profile page functionality that calls password functions
 - **CSS**: `profile-page.css` - Styling for password strength indicators
 
 ```javascript
-// Password update handler with server communication
+// Password update handler with server communication from profile-password.js
 function handlePasswordUpdate(modal, closeModal) {
   const currentPassword = document.getElementById('currentPassword').value;
   const newPassword = document.getElementById('newPassword').value;
@@ -437,25 +441,50 @@ templates/
 ```
 
 #### JavaScript Organization
-The `profile-page.js` file follows a functional organization pattern:
-1. Event initialization on DOMContentLoaded
-2. Feature-specific handler functions:
-   - `handleProfileUpdate()` for profile information
-   - `handlePasswordUpdate()` for password changes
-3. Validation functions:
-   - `isPasswordValid()` for password requirements
-   - `validatePassword()` for real-time validation
-   - `validatePasswordMatch()` for confirmation matching
-4. UI utility functions
-5. Modal and component management functions
+The frontend JavaScript code is now split into two files for better organization and maintainability:
 
-#### CSS Architecture
-The `profile-page.css` file is organized by component:
-- Profile display styles
-- Modal and form styles
-- Password validation visual elements
-- Notification styling
-- Responsive design adjustments
+1. **profile-page.js**: Contains the core profile page functionality
+   - Modal initialization and management
+   - Profile information update handling
+   - Profile picture management
+   - UI utility functions and notifications
+
+2. **profile-password.js**: Dedicated file for password-related functionality
+   - Password update handling
+   - Password validation and strength evaluation
+   - Password visibility toggling
+   - Password matching validation
+
+This modular approach improves code readability, maintainability, and separation of concerns.
+
+#### Integration Between Files
+The password module is exposed through a global object:
+
+```javascript
+// In profile-password.js
+window.passwordModule = {
+  handlePasswordUpdate,
+  setupPasswordToggles,
+  isPasswordValid,
+  setupPasswordValidation
+};
+
+// In profile-page.js
+document.addEventListener('DOMContentLoaded', function() {
+  // ...
+  initModal('passwordModal', 'openPasswordModal', window.passwordModule.handlePasswordUpdate);
+  window.passwordModule.setupPasswordToggles();
+  window.passwordModule.setupPasswordValidation();
+  // ...
+});
+```
+
+#### File Structure
+```
+static/js/
+├── profile-page.js     # Core profile functionality
+└── profile-password.js # Password-specific functionality
+```
 
 ## User Interface Components
 
@@ -571,9 +600,9 @@ The Profile System provides a comprehensive user account management solution wit
 
 | Feature | Frontend Files | JavaScript Functions | Backend Routes |
 |---------|---------------|---------------------|---------------|
-| Profile Display | profile.html (lines 27-37) | `updateProfileDisplay()` | GET /profile/ |
-| Profile Editing | profile.html (lines 57-91) | `handleProfileUpdate()` | POST /profile/update |
-| Password Management | profile.html (lines 93-140) | `setupPasswordValidation()`, `handlePasswordUpdate()`, `validatePassword()` | POST /profile/password |
-| Profile Picture | profile.html (lines 59-70) | `setupProfilePictureUpload()` | N/A (browser storage) |
-| Modal System | macros/modal.html | `initModal()`, `closeAllModals()` | N/A (frontend only) |
-| Notifications | Generated via JS | `showToast()`, `showValidationError()` | N/A (frontend only) |
+| Profile Display | profile.html (lines 27-37) | `updateProfileDisplay()` in profile-page.js | GET /profile/ |
+| Profile Editing | profile.html (lines 57-91) | `handleProfileUpdate()` in profile-page.js | POST /profile/update |
+| Password Management | profile.html (lines 93-140) | Functions in profile-password.js:<br>- `setupPasswordValidation()`<br>- `handlePasswordUpdate()`<br>- `validatePassword()`<br>- `isPasswordValid()` | POST /profile/password |
+| Profile Picture | profile.html (lines 59-70) | `setupProfilePictureUpload()` in profile-page.js | N/A (browser storage) |
+| Modal System | macros/modal.html | `initModal()`, `closeAllModals()` in profile-page.js | N/A (frontend only) |
+| Notifications | Generated via JS | `showToast()`, `showValidationError()` in profile-page.js | N/A (frontend only) |
