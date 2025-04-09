@@ -90,16 +90,26 @@
 
   <div class="grid grid--2col">
     {% call card.card('KONTROL CEPAT') %}
-      {{ controls.control_switch('Kipas Exhaust', 'fan', 'fan-switch', false) }}
-      {{ controls.control_switch('Lampu', 'lightbulb', 'lights-switch', false) }}
+      {# Add spans for mode indicators next to the labels and apply |safe filter #}
+      {{ controls.control_switch('Kipas Exhaust <span id="fan-mode-indicator" class="mode-indicator">(Auto)</span>'|safe, 'fan', 'fan-switch', false) }}
+      {# Changed ID from lights-switch to light-switch #}
+      {{ controls.control_switch('Lampu <span id="light-mode-indicator" class="mode-indicator">(Auto)</span>'|safe, 'lightbulb', 'light-switch', false) }}
     {% endcall %}
 
     {% call card.card('RINGKASAN STATUS') %}
-      <div id="status-container">
-        <div class="status-message">
-          <i class="fas fa-spinner fa-spin"></i>
-          <span>Menunggu data sensor...</span>
-        </div>
+      {# Main container for status - might not be strictly needed anymore but keep for now #}
+      <div id="status-container"> 
+          {# New line for the overall summary #}
+          <div id="status-summary-line" class="status-item">
+              <i class="fas fa-spinner fa-spin"></i> 
+              <span>Menunggu data sensor...</span>
+          </div>
+          {# New button to toggle details, initially hidden #}
+          <button id="status-details-toggle" class="status-details-button" style="display: none;">Lihat Detail</button>
+          {# New container for detailed messages, initially hidden #}
+          <div id="status-details" style="display: none; margin-top: 0.5rem; border-top: 1px solid #eee; padding-top: 0.5rem;">
+              {## Detailed messages will be populated here by JS ##}
+          </div>
       </div>
     {% endcall %}
   </div>
