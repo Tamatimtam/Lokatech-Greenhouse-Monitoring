@@ -42,8 +42,7 @@ private:
     static bool _lastPenyemaianValidityFlag; // Store the validity flag from the last received CombinedData
 
     // Timeout for considering the entire Peremajaan node offline (no CombinedData received)
-    // Let's use a slightly longer timeout than Peremajaan uses for Penyemaian
-    const unsigned long COMBINED_DATA_TIMEOUT = 75000UL; // e.g., 75 seconds
+    const unsigned long COMBINED_DATA_TIMEOUT = 10000UL; // e.g., x5 seconds
 };
 
 #endif // ESPNOW_MANAGER_H

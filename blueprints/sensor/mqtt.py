@@ -7,7 +7,16 @@ logger = logging.getLogger(__name__)
 
 class SensorDataManager:
     def __init__(self):
-        self.latest_data = None
+        # Initialize with the expected structure, including actuators
+        self.latest_data = {
+            "sections": {},
+            "averages": {},
+            "timestamp": None,
+            "actuators": {
+                "fan": {"state": None, "mode": "auto"},
+                "light": {"state": None, "mode": "auto"}
+            }
+        }
         self.last_update = None
         self.mqtt_connected = False
         
@@ -63,8 +72,8 @@ class SensorDataManager:
         # Log the validation attempt
         if self.debug:
             logger.debug(f"Validating data structure: {json.dumps(data, indent=2)}")
-        
-        required_fields = ['timestamp', 'sections', 'averages']
+        # Include 'actuators' in required fields check (optional, but good practice)
+        required_fields = ['timestamp', 'sections', 'averages', 'actuators']
         
         # Check required fields
         missing_fields = [field for field in required_fields if field not in data]
@@ -76,14 +85,37 @@ class SensorDataManager:
         if not isinstance(data['sections'], dict):
             logger.error("'sections' must be an object")
             return False
-            
+
+        # Validate actuators structure (optional but recommended)
+        if 'actuators' not in data or not isinstance(data['actuators'], dict) or \
+           'fan' not in data['actuators'] or not isinstance(data['actuators']['fan'], dict) or \
+           'light' not in data['actuators'] or not isinstance(data['actuators']['light'], dict) or \
+           'state' not in data['actuators']['fan'] or 'mode' not in data['actuators']['fan'] or \
+           'state' not in data['actuators']['light'] or 'mode' not in data['actuators']['light']:
+             logger.error("Invalid or missing 'actuators' structure in MQTT data")
+             # Decide if you want to reject the whole message or just ignore actuators
+             # For now, let's store the rest but log the error
+             # return False # Uncomment to reject message if actuators are malformed
+
         # Accept data even if some sections are empty
         if self.debug:
             logger.debug(f"Active sections: {list(filter(lambda x: x[1], data['sections'].items()))}")
-        
-        self.latest_data = data
+            if 'actuators' in data:
+                 logger.debug(f"Actuator data received: {json.dumps(data['actuators'], indent=2)}")
+            else:
+                 logger.warning("Actuator data missing from payload")
+
+        # Store the entire received data structure
+        self.latest_data = data 
+        # Ensure actuators field exists even if missing from payload (initialize if needed)
+        if 'actuators' not in self.latest_data:
+             self.latest_data['actuators'] = {
+                 "fan": {"state": None, "mode": "auto"},
+                 "light": {"state": None, "mode": "auto"}
+             }
+
         self.last_update = datetime.now()
-        logger.info("Updated sensor data successfully")
+        logger.info("Updated sensor data successfully (including actuators if present)")
         logger.debug(f"Stored data: {json.dumps(self.latest_data, indent=2)}")
         return True
     
@@ -93,8 +125,8 @@ class SensorDataManager:
             logger.warning("No data available or no updates received yet")
             return None
             
-        # Check if data is stale (older than 15 seconds)
-        if datetime.now() - self.last_update > timedelta(seconds=15):
+        # Check if data is stale (older than 5 seconds)
+        if datetime.now() - self.last_update > timedelta(seconds=5):
             logger.warning(f"Data is stale. Last update: {self.last_update}")
             return None
         

@@ -4,13 +4,13 @@
 
 // --- Define Membership Functions based on new.md ---
 
-// Temperature Input Sets (Range: 15-35°C)
-// COLD: Peak at 18, Zero at 15 and 22
-FuzzySet* tempCold = new FuzzySet(15, 18, 18, 22); 
-// OPTIMAL: Peak at 22.5, Zero at 20 and 25
-FuzzySet* tempOptimal = new FuzzySet(20, 22.5, 22.5, 25);
-// HOT: Peak at 30, Zero at 25 and 35
-FuzzySet* tempHot = new FuzzySet(25, 30, 30, 35);
+// Temperature Input Sets (Range: 20-35°C)
+// COLD: Trapezoidal, 100% from 20-24, dropping to 0 at 27
+FuzzySet* tempCold = new FuzzySet(20, 20, 24, 27); 
+// OPTIMAL: Trapezoidal, 100% from 27-29, dropping to 0 at 25 and 31
+FuzzySet* tempOptimal = new FuzzySet(25, 27, 29, 31);
+// HOT: Trapezoidal, 100% from 32-35, dropping to 0 at 30
+FuzzySet* tempHot = new FuzzySet(30, 32, 35, 35);
 
 // Humidity Input Sets (Range: 20-100%)
 // DRY: Trapezoidal, 100% below 70, zero above 80
