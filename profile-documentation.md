@@ -1,173 +1,58 @@
 # LokaTech Greenhouse Monitoring - Profile System Documentation
 
+## Introduction
+
+The Profile System is a core component of the LokaTech Greenhouse Monitoring application that enables users to manage their account information, customize their experience, and maintain security through password management. This documentation provides a comprehensive overview of the system's architecture, features, and implementation details.
+
 ## Table of Contents
-1. [Quick Reference Guide](#quick-reference-guide)
-2. [File Location Map](#file-location-map)
-3. [HTML Structure & Components](#html-structure--components)
-4. [JavaScript Functionality](#javascript-functionality)
-5. [CSS Styling Guide](#css-styling-guide)
-6. [Backend Integration](#backend-integration)
-7. [Flow Diagrams](#flow-diagrams)
+1. [System Overview](#system-overview)
+2. [Feature Guide](#feature-guide)
+3. [Implementation Details](#implementation-details)
+4. [User Interface Components](#user-interface-components)
+5. [Customization and Extension](#customization-and-extension)
+6. [Troubleshooting](#troubleshooting)
 
-## Quick Reference Guide
+## System Overview
 
-| Feature | Primary File | Key Functions | Related Files |
-|---------|-------------|---------------|--------------|
-| Profile Page Rendering | `blueprints/profile/routes.py` | `profile()` | `templates/profile.html` |
-| Modal System | `static/js/profile-page.js` | `initModal()`, `closeAllModals()` | `templates/macros/modal.html` |
-| Profile Updates | `static/js/profile-page.js` | `handleProfileUpdate()`, `updateProfileDisplay()` | `templates/profile.html` |
-| Password Management | `static/js/profile-page.js` | `handlePasswordUpdate()`, `setupPasswordValidation()` | `templates/profile.html` |
-| Profile Picture Upload | `static/js/profile-page.js` | `setupProfilePictureUpload()` | `templates/profile.html` |
-| UI Notifications | `static/js/profile-page.js` | `showToast()`, `showValidationError()` | `static/css/profile-page.css` |
+### Purpose
+The Profile System allows users to:
+- View and update their personal information
+- Change their profile picture
+- Manage password security
+- Control account settings
 
-## File Location Map
+### Architecture
+The system follows a Model-View-Controller (MVC) pattern:
+- **Model**: Firebase Authentication (user data)
+- **View**: HTML templates with Flask templating engine
+- **Controller**: Flask routes and JavaScript event handlers
 
-### Backend Files (Python)
+### Technology Stack
+- **Backend**: Python Flask with Firebase Authentication
+- **Frontend**: 
+  - HTML, CSS
+  - JavaScript (modular organization with separate files for profile and password functionality)
+  - Browser SessionStorage (temporary data)
 
-1. **Blueprint Definition**
-   - **File:** `blueprints/profile/__init__.py`
-   - **Purpose:** Creates the profile blueprint with URL prefix '/profile'
-   - **Key Components:**
-     ```python
-     bp = Blueprint('profile', __name__, url_prefix='/profile')
-     ```
+## Feature Guide
 
-2. **Route Handler**
-   - **File:** `blueprints/profile/routes.py`
-   - **Purpose:** Defines profile page route and handles authentication
-   - **Key Components:**
-     ```python
-     @bp.route("/")
-     @isloggedin
-     def profile():
-         return render_template("profile.html", user=session['user'])
-     ```
+### Profile Information Management
 
-### Frontend Files
+![Profile Information Management Flow](static/images/docs/profile-info-flow.png)
 
-1. **Main Template**
-   - **File:** `templates/profile.html`
-   - **Purpose:** Defines structure and components of the profile page
-   - **Key Sections:**
-     - Header (lines 18-25)
-     - Profile info card (lines 27-37)
-     - Account settings (lines 40-55)
-     - Profile edit modal (lines 57-91)
-     - Password change modal (lines 93-140)
+#### How It Works
+1. User navigates to the Profile page
+2. The system displays current profile information from the session
+3. User can edit their display name by clicking "Informasi Profil"
+4. Changes are saved to Firebase and reflected immediately in the UI
 
-2. **JavaScript**
-   - **File:** `static/js/profile-page.js`
-   - **Purpose:** Handles all interactive functionality
-   - **Key Sections:**
-     - Initialization (lines 5-18)
-     - Profile update handling (lines 23-40)
-     - Password update handling (lines 43-70)
-     - Modal management (lines 73-140)
-     - Profile picture functions (lines 143-180)
-     - UI utilities (lines 183-222)
-     - Password validation (lines 225-364)
+#### Code Components
+- **Backend Route**: `blueprints/profile/routes.py` - `update_profile()` function
+- **Frontend Template**: `templates/profile.html` - Profile card and edit modal
+- **JavaScript**: `profile-page.js` - `handleProfileUpdate()` and `updateProfileDisplay()`
 
-3. **CSS Styling**
-   - **File:** `static/css/profile-page.css`
-   - **Purpose:** Profile-specific styles
-   - **Key Sections:**
-     - Profile component styles (lines 4-90)
-     - Profile edit modal styles (lines 93-126)
-     - Password form styles (lines 129-177)
-     - Strength meter styles (lines 180-221)
-     - Password requirements styles (lines 224-268)
-     - Toast notification styles (lines 271-290)
-     - Responsive adjustments (lines 293-312)
-
-## HTML Structure & Components
-
-### Profile Page Base (`templates/profile.html`)
-
-The profile page is built as a Flask template that extends `base.html` and imports several macros for components.
-
-**Import Section (Lines 1-8):**
-```html
-{% extends "base.html" %}
-{% import "macros/gauges.html" as gauges %}
-{% import "macros/card.html" as card %}
-{% import "macros/controls.html" as controls %}
-{% import "macros/status.html" as status %}
-{% import "macros/navigation.html" as navigation %}
-{% import "macros/modal.html" as modal %}
-```
-
-**Header Component (Lines 18-25):**
-- Displays welcome message with user name
-- Shows application logo
-- Located at the top of the page
-
-**Profile Information Card (Lines 27-37):**
-- Uses the `card.card` macro from `templates/macros/card.html`
-- Displays user's profile image (`id="mainProfileImage"`)
-- Shows user's name and email
-- CSS styles in `profile-page.css` (lines 7-37)
-
-**Account Settings List (Lines 40-55):**
-- Interactive list with three options:
-  1. "Informasi Profil" (triggers profile modal)
-  2. "Ubah Kata Sandi" (triggers password modal)
-  3. "Keluar" (logout link)
-- CSS styles in `profile-page.css` (lines 39-70)
-
-### Modal Components
-
-**Profile Edit Modal (Lines 57-91):**
-- Uses `modal.modal` macro from `templates/macros/modal.html`
-- ID: `profileModal`
-- Opener: `openProfileModal`
-- Contains:
-  - Profile picture upload section (lines 59-70)
-  - Display name field (lines 72-75)
-  - Email field (disabled) (lines 77-81)
-  - Role field (disabled) (lines 83-86)
-- CSS styles in `profile-page.css` (lines 93-126)
-
-**Password Change Modal (Lines 93-140):**
-- ID: `passwordModal`
-- Opener: `openPasswordModal`
-- Contains:
-  - Current password field (lines 96-103)
-  - New password field with strength meter (lines 105-119)
-  - Confirm password field (lines 121-129)
-  - Password requirements list (lines 131-138)
-- CSS styles in `profile-page.css` (lines 129-268)
-
-## JavaScript Functionality
-
-### Main Script (`static/js/profile-page.js`)
-
-**Initialization (Lines 5-18):**
 ```javascript
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialize modals with their specific validation logic
-  initModal('profileModal', 'openProfileModal', handleProfileUpdate);
-  initModal('passwordModal', 'openPasswordModal', handlePasswordUpdate);
-  
-  // Set up other functionality
-  setupPasswordToggles();
-  setupPasswordValidation();
-  setupProfilePictureUpload();
-  
-  // Register global Escape key handler for modals
-  document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-      closeAllModals();
-    }
-  });
-});
-```
-- Runs when the DOM is loaded
-- Initializes modals, password validation, and profile picture upload
-
-### Profile Update Functions
-
-**Profile Update Handler (Lines 23-40):**
-```javascript
+// Key function in profile-page.js that handles profile updates
 function handleProfileUpdate(modal, closeModal) {
   const displayName = document.getElementById('displayName').value;
   
@@ -176,196 +61,49 @@ function handleProfileUpdate(modal, closeModal) {
     return;
   }
   
-  updateProfileDisplay(displayName);
-  closeModal();
-  showToast('Profil berhasil diperbarui!');
-}
-```
-- Activated when saving the profile modal
-- Validates and updates display name
-
-**Profile Display Update (Lines 179-190):**
-```javascript
-function updateProfileDisplay(name) {
-  const headerTitle = document.querySelector('.header__content h1');
-  const profileName = document.querySelector('.profile__info h2');
+  // Show loading indicator
+  const saveButton = document.getElementById('saveprofileModal');
+  const originalText = saveButton.textContent;
+  saveButton.textContent = 'Menyimpan...';
+  saveButton.disabled = true;
   
-  if (headerTitle) headerTitle.textContent = `Halo, ${name}!`;
-  if (profileName) profileName.textContent = name;
-  
-  sessionStorage.setItem('user_name', name);
-}
-```
-- Updates all name occurrences in the UI
-- Stores name in sessionStorage for persistence
-
-### Modal Management
-
-**Modal Initialization (Lines 73-140):**
-```javascript
-function initModal(modalId, openerId, onSave = null) {
-  const modal = document.getElementById(modalId);
-  const opener = document.getElementById(openerId);
-  
-  if (!modal || !opener) {
-    console.error(`Modal initialization failed: Elements not found`);
-    return null;
-  }
-  
-  // Open modal function
-  function openModal() {
-    modal.classList.add('modal--active');
-    document.body.style.overflow = 'hidden';
-  }
-  
-  // Close modal function
-  function closeModal() {
-    modal.classList.remove('modal--active');
-    document.body.style.overflow = '';
-    
-    // Clear form fields if needed
-    const formInputs = modal.querySelectorAll('input:not([disabled])');
-    formInputs.forEach(input => {
-      if (input.type === 'file') return; // Don't clear file inputs
-      input.value = '';
-    });
-  }
-  
-  // Event listeners for open/close/save
-  opener.addEventListener('click', openModal);
-  
-  // Additional event handlers for close button, cancel, save, etc.
-  // ...
-  
-  return { open: openModal, close: closeModal };
-}
-```
-- Creates and manages modals
-- Sets up event listeners for opening/closing
-- Handles save button interactions
-
-**Modal Closing Function (Lines 143-149):**
-```javascript
-function closeAllModals() {
-  document.querySelectorAll('.modal--active').forEach(activeModal => {
-    activeModal.classList.remove('modal--active');
-  });
-  document.body.style.overflow = '';
-}
-```
-- Closes all active modals
-- Used by the Escape key handler
-
-### Password Management
-
-**Password Update Handler (Lines 43-70):**
-```javascript
-function handlePasswordUpdate(modal, closeModal) {
-  const currentPassword = document.getElementById('currentPassword').value;
-  const newPassword = document.getElementById('newPassword').value;
-  const confirmPassword = document.getElementById('confirmPassword').value;
-  
-  // Validation logic
-  if (!currentPassword) {
-    showValidationError('Kata sandi saat ini diperlukan');
-    return;
-  }
-  
-  if (!isPasswordValid(newPassword)) {
-    showValidationError('Harap penuhi semua persyaratan kata sandi');
-    return;
-  }
-  
-  if (newPassword !== confirmPassword) {
-    showValidationError('Kata sandi tidak cocok');
-    return;
-  }
-  
-  closeModal();
-  showToast('Kata sandi berhasil diubah!');
-}
-```
-- Handles password update form submission
-- Validates current, new, and confirm password fields
-
-**Password Validation Setup (Lines 264-364):**
-```javascript
-function setupPasswordValidation() {
-  const newPassword = document.getElementById('newPassword');
-  const confirmPassword = document.getElementById('confirmPassword');
-  const passwordStrength = document.getElementById('passwordStrength');
-  const strengthText = document.getElementById('strengthText');
-  const passwordMatch = document.getElementById('passwordMatch');
-  
-  // Event listeners for password fields
-  newPassword.addEventListener('input', function() {
-    validatePassword(this.value);
-    // Re-check match if confirm has value
-    if (confirmPassword.value) {
-      validatePasswordMatch(this.value, confirmPassword.value);
-    }
-  });
-  
-  confirmPassword.addEventListener('input', function() {
-    validatePasswordMatch(newPassword.value, this.value);
-  });
-  
-  // Nested validation functions
-  function validatePassword(password) {
-    // Check requirements and update UI
-  }
-  
-  function updateRequirement(element, isValid) {
-    // Update requirement indicators
-  }
-  
-  function validatePasswordMatch(password, confirmPassword) {
-    // Check password match and update UI
-  }
-}
-```
-- Sets up real-time password validation
-- Updates UI indicators for requirements and strength
-
-**Password Visibility Toggles (Lines 227-246):**
-```javascript
-function setupPasswordToggles() {
-  const toggles = document.querySelectorAll('.password-toggle');
-  
-  toggles.forEach(toggle => {
-    toggle.addEventListener('click', function() {
-      const input = this.previousElementSibling;
-      const icon = this.querySelector('i');
-      
-      const isPasswordVisible = input.type === 'text';
-      
-      input.type = isPasswordVisible ? 'password' : 'text';
-      icon.className = isPasswordVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
-    });
+  // Send update to server
+  fetch('/profile/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ displayName: displayName })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Handle the response
+    // ...existing code...
   });
 }
 ```
-- Toggles password visibility for all password fields
-- Changes eye icon based on current state
 
-**Password Validation Check (Lines 248-262):**
-```javascript
-function isPasswordValid(password) {
-  const minLength = 8;
-  const hasUpperCase = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-  
-  return password.length >= minLength && hasUpperCase && hasNumber && hasSpecial;
-}
-```
-- Checks if a password meets all requirements
-- Used by the password update handler
+#### User Experience
+- Immediate visual feedback when changes are made
+- Error handling with user-friendly messages
+- Loading state indication during server communication
 
 ### Profile Picture Management
 
-**Profile Picture Upload (Lines 152-177):**
+#### How It Works
+1. User clicks "Ubah Foto" in the profile edit modal
+2. File browser opens for image selection
+3. Selected image is displayed in both the modal preview and main profile
+4. Image data is stored in browser SessionStorage for persistence
+
+#### Code Components
+- **Frontend Template**: `templates/profile.html` - Profile picture containers
+- **JavaScript**: `profile-page.js` - `setupProfilePictureUpload()` function
+- **CSS**: `profile-page.css` - Styling for profile images
+
 ```javascript
+// Handles profile picture uploads with preview functionality
 function setupProfilePictureUpload() {
   const fileInput = document.getElementById('profilePictureInput');
   const previewImage = document.getElementById('profilePicturePreview');
@@ -392,14 +130,183 @@ function setupProfilePictureUpload() {
   });
 }
 ```
-- Handles profile picture file selection
-- Updates both the preview and main profile images
-- Stores image data in sessionStorage
 
-### UI Utilities
+#### Technical Details
+- Uses the FileReader API to handle image files
+- Updates multiple DOM elements to maintain UI consistency
+- SessionStorage maintains the image across page refreshes
 
-**Toast Notification (Lines 193-215):**
+### Password Management System
+
+#### How It Works
+1. User clicks "Ubah Kata Sandi" in the account settings
+2. Password change modal opens with three fields:
+   - Current password
+   - New password (with strength meter)
+   - Confirm password
+3. Real-time validation provides feedback on password requirements
+4. After validation, password update is processed through the following steps:
+   - Current password is verified using Firebase Authentication
+   - New password is validated against security requirements
+   - Password is updated in Firebase if all validations pass
+5. User receives confirmation of successful password change or specific error message
+
+#### Password Requirements Validation
+The system enforces strong password policies with visual feedback:
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one number
+- At least one special character
+
+#### Code Components
+- **Backend Route**: `blueprints/profile/routes.py` - `update_password()` function
+- **Frontend Template**: `templates/profile.html` - Password modal form
+- **JavaScript**: 
+  - `profile-password.js`: Dedicated file for password functionality
+    - `setupPasswordValidation()`: Sets up real-time validation
+    - `validatePassword()`: Checks password strength
+    - `handlePasswordUpdate()`: Processes the password change
+  - `profile-page.js`: Main profile page functionality that calls password functions
+- **CSS**: `profile-page.css` - Styling for password strength indicators
+
 ```javascript
+// Password update handler with server communication from profile-password.js
+function handlePasswordUpdate(modal, closeModal) {
+  const currentPassword = document.getElementById('currentPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  
+  // Validate inputs
+  if (!currentPassword) {
+    showValidationError('Kata sandi saat ini diperlukan');
+    return;
+  }
+  
+  if (!isPasswordValid(newPassword)) {
+    showValidationError('Harap penuhi semua persyaratan kata sandi');
+    return;
+  }
+  
+  if (newPassword !== confirmPassword) {
+    showValidationError('Kata sandi tidak cocok');
+    return;
+  }
+  
+  // Show loading indicator
+  const saveButton = document.getElementById('savepasswordModal');
+  const originalText = saveButton.textContent;
+  saveButton.textContent = 'Memperbarui...';
+  saveButton.disabled = true;
+  
+  // Send update to server
+  fetch('/profile/password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ 
+      currentPassword: currentPassword,
+      newPassword: newPassword
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Handle response and update UI
+    // ...existing code...
+  })
+  .catch(error => {
+    // Error handling
+    // ...existing code...
+  });
+}
+```
+
+#### Security Considerations
+- Current password verification ensures only the authorized user can change the password
+- Two-step verification process:
+  1. First authenticates with current password using Firebase REST API
+  2. Then updates password using Firebase Admin SDK only if authentication succeeds
+- Client-side validation is complemented by comprehensive server-side validation
+- Password strength requirements are enforced on both client and server
+- Visual feedback helps users create strong passwords
+- Loading states prevent multiple submission attempts
+
+### Modal System
+
+The application uses a flexible modal system for forms and dialogs.
+
+#### How It Works
+1. Modals are initialized with specific handlers for different content
+2. Opening a modal activates its content and applies the active class
+3. Form interactions within the modal are handled by specific functions
+4. Closing can happen via close button, cancel button, save completion, or ESC key
+
+#### Code Components
+- **Modal Template**: `templates/macros/modal.html` - Reusable modal structure
+- **JavaScript**: `profile-page.js` - `initModal()` and `closeAllModals()`
+- **CSS**: `profile-page.css` - Modal styling and animations
+
+```javascript
+// Versatile modal initialization with custom handlers
+function initModal(modalId, openerId, onSave = null) {
+  const modal = document.getElementById(modalId);
+  const opener = document.getElementById(openerId);
+  const closeBtn = modal?.querySelector('.modal__close');
+  const cancelBtn = modal?.querySelector('.modal__cancel');
+  const saveBtn = modal?.querySelector('.modal__save');
+  
+  if (!modal || !opener) {
+    console.error(`Modal initialization failed: Elements not found`);
+    return null;
+  }
+  
+  function openModal() {
+    modal.classList.add('modal--active');
+    document.body.style.overflow = 'hidden';
+  }
+  
+  function closeModal() {
+    modal.classList.remove('modal--active');
+    document.body.style.overflow = '';
+    
+    // Clear form fields if needed
+    const formInputs = modal.querySelectorAll('input:not([disabled])');
+    formInputs.forEach(input => {
+      if (input.type === 'file') return; // Don't clear file inputs
+      input.value = '';
+    });
+  }
+  
+  // Event listeners
+  // ...existing code...
+  
+  return { open: openModal, close: closeModal };
+}
+```
+
+#### UI/UX Details
+- Backdrop overlay prevents interaction with the main page
+- Animations provide smooth transitions
+- Keyboard navigation (ESC to close)
+- Mobile-responsive design
+
+### Notification System
+
+The application provides user feedback through a toast notification system.
+
+#### How It Works
+1. Actions that require user feedback trigger the notification system
+2. Notifications appear at the bottom of the screen
+3. Messages automatically disappear after 3 seconds
+4. Different message types (success, error) have distinct styling
+
+#### Code Components
+- **JavaScript**: `profile-page.js` - `showToast()` and `showValidationError()`
+- **CSS**: `profile-page.css` - Toast styling and animations
+
+```javascript
+// Toast notification system for user feedback
 function showToast(message) {
   let toast = document.getElementById('toast-notification');
   
@@ -421,209 +328,281 @@ function showToast(message) {
   }, 3000);
 }
 ```
-- Creates or reuses a toast element
-- Shows message for 3 seconds
-- CSS styles in `profile-page.css` (lines 271-290)
 
-**Validation Error (Lines 217-224):**
-```javascript
-function showValidationError(message) {
-  alert(message);
-  // Could be improved with a more user-friendly error display
-}
+## Implementation Details
+
+### Backend Implementation
+
+#### Profile Blueprint Structure
 ```
-- Shows validation errors using alert (basic implementation)
+blueprints/
+└── profile/
+    ├── __init__.py    # Blueprint definition
+    └── routes.py      # Route handlers
+```
 
-## CSS Styling Guide
+#### Key Routes
+- **GET /profile/**: Renders the profile page with user data
+- **POST /profile/update**: Handles profile information updates
+- **POST /profile/password**: Processes password change requests with security validation
 
-### Profile Page Styles (`static/css/profile-page.css`)
-
-**Profile Component Styles (Lines 4-90):**
-- `.profile__image`: Profile picture styling (lines 7-14)
-- `.profile__header`: Profile header layout (lines 16-20)
-- `.profile__info`: Text information styling (lines 22-31)
-- `.profile__list`: Settings list styling (lines 39-70)
-
-**Profile Edit Modal Styles (Lines 93-126):**
-- `.profile-edit__picture`: Profile picture container (lines 93-101)
-- `.profile-edit__preview`: Image preview styling (lines 103-110)
-- `.profile-edit__actions`: Button container (lines 112-115)
-- `.profile-edit__upload-btn`: Upload button styling (lines 117-126)
-
-**Password Form Styles (Lines 129-177):**
-- `.password-edit`: Password form container (lines 129-132)
-- `.password-input-container`: Input with toggle button (lines 134-138)
-- `.password-toggle`: Visibility toggle button (lines 148-158)
-
-**Strength Meter Styles (Lines 180-221):**
-- `.strength-meter`: Progress bar container (lines 180-185)
-- `.strength-meter__bar`: Progress indicator (lines 187-192)
-- Color variations for different strength levels (lines 194-204)
-- `.strength-text`: Description text (lines 206-209)
-- Password match indicators (lines 211-221)
-
-**Password Requirements Styles (Lines 224-268):**
-- `.password-requirements`: Container styling (lines 224-229)
-- `.requirements-list`: List styling (lines 235-238)
-- List item and icon styles (lines 240-256)
-- Valid requirement styles (lines 258-268)
-
-**Toast Notification Styles (Lines 271-290):**
-- `.toast`: Basic styling (lines 271-284)
-- `.toast--visible`: Visible state styling (lines 286-288)
-
-**Responsive Adjustments (Lines 293-312):**
-- Tablet and mobile adaptations
-- Changes layout for smaller screens
-
-## Backend Integration
-
-### Blueprint Setup (`blueprints/profile/__init__.py`)
+#### Authentication Integration
+The profile system integrates with Firebase Authentication:
+- Uses `@isloggedin` decorator to protect routes
+- Updates Firebase user records when profile changes are made
+- Implements secure password change process:
+  - Verifies current password through Firebase Authentication API
+  - Only allows password changes after successful verification
+  - Validates password complexity requirements server-side
+- Maintains user state in the Flask session
 
 ```python
-from flask import Blueprint
-
-bp = Blueprint('profile', __name__, url_prefix='/profile')
-
-from . import routes
-```
-- Creates a Blueprint named 'profile'
-- Sets URL prefix to '/profile'
-- Imports routes from the routes module
-
-### Route Handler (`blueprints/profile/routes.py`)
-
-```python
-from flask import render_template, session
-from . import bp
-from ..auth.utils import isloggedin
-import logging
-
-logger = logging.getLogger(__name__)
-
-@bp.route("/")
+@bp.route("/password", methods=["POST"])
 @isloggedin
-def profile():
-    logger.debug(f"Serving profile page for user: {session['user']['email']}")
-    return render_template("profile.html", user=session['user'])
-```
-- Defines the main profile route '/'
-- Protects it with `@isloggedin` decorator from auth blueprint
-- Renders profile.html template with user data from session
-
-### Authentication Integration
-
-The profile system relies on the auth blueprint for:
-- User authentication (`@isloggedin` decorator)
-- Session management (user data in session)
-- Logout route ('/logout')
-
-## Flow Diagrams
-
-### Profile Page Interaction Flow
-
-```
-┌─────────────────┐     ┌────────────────┐     ┌─────────────────────┐
-│ User navigates  │     │ Flask route    │     │ Template renders    │
-│ to /profile/    │────►│ checks login   │────►│ with session data   │
-└─────────────────┘     │ with @isloggedin│     └─────────────────────┘
-                       └────────────────┘               │
-                                                       │
-                                                       ▼
-┌─────────────────┐     ┌────────────────┐     ┌─────────────────────┐
-│ User interacts  │     │ JavaScript     │     │ DOM updates with    │
-│ with page       │────►│ handles events │────►│ new data            │
-└─────────────────┘     └────────────────┘     └─────────────────────┘
-        │                                                │
-        │                                                │
-        ▼                                                ▼
-┌─────────────────┐                            ┌─────────────────────┐
-│ Data stored in  │                            │ Toast notification  │
-│ sessionStorage  │                            │ confirms changes    │
-└─────────────────┘                            └─────────────────────┘
-```
-
-### Modal Interaction Flow
-
-```
-┌─────────────────┐     ┌────────────────┐     ┌─────────────────────┐
-│ User clicks on  │     │ initModal()    │     │ Modal opens with    │
-│ opener element  │────►│ handles click  │────►│ modal--active class │
-└─────────────────┘     └────────────────┘     └─────────────────────┘
-                                                        │
-                                                        │
-                                                        ▼
-┌─────────────────┐     ┌────────────────┐     ┌─────────────────────┐
-│ User enters     │     │ Validation     │     │ Visual feedback     │
-│ form data       │────►│ functions run  │────►│ on requirements     │
-└─────────────────┘     └────────────────┘     └─────────────────────┘
-        │                                                │
-        │                                                │
-        ▼                                                ▼
-┌─────────────────┐     ┌────────────────┐     ┌─────────────────────┐
-│ User clicks     │     │ handleProfile  │     │ updateProfileDisplay│
-│ Save button     │────►│ Update() runs  │────►│ updates UI elements │
-└─────────────────┘     └────────────────┘     └─────────────────────┘
-                                │
-                                │
-                                ▼
-                      ┌─────────────────────┐
-                      │ showToast() displays│
-                      │ success message     │
-                      └─────────────────────┘
-```
-
-### Password Validation Flow
-
-```
-┌─────────────────┐     ┌────────────────────┐     ┌─────────────────────┐
-│ User types in   │     │ validatePassword() │     │ updateRequirement() │
-│ password field  │────►│ checks criteria    │────►│ updates indicators  │
-└─────────────────┘     └────────────────────┘     └─────────────────────┘
-        │                                                    │
-        │                                                    │
-        ▼                                                    ▼
-┌─────────────────┐     ┌────────────────────┐     ┌─────────────────────┐
-│ Strength meter  │     │ User types in      │     │ validatePassword    │
-│ updates         │     │ confirm field      │────►│ Match() compares    │
-└─────────────────┘     └────────────────────┘     └─────────────────────┘
-                                                            │
-                                                            │
-                                                            ▼
-                                                  ┌─────────────────────┐
-                                                  │ Password match text │
-                                                  │ updates             │
-                                                  └─────────────────────┘
+def update_password():
+    """
+    Update user password in Firebase
+    
+    Requires current password verification for security and validates 
+    that the new password meets strength requirements
+    """
+    try:
+        data = request.json
+        current_password = data.get('currentPassword')
+        new_password = data.get('newPassword')
+        
+        # Validate inputs
+        if not current_password or not new_password:
+            logger.warning(f"Missing password fields in update attempt: {session['user']['email']}")
+            return jsonify({'status': 'error', 'message': 'Semua bidang kata sandi diperlukan'}), 400
+        
+        # Validate new password requirements
+        if not validate_password(new_password):
+            logger.warning(f"Weak password attempt: {session['user']['email']}")
+            return jsonify({'status': 'error', 'message': 'Kata sandi baru tidak memenuhi persyaratan keamanan'}), 400
+        
+        # Get user email from session
+        email = session['user']['email']
+        
+        try:
+            # Get Firebase user by email
+            firebase_user = auth.get_user_by_email(email)
+            
+            # Verify current password using Firebase REST API
+            firebase_api_key = current_app.config.get('FIREBASE_API_KEY')
+            if not firebase_api_key:
+                logger.error("Firebase API key not configured")
+                return jsonify({'status': 'error', 'message': 'Konfigurasi server tidak lengkap'}), 500
+            
+            # Step 1: Verify current password by attempting to sign in
+            verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_api_key}"
+            verify_data = {
+                "email": email,
+                "password": current_password,
+                "returnSecureToken": True
+            }
+            
+            verify_response = requests.post(verify_url, json=verify_data)
+            
+            if not verify_response.ok:
+                logger.warning(f"Invalid current password attempt: {email}")
+                return jsonify({'status': 'error', 'message': 'Kata sandi saat ini tidak valid'}), 401
+            
+            # Step 2: Update password using Firebase Admin SDK
+            auth.update_user(
+                firebase_user.uid,
+                password=new_password
+            )
+            
+            logger.info(f"Password updated successfully for user: {email}")
+            return jsonify({'status': 'success', 'message': 'Kata sandi berhasil diperbarui'})
+            
+        except auth.UserNotFoundError:
+            logger.error(f"User not found in Firebase: {email}")
+            return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan'}), 404
+        except Exception as e:
+            logger.error(f"Firebase password update error: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'Gagal memperbarui kata sandi'}), 500
+    except Exception as e:
+        logger.error(f"Password update failed: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Terjadi kesalahan sistem'}), 500
 ```
 
-## Common Tasks Quick Guide
+### Frontend Architecture
 
-### How to Change Profile Information
+#### Template Structure
+```
+templates/
+├── profile.html             # Main profile page
+└── macros/
+    ├── card.html            # Card component for profile sections
+    ├── modal.html           # Modal component for dialogs
+    └── navigation.html      # Navigation components
+```
 
-1. **User Interaction**:
-   - User clicks "Informasi Profil" list item (`id="openProfileModal"` in `profile.html`)
-   - Modal appears with current profile data
-   - User updates display name and/or uploads new picture
-   - User clicks "Save" button
+#### JavaScript Organization
+The frontend JavaScript code is now split into two files for better organization and maintainability:
 
-2. **Code Execution Path**:
-   - Click handled by event listener set in `initModal()` (`profile-page.js`)
-   - Save button triggers `handleProfileUpdate()` (`profile-page.js`)
-   - Validation occurs and if valid, calls `updateProfileDisplay()` (`profile-page.js`)
-   - UI elements are updated and `showToast()` confirms success
+1. **profile-page.js**: Contains the core profile page functionality
+   - Modal initialization and management
+   - Profile information update handling
+   - Profile picture management
+   - UI utility functions and notifications
 
-### How to Change Password
+2. **profile-password.js**: Dedicated file for password-related functionality
+   - Password update handling
+   - Password validation and strength evaluation
+   - Password visibility toggling
+   - Password matching validation
 
-1. **User Interaction**:
-   - User clicks "Ubah Kata Sandi" list item (`id="openPasswordModal"` in `profile.html`)
-   - Modal appears with password form
-   - User fills current and new password fields
-   - Password requirements are checked in real-time
-   - User clicks "Save" button
+This modular approach improves code readability, maintainability, and separation of concerns.
 
-2. **Code Execution Path**:
-   - Modal opens via `initModal()` (`profile-page.js`)
-   - Real-time validation via `setupPasswordValidation()` (`profile-page.js`)
-   - Save button triggers `handlePasswordUpdate()` (`profile-page.js`)
-   - Validation occurs with `isPasswordValid()` (`profile-page.js`)
-   - If valid, modal closes and `showToast()` confirms success
+#### Integration Between Files
+The password module is exposed through a global object:
+
+```javascript
+// In profile-password.js
+window.passwordModule = {
+  handlePasswordUpdate,
+  setupPasswordToggles,
+  isPasswordValid,
+  setupPasswordValidation
+};
+
+// In profile-page.js
+document.addEventListener('DOMContentLoaded', function() {
+  // ...
+  initModal('passwordModal', 'openPasswordModal', window.passwordModule.handlePasswordUpdate);
+  window.passwordModule.setupPasswordToggles();
+  window.passwordModule.setupPasswordValidation();
+  // ...
+});
+```
+
+#### File Structure
+```
+static/js/
+├── profile-page.js     # Core profile functionality
+└── profile-password.js # Password-specific functionality
+```
+
+## User Interface Components
+
+### Profile Page Layout
+```
+┌─────────────────────────────────────────┐
+│ Header: User greeting                   │
+├─────────────────────────────────────────┤
+│ Profile Info Card                       │
+│ ┌─────────────┐                         │
+│ │ Profile Pic │ Name                    │
+│ │             │ Email                   │
+│ └─────────────┘                         │
+├─────────────────────────────────────────┤
+│ Account Settings                        │
+│ • Informasi Profil                      │
+│ • Ubah Kata Sandi                       │
+│ • Keluar                                │
+└─────────────────────────────────────────┘
+```
+
+### Modal Components
+1. **Profile Edit Modal**
+   - Profile picture with upload option
+   - Display name input field
+   - Read-only email field
+   - Role information
+
+2. **Password Change Modal**
+   - Current password field
+   - New password field with strength meter
+   - Confirm password field
+   - Password requirements checklist
+
+## Customization and Extension
+
+### Adding New Profile Fields
+To add new profile fields:
+
+1. Update the Firebase user model
+2. Add fields to the profile modal in `profile.html`
+3. Extend the `handleProfileUpdate()` function to include new fields
+4. Update the backend route to handle additional data
+
+### Customizing Password Requirements
+To modify password requirements:
+
+1. Update the validation regex in `isPasswordValid()`
+2. Modify the requirements list in the password modal
+3. Adjust the `validatePassword()` function to reflect new rules
+
+## Troubleshooting
+
+### Common Issues
+
+#### Profile Updates Not Saving
+**Possible causes:**
+- Firebase connection issues
+- Invalid input validation
+- Session management problems
+
+**Solutions:**
+- Check browser console for errors
+- Verify network requests in developer tools
+- Ensure Firebase configuration is correct
+
+#### Password Update Failures
+**Possible causes:**
+- Invalid current password provided
+- Firebase API key not properly configured
+- Network connectivity issues with Firebase
+- Client-side validation passing but server-side validation failing
+- Firebase service disruptions
+
+**Solutions:**
+- Double-check current password entry
+- Verify Firebase configuration in server environment
+- Check browser console and server logs for specific errors
+- Ensure password meets all requirements consistently
+- Try again later if Firebase service might be experiencing issues
+
+#### Password Validation Issues
+**Possible causes:**
+- JavaScript errors in validation functions
+- Conflicting validation rules between client and server
+- DOM element ID mismatches
+- Browser compatibility issues with regex patterns
+
+**Solutions:**
+- Check browser console for JavaScript errors
+- Ensure validation logic matches between client and server code
+- Verify all DOM element IDs match between HTML and JS
+- Test in multiple browsers if issue seems browser-specific
+
+#### Modal Display Problems
+**Possible causes:**
+- CSS conflicts
+- Z-index issues
+- JavaScript initialization errors
+
+**Solutions:**
+- Inspect element positioning and z-index
+- Verify modal initialization in console
+- Test modal functionality in isolation
+
+## Conclusion
+
+The Profile System provides a comprehensive user account management solution with secure authentication, intuitive UI, and extensible architecture. By following the documentation above, developers can understand, maintain, and extend the system to meet evolving requirements.
+
+## Appendix
+
+### Complete Feature-Code Map
+
+| Feature | Frontend Files | JavaScript Functions | Backend Routes |
+|---------|---------------|---------------------|---------------|
+| Profile Display | profile.html (lines 27-37) | `updateProfileDisplay()` in profile-page.js | GET /profile/ |
+| Profile Editing | profile.html (lines 57-91) | `handleProfileUpdate()` in profile-page.js | POST /profile/update |
+| Password Management | profile.html (lines 93-140) | Functions in profile-password.js:<br>- `setupPasswordValidation()`<br>- `handlePasswordUpdate()`<br>- `validatePassword()`<br>- `isPasswordValid()` | POST /profile/password |
+| Profile Picture | profile.html (lines 59-70) | `setupProfilePictureUpload()` in profile-page.js | N/A (browser storage) |
+| Modal System | macros/modal.html | `initModal()`, `closeAllModals()` in profile-page.js | N/A (frontend only) |
+| Notifications | Generated via JS | `showToast()`, `showValidationError()` in profile-page.js | N/A (frontend only) |

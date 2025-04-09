@@ -6,6 +6,7 @@ import os
 import json
 import logging
 from datetime import datetime, timedelta
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -22,6 +23,21 @@ logger = logging.getLogger('GreenhouseApp')
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
+
+# Extract Firebase API key from existing frontend config file
+firebase_init_path = os.path.join(app.static_folder, 'js', 'firebase-init.js')
+try:
+    with open(firebase_init_path, 'r') as f:
+        content = f.read()
+        # Look for the apiKey value in the configuration
+        api_key_match = re.search(r'apiKey:\s*["\']([^"\']+)["\']', content)
+        if api_key_match:
+            app.config['FIREBASE_API_KEY'] = api_key_match.group(1)
+            print("Firebase API key configured successfully")
+        else:
+            print("WARNING: Could not find Firebase API key in firebase-init.js")
+except Exception as e:
+    print(f"WARNING: Could not extract Firebase API key: {str(e)}")
 
 # INIT FIREBASE
 local_path = os.path.join(os.path.dirname(__file__), "secrets", "firebase-credentials.json")
