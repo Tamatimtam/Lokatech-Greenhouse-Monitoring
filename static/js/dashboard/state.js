@@ -13,6 +13,11 @@ export const SystemMonitor = {
             penyemaian: { online: false, sensors: { temp: false, humidity: false, light: false } },
             peremajaan: { online: false, sensors: { temp: false, humidity: false, light: false } },
             dewasa: { online: false, sensors: { temp: false, humidity: false, light: false } }
+        },
+        // Add state for actuators
+        actuators: {
+            fan: { state: null, mode: 'auto' }, // state: true/false/null, mode: 'auto'/'manual'
+            light: { state: null, mode: 'auto' }
         }
     },
 
@@ -68,6 +73,25 @@ export const SystemMonitor = {
 
         // Master node status depends on 'dewasa' node status
         this.status.masterNode = this.status.nodes.dewasa.online;
+
+        // Update actuator status if present in data
+        if (data.actuators) {
+            if (data.actuators.fan) {
+                this.status.actuators.fan.state = data.actuators.fan.state;
+                this.status.actuators.fan.mode = data.actuators.fan.mode || 'auto'; // Default to auto if mode missing
+            }
+            if (data.actuators.light) {
+                this.status.actuators.light.state = data.actuators.light.state;
+                this.status.actuators.light.mode = data.actuators.light.mode || 'auto'; // Default to auto if mode missing
+            }
+        } else {
+            // Reset if actuators data is missing from payload
+            this.status.actuators.fan.state = null;
+            this.status.actuators.fan.mode = 'auto';
+            this.status.actuators.light.state = null;
+            this.status.actuators.light.mode = 'auto';
+        }
+
         return true;
     }
 };

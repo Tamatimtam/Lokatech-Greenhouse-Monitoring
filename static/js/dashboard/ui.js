@@ -1,7 +1,8 @@
 // Manages all UI updates and interactions for the dashboard
 
-import { SECTIONS, SENSOR_TYPES, ANIMATION_DURATION } from './config.js';
+import { SECTIONS, SENSOR_TYPES, ANIMATION_DURATION, THRESHOLDS } from './config.js'; // Import THRESHOLDS
 import { SystemMonitor } from './state.js'; // Import state for status summary
+import { DataManager } from './data.js'; // Import DataManager to access latest data
 
 export const UI = {
     elements: {}, // Populated in initialize
@@ -9,15 +10,35 @@ export const UI = {
 
     initialize() {
         this.elements = {
-            connectionStatus: document.getElementById('connection-status'),
+            connectionStatus: document.getElementById('connection-status'), // Corrected typo: documeent -> document
             connectionText: document.getElementById('connection-status')?.querySelector('span'),
             connectionIcon: document.getElementById('connection-status')?.querySelector('i'),
             systemError: document.getElementById('system-error'),
             errorMessage: document.getElementById('error-message'),
-            statusContainer: document.getElementById('status-container')
+            statusContainer: document.getElementById('status-container'), // Original container (fallback)
+            // Add elements for switches and mode indicators
+            fanSwitch: document.getElementById('fan-switch'),
+            lightSwitch: document.getElementById('light-switch'), // Changed ID here
+            fanModeIndicator: document.getElementById('fan-mode-indicator'), // Assumes this ID will be added to HTML
+            lightModeIndicator: document.getElementById('light-mode-indicator'), // Assumes this ID will be added to HTML
+            // Add elements for the new status summary structure
+            statusSummaryLine: document.getElementById('status-summary-line'), // Assumes this ID will be added
+            statusDetailsContainer: document.getElementById('status-details'), // Assumes this ID will be added
+            statusDetailsToggle: document.getElementById('status-details-toggle') // Assumes this ID will be added
         };
-        // Note: Control initialization might move to main.js or a dedicated controls module later
-        this.initializeControls();
+        
+        // Add listener for the details toggle button
+        this.elements.statusDetailsToggle?.addEventListener('click', () => {
+            if (this.elements.statusDetailsContainer) {
+                const detailsVisible = this.elements.statusDetailsContainer.style.display === 'block';
+                this.elements.statusDetailsContainer.style.display = detailsVisible ? 'none' : 'block';
+                // Use toggleButton reference which is safer
+                if (this.elements.statusDetailsToggle) {
+                     this.elements.statusDetailsToggle.textContent = detailsVisible ? 'Lihat Detail' : 'Sembunyikan Detail';
+                }
+            }
+        });
+        // Control initialization is handled in controls.js now
     },
 
     updateConnectionStatusUI(connected) {
@@ -65,39 +86,28 @@ export const UI = {
             startValue = 0;
         }
 
-        // If start and target are effectively the same (considering formatting), set text and return
-        // Use formatted target for comparison to avoid unnecessary animations if only formatting changes
         const formattedTarget = format(targetValue);
         if (element.textContent === formattedTarget) {
-             // console.log(`Skipping animation for ${element.id || element.className}: value ${targetValue} already displayed.`);
              return;
         }
-        // Also check if numeric values are extremely close
         if (Math.abs(startValue - targetValue) < 0.01 && startValue !== 0) {
              element.textContent = formattedTarget;
-             // console.log(`Skipping animation for ${element.id || element.className}: value ${targetValue} very close to ${startValue}.`);
              return;
         }
-
 
         const startTime = performance.now();
 
         const step = (currentTime) => {
             const elapsedTime = currentTime - startTime;
             const progress = Math.min(1, elapsedTime / duration);
-            // Linear interpolation
             const currentValue = startValue + (targetValue - startValue) * progress;
-
-            // Apply formatting during animation - round appropriately based on format function
-            // This assumes format function handles rounding (like toFixed or Math.round)
             element.textContent = format(currentValue);
 
             if (progress < 1) {
                 const animationId = requestAnimationFrame(step);
                 this.animationStates.set(element, animationId);
             } else {
-                // Ensure final value is exact and formatted
-                element.textContent = format(targetValue);
+                element.textContent = format(targetValue); // Ensure final value is exact
                 this.animationStates.delete(element);
             }
         };
@@ -129,7 +139,7 @@ export const UI = {
 
         const formatOptions = (id === 'light-gauge')
             ? { format: (val) => Math.round(val).toLocaleString() }
-            : { format: (val) => val.toFixed(1) };
+            : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' }; // Ensure format handles null
         this.animateValue(valueDisplay, value, formatOptions);
 
         if (value !== null && value !== undefined) {
@@ -155,7 +165,7 @@ export const UI = {
 
             const formatOptions = (type === 'light')
                 ? { format: (val) => Math.round(val).toLocaleString() }
-                : { format: (val) => val.toFixed(1) };
+                : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' };
             this.animateValue(valueElement, value, formatOptions);
 
             if (value !== null && value !== undefined && trend) {
@@ -169,51 +179,147 @@ export const UI = {
         });
     },
 
+    // --- NEW updateStatusSummary ---
     updateStatusSummary() {
-        if (!this.elements.statusContainer) return;
-        const status = SystemMonitor.status; // Get current status from state module
-        let html = '';
+        const summaryLine = this.elements.statusSummaryLine;
+        const detailsContainer = this.elements.statusDetailsContainer;
+        const toggleButton = this.elements.statusDetailsToggle;
+        const fallbackContainer = this.elements.statusContainer;
+
+        if (!summaryLine || !detailsContainer || !toggleButton) {
+            if (fallbackContainer) {
+                console.warn("Using fallback statusContainer. Add status-summary-line, status-details, and status-details-toggle elements to HTML for improved summary.");
+                const status = SystemMonitor.status;
+                let fallbackHtml = '';
+                if (!status.connected) {
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-triangle-exclamation" style="color: #e74c3c"></i><span>Tidak terhubung ke jaringan ESP</span></div>`;
+                } else {
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-check-circle" style="color: #27ae60"></i><span>Terhubung</span></div>`;
+                }
+                 if (fallbackContainer.innerHTML !== fallbackHtml) {
+                     fallbackContainer.innerHTML = fallbackHtml;
+                 }
+            } else {
+                console.error("Status summary elements not found.");
+            }
+            return;
+        }
+
+        const status = SystemMonitor.status;
+        let summaryText = '';
+        let summaryIcon = 'fa-check-circle';
+        let summaryColor = '#27ae60';
+        const detailMessages = [];
+        let allOkOverall = true;
 
         if (!status.connected) {
-            html = `<div class="status-item"><i class="fas fa-triangle-exclamation" style="color: #e74c3c"></i><span>Tidak terhubung ke jaringan ESP</span></div>`;
+            summaryText = 'Tidak terhubung ke jaringan ESP';
+            summaryIcon = 'fa-triangle-exclamation';
+            summaryColor = '#e74c3c';
+            allOkOverall = false;
         } else {
-            let allOk = true;
-            const offlineNodes = [];
-            const sensorIssues = [];
+            const latestData = DataManager.getLatestData();
+            const offlineNodes = SECTIONS.filter(section => !status.nodes[section]?.online);
+            if (offlineNodes.length > 0) {
+                detailMessages.push({ type: 'error', text: `Node ${offlineNodes.map(this.translateSection).join(', ')} offline` });
+                allOkOverall = false;
+            }
 
             SECTIONS.forEach(section => {
                 const nodeStatus = status.nodes[section];
-                if (!nodeStatus.online) {
-                    offlineNodes.push(this.translateSection(section));
-                    allOk = false;
-                } else {
-                    const failedSensors = SENSOR_TYPES
-                        .filter(type => !nodeStatus.sensors[type])
-                        .map(type => this.translateSensor(type));
+                if (nodeStatus?.online) {
+                    const sectionValues = latestData?.sections?.[section];
+                    const sectionName = this.translateSection(section);
 
-                    if (failedSensors.length > 0) {
-                        sensorIssues.push(`Sensor ${failedSensors.join(', ')} di ${this.translateSection(section)} bermasalah`);
-                        allOk = false;
+                    if (!sectionValues) {
+                         detailMessages.push({ type: 'warning', text: `Data untuk ${sectionName} tidak diterima` });
+                         allOkOverall = false;
+                         return;
                     }
+
+                    const failedSensors = SENSOR_TYPES.filter(type => !nodeStatus.sensors[type]);
+                    if (failedSensors.length > 0) {
+                        detailMessages.push({ type: 'warning', text: `Sensor ${failedSensors.map(this.translateSensor).join(', ')} di ${sectionName} bermasalah` });
+                        allOkOverall = false;
+                    }
+
+                    SENSOR_TYPES.forEach(type => {
+                        if (nodeStatus.sensors[type] && sectionValues[type] !== null) {
+                            const value = sectionValues[type];
+                            const threshold = THRESHOLDS[type];
+                            const sensorName = threshold.name;
+                            let unit = '';
+                            if (type === 'temp') unit = '°C';
+                            if (type === 'humidity') unit = '%';
+                            if (type === 'light') unit = ' lux';
+
+                            let issueFound = false;
+                            let messageText = '';
+
+                            if (threshold.low !== undefined && value < threshold.low) {
+                                messageText = `${sensorName} ${sectionName} terlalu ${type === 'temp' ? 'dingin' : 'kering'} (${value}${unit})`;
+                                issueFound = true;
+                            } else if (threshold.high !== undefined && value > threshold.high) {
+                                messageText = `${sensorName} ${sectionName} terlalu ${type === 'temp' ? 'panas' : 'lembap'} (${value}${unit})`;
+                                issueFound = true;
+                            } else if (threshold.dark !== undefined && value < threshold.dark) {
+                                messageText = `${sensorName} ${sectionName} terlalu gelap (${value}${unit})`;
+                                issueFound = true;
+                            }
+
+                            if (issueFound) {
+                                detailMessages.push({ type: 'warning', text: messageText });
+                                allOkOverall = false;
+                            }
+                        }
+                    });
                 }
             });
 
-            if (offlineNodes.length > 0) {
-                html += `<div class="status-item"><i class="fas fa-circle-exclamation" style="color: #e74c3c"></i><span>Node ${offlineNodes.join(', ')} offline</span></div>`;
-            }
-            sensorIssues.forEach(issue => {
-                html += `<div class="status-item"><i class="fas fa-triangle-exclamation" style="color: #f39c12"></i><span>${issue}</span></div>`;
-            });
-
-            if (allOk) {
-                html = `<div class="status-item"><i class="fas fa-check-circle" style="color: #27ae60"></i><span>Semua sistem bekerja normal</span></div>`;
+            if (allOkOverall) {
+                summaryText = 'Semua kondisi optimal';
+                summaryIcon = 'fa-check-circle';
+                summaryColor = '#27ae60';
+            } else {
+                const hasErrors = detailMessages.some(msg => msg.type === 'error');
+                if (hasErrors) {
+                    summaryText = 'Sistem bermasalah (Node offline)';
+                    summaryIcon = 'fa-triangle-exclamation';
+                    summaryColor = '#e74c3c';
+                } else {
+                    summaryText = 'Peringatan kondisi terdeteksi';
+                    summaryIcon = 'fa-circle-exclamation';
+                    summaryColor = '#f39c12';
+                }
             }
         }
-        // Only update if content changed to avoid unnecessary redraws
-        if (this.elements.statusContainer.innerHTML !== html) {
-             this.elements.statusContainer.innerHTML = html;
+
+        const summaryHtml = `<i class="fas ${summaryIcon}" style="color: ${summaryColor}"></i><span>${summaryText}</span>`;
+        if (summaryLine.innerHTML !== summaryHtml) {
+            summaryLine.innerHTML = summaryHtml;
+        }
+
+        const detailsHtml = detailMessages.map(msg => {
+            const iconClass = msg.type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-exclamation';
+            const iconColor = msg.type === 'error' ? '#e74c3c' : '#f39c12';
+            return `<div class="status-item status-item--detail"><i class="fas ${iconClass}" style="color: ${iconColor}"></i><span>${msg.text}</span></div>`;
+        }).join('');
+
+        if (detailsContainer.innerHTML !== detailsHtml) {
+            detailsContainer.innerHTML = detailsHtml;
+        }
+
+        if (detailMessages.length > 0) {
+            toggleButton.style.display = 'inline-block';
+            if (detailsContainer.style.display !== 'block') {
+                toggleButton.textContent = 'Lihat Detail';
+            }
+        } else {
+            toggleButton.style.display = 'none';
+            detailsContainer.style.display = 'none';
         }
     },
+    // --- END NEW updateStatusSummary ---
 
     translateSection(section) {
         const translations = { penyemaian: 'Penyemaian', peremajaan: 'Peremajaan', dewasa: 'Dewasa' };
@@ -225,22 +331,24 @@ export const UI = {
         return translations[sensor] || sensor;
     },
 
-    // This might move later if controls become more complex
-    initializeControls() {
-        ['fan-switch', 'lights-switch'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener('change', function() {
-                    // Use SystemMonitor from state module to check connection
-                    if (!SystemMonitor.status.connected) {
-                        alert(`Tidak dapat mengontrol ${id === 'fan-switch' ? 'kipas' : 'lampu'} - sistem tidak terhubung`);
-                        this.checked = !this.checked; // Revert the switch state
-                        return;
-                    }
-                    // TODO: Add actual API call here
-                    console.log(`${id === 'fan-switch' ? 'Kipas exhaust' : 'Lampu'} diubah:`, this.checked);
-                });
-            }
-        });
+    updateControlsUI() {
+        const fanState = SystemMonitor.status.actuators.fan;
+        const lightState = SystemMonitor.status.actuators.light;
+
+        if (this.elements.fanSwitch) {
+            this.elements.fanSwitch.checked = fanState.state === true;
+        }
+        if (this.elements.fanModeIndicator) {
+            this.elements.fanModeIndicator.textContent = `(${fanState.mode === 'manual' ? 'Manual' : 'Auto'})`;
+            this.elements.fanSwitch?.closest('.control')?.classList.toggle('control--manual', fanState.mode === 'manual');
+        }
+
+        if (this.elements.lightSwitch) {
+            this.elements.lightSwitch.checked = lightState.state === true;
+        }
+        if (this.elements.lightModeIndicator) {
+            this.elements.lightModeIndicator.textContent = `(${lightState.mode === 'manual' ? 'Manual' : 'Auto'})`;
+            this.elements.lightSwitch?.closest('.control')?.classList.toggle('control--manual', lightState.mode === 'manual');
+        }
     }
 };

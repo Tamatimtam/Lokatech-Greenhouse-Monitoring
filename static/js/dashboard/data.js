@@ -4,6 +4,7 @@ import { SystemMonitor } from './state.js';
 import { UI } from './ui.js';
 
 export const DataManager = {
+    latestDataPayload: null, // Store the last valid data payload
     debug: false, // Enable debug logging if needed
 
     log(...args) {
@@ -30,12 +31,19 @@ export const DataManager = {
             if (!data || typeof data.sections !== 'object') {
                  console.error('Invalid data format received:', data);
                  return null;
-            }
+            } 
+            this.latestDataPayload = data; // Store the valid data
             return data;
         } catch (error) {
             console.error('Network error fetching sensor data:', error);
+            this.latestDataPayload = null; // Clear on error
             return null; // Treat network errors as no data available
         }
+    },
+
+    // Getter for the UI module to access the latest data for threshold checks
+    getLatestData() {
+        return this.latestDataPayload;
     },
 
     // This function orchestrates updates based on fetched data
@@ -44,9 +52,12 @@ export const DataManager = {
 
         // If data is null (fetch error, 404, or invalid format), update connection status and summary
         if (data === null) {
+            // Don't clear latestDataPayload here, keep last known good state for UI checks if needed?
+            // Or maybe clear it? Let's clear it for now to avoid showing stale warnings.
+            // this.latestDataPayload = null; // Decided against clearing here, let UI handle display based on connection status
             SystemMonitor.updateConnectionStatus(false); // Mark as disconnected
             UI.updateStatusSummary(); // Update summary to show disconnected state
-            // Consider if UI.resetDisplay() should be called here too
+            // UI.resetDisplay(); // Optionally reset all values on error
             return;
         }
 
@@ -97,5 +108,7 @@ export const DataManager = {
 
         // Update the overall status summary at the end
         UI.updateStatusSummary();
+        // Update the controls UI (switches and mode indicators)
+        UI.updateControlsUI();
     }
 };

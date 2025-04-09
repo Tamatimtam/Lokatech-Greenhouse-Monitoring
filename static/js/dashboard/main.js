@@ -3,7 +3,8 @@
 import { POLLING_INTERVAL } from './config.js';
 import { UI } from './ui.js';
 import { DataManager } from './data.js';
-import { SystemMonitor } from './state.js'; // Import SystemMonitor to set initial state if needed
+import { SystemMonitor } from './state.js';
+import { initializeControls } from './controls.js'; // Import the controls initializer
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', async function() {
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Initialize UI elements and basic state
     UI.initialize();
+    initializeControls(); // Initialize control event listeners
     SystemMonitor.updateConnectionStatus(false); // Start as disconnected
     UI.resetDisplay(); // Set initial UI state
 
