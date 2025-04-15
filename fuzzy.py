@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 
 # Tentukan rentang nilai (Universe of Discourse)
 # Sesuaikan rentang ini jika perlu
-temp_range = np.arange(20, 36, 1)    # Suhu dari 20 hingga 35
-hum_range  = np.arange(20, 101, 1)   # Kelembaban dari 50 hingga 100
-light_range = np.arange(0, 2001, 50) # Cahaya dari 0 hingga 2000 lux
+temp_range = np.arange(0, 41, 1)     # Suhu dari 5 hingga 30
+hum_range  = np.arange(0, 101, 1)    # Kelembaban dari 40 hingga 90
+light_range = np.arange(0, 1000, 50) # Cahaya dari 0 hingga 2000 lux
 
 # Buat variabel fuzzy
 suhu = ctrl.Antecedent(temp_range, 'Suhu Udara (°C)')
@@ -33,21 +33,21 @@ cahaya = ctrl.Antecedent(light_range, 'Intensitas Cahaya (lux)')
 #    Format trimf:  fuzz.trimf(x, [a, b, c])
 # ---------------------------------------------------------
 
-# Suhu MFs (Contoh berdasarkan diskusi, sesuaikan!)
-suhu['Dingin'] = fuzz.trapmf(suhu.universe, [20, 20, 24, 27])
-suhu['Optimal'] = fuzz.trapmf(suhu.universe, [25, 27, 29, 31])
-suhu['Panas'] = fuzz.trapmf(suhu.universe, [30, 32, 35, 35])
+# Suhu MFs - Adjusted for better control
+suhu['Dingin'] = fuzz.trapmf(suhu.universe, [-1, -1, 5, 8])      # Falls to 0.5 at 20°C
+suhu['Optimal'] = fuzz.trapmf(suhu.universe, [5, 10, 25, 30])    # Full membership 22-24°C, ends at 27°C
+suhu['Panas'] = fuzz.trapmf(suhu.universe, [27, 30, 40, 40])      # Starts at 27°C, reaches 0.5 at 30°C
 
-# Kelembaban MFs (Contoh berdasarkan diskusi, sesuaikan!)
-kelembaban['Kering'] = fuzz.trapmf(kelembaban.universe, [20, 20, 70, 80])
-kelembaban['Normal'] = fuzz.trapmf(kelembaban.universe, [75, 85, 85, 95])
-kelembaban['Lembab'] = fuzz.trapmf(kelembaban.universe, [90, 95, 95, 100])
+# Kelembaban MFs - Adjusted for new range
+kelembaban['Kering'] = fuzz.trapmf(kelembaban.universe, [-1, -1, 40, 50])
+kelembaban['Normal'] = fuzz.trapmf(kelembaban.universe, [40, 55, 75, 90])
+kelembaban['Lembab'] = fuzz.trapmf(kelembaban.universe, [80, 90, 100, 100])
 
 # Cahaya MFs
 # DARK_FOR_WORK: Trapezoidal, 100% below 100, zero above 200
-cahaya['Gelap'] = fuzz.trapmf(cahaya.universe, [0, 0, 200, 450])
-# ADEQUATE_FOR_WORK: Trapezoidal, zero below 150, 100% above 250
-cahaya['Optimal untuk bekerja'] = fuzz.trapmf(cahaya.universe, [150, 500, 2000, 2000])
+cahaya['Gelap'] = fuzz.trapmf(cahaya.universe, [0, 0, 50, 200])
+# ADEQUATE_FOR_WORK: Trapezoidal, zero below 150, 100% above 500
+cahaya['Optimal untuk bekerja'] = fuzz.trapmf(cahaya.universe, [150, 500, 1500, 1500])
 
 # ---------------------------------------------------------
 # 3. Plot Fungsi Keanggotaan
@@ -66,7 +66,10 @@ ax0.set_xlabel('Suhu (°C)')
 ax0.legend()
 ax0.spines['top'].set_visible(False)
 ax0.spines['right'].set_visible(False)
-ax0.grid(True, linestyle='--', alpha=0.6)
+ax0.grid(True, linestyle='--', alpha=0.5)
+ax0.set_yticks(np.arange(0, 1.1, 0.1))
+ax0.set_xticks(np.arange(2, 41, 2))
+ax0.set_xlim([0, 40])
 
 # Plot Kelembaban
 ax1.set_title('Fungsi Keanggotaan Kelembaban Relatif')
@@ -79,6 +82,9 @@ ax1.legend()
 ax1.spines['top'].set_visible(False)
 ax1.spines['right'].set_visible(False)
 ax1.grid(True, linestyle='--', alpha=0.6)
+ax1.set_yticks(np.arange(0, 1.1, 0.1))
+ax1.set_xticks(np.arange(0, 101, 5))
+ax1.set_xlim([0, 100])
 
 # Plot Cahaya
 ax2.set_title('Fungsi Keanggotaan Intensitas Cahaya')
@@ -90,6 +96,9 @@ ax2.legend()
 ax2.spines['top'].set_visible(False)
 ax2.spines['right'].set_visible(False)
 ax2.grid(True, linestyle='--', alpha=0.6)
+ax2.set_yticks(np.arange(0, 1.1, 0.1))
+ax2.set_xticks(np.arange(0, 1001, 50))
+
 
 # Sesuaikan layout dan tampilkan
 plt.tight_layout()
