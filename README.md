@@ -1,9 +1,9 @@
 # 🌱 LokaTech Greenhouse Monitoring & Automation System
 
-> Smart IoT monitoring and automation for hydroponic greenhouses at Lokatani
+> Smart IoT monitoring and automation for hydroponic greenhouses at Lokatani, leveraging ESP32, ESP-NOW, MQTT, Fuzzy Logic, and Flask.
 
-[![Project Status: Active](https://img.shields.io/badge/Project_Status-Active-green?style=for-the-badge)](https://github.com/Tamatimtam/simpleLogin) <!-- Placeholder URL -->
-[![PBL Project](https://img.shields.io/badge/PBL-6th_Semester-blue?style=for-the-badge)](https://github.com/Tamatimtam/simpleLogin) <!-- Placeholder URL -->
+[![Project Status: Active](https://img.shields.io/badge/Project_Status-Active-green?style=for-the-badge)](https://github.com/Tamatimtam/simpleLogin)
+[![PBL Project](https://img.shields.io/badge/PBL-6th_Semester-blue?style=for-the-badge)](https://github.com/Tamatimtam/simpleLogin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 <div align="center">
@@ -14,33 +14,34 @@
 
 ## 🌟 Overview
 
-This smart IoT-based system provides automated monitoring and control for environmental conditions (temperature, humidity, light) in hydroponic greenhouses at Lokatani, using ESP32 nodes, ESP-NOW, MQTT, and a Flask web application. Built as a 6th semester Project-Based Learning (PBL) and Special Topic Project.
+This smart IoT-based system provides automated monitoring and control for environmental conditions (temperature, humidity, light) in hydroponic greenhouses at Lokatani. It aims to improve efficiency, reduce manual intervention, and enable data-driven cultivation practices. Built as a 6th semester Project-Based Learning (PBL) and Special Topic Project.
 
 ## 🔍 Why It Matters
 
 | Current Challenges | Our Solution |
 |---|---|
-| ❌ Manual fan & exhaust operation | ✅ Automated climate control |
-| ❌ Inefficient response to changes | ✅ Real-time monitoring and alerts |
-| ❌ Requires constant human attention | ✅ Remote access and management |
-| ❌ Prone to human error | ✅ Data-driven decision making |
-| ❌ Limited environmental data | ✅ Comprehensive data collection |
+| ❌ Manual fan & exhaust operation | ✅ Automated climate control via Fuzzy Logic |
+| ❌ Inefficient response to changes | ✅ Real-time monitoring & status dashboard |
+| ❌ Requires constant human attention | ✅ Remote access and manual override capability |
+| ❌ Prone to human error | ✅ Data-driven insights (status summary) |
+| ❌ Limited environmental data | ✅ Comprehensive data aggregation from multiple zones |
 
 ## ✨ Features
 
-| Feature                     | Status          | Description                                                                                                |
-| :-------------------------- | :-------------- | :--------------------------------------------------------------------------------------------------------- |
-| Environmental Monitoring    | ✅ Implemented  | Temperature (DHT22), Humidity (DHT22), Light Intensity (BH1750) across 3 sections.                          |
-| IoT Data Transmission       | ✅ Implemented  | ESP-NOW chain (Penyemaian -> Peremajaan -> Dewasa) + MQTT from Dewasa node to broker.                        |
-| User Authentication         | ✅ Implemented  | Secure login via Firebase Authentication (Email/Password).                                                   |
-| Data Storage                | ✅ Implemented  | Real-time data stored in backend memory (Python variable via `SensorDataManager`).                           |
-| Dashboard & Visualization | ✅ Implemented  | Web dashboard (Flask/Jinja2) showing real-time gauges, section data, status summary, actuator state/mode. |
-| Equipment Control           | ✅ Implemented  | Fuzzy logic on Dewasa node (auto mode), Manual override via Web UI -> API -> MQTT command.                 |
-| Alerts & Notifications    | ⏱️ Planned     | (e.g., Telegram/email for critical conditions)                                                             |
-| Historical Data Analysis    | ⏱️ Planned     | (e.g., Database storage, trend charts)                                                                     |
-| User Profile Management     | ✅ Implemented  | Basic profile view and update functionality.                                                               |
-| Deployment                  | 🔄 In Progress  | Dockerfile created, CI/CD to Google Cloud Run configured (experimental).                                   |
-| Mobile App                  | ⏱️ Planned     | Kotlin-based mobile application.                                                                           |
+| Feature                     | Status          | Description                                                                                                                     |
+| :-------------------------- | :-------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| Environmental Monitoring    | ✅ Implemented  | Temperature (DHT22), Humidity (DHT22), Light Intensity (BH1750) across 3 sections (Penyemaian, Peremajaan, Dewasa).                |
+| IoT Data Transmission       | ✅ Implemented  | ESP-NOW chain (`Penyemaian -> Peremajaan -> Dewasa`) + MQTT from Dewasa node (Master) to broker.                                  |
+| User Authentication         | ✅ Implemented  | Secure login via Firebase Authentication (Email/Password).                                                                        |
+| Data Storage                | ✅ Implemented  | Real-time data stored in backend memory (via Python `SensorDataManager`). No persistent historical storage yet.               |
+| Dashboard & Visualization | ✅ Implemented  | Web dashboard (Flask/Jinja2) showing real-time gauges (averages), section data, status summary, actuator state/mode.           |
+| Equipment Control           | ✅ Implemented  | **Auto Mode:** Fuzzy logic on Dewasa node controls simulated Fan/Light LEDs. **Manual Mode:** Override via Web UI -> API -> MQTT command. |
+| User Profile Management     | ✅ Implemented  | View/update display name, change password (with validation). Profile picture preview (local storage only).                         |
+| Deployment                  | ✅ Implemented  | Basic Dockerfile for containerization.                                                                                          |
+| Alerts & Notifications    | ⏱️ Planned     | (e.g., Trigger alerts for critical conditions)                                                                                |
+| Historical Data Analysis    | ⏱️ Planned     | (e.g., Implement database storage, add trend charts)                                                                            |
+| Mobile App                  | ⏱️ Planned     | Kotlin-based mobile application.                                                                                                |
+| CI/CD                       | ⏱️ Planned     | Automation for deployment (e.g., to Google Cloud Run).                                                                        |
 
 ## 🔧 Tech Stack
 
@@ -52,7 +53,8 @@ This smart IoT-based system provides automated monitoring and control for enviro
 <img src="https://img.shields.io/badge/ESP--NOW-00796B?style=for-the-badge" alt="ESP-NOW"/>
 <img src="https://img.shields.io/badge/DHT22-3C7D91?style=for-the-badge" alt="DHT22"/>
 <img src="https://img.shields.io/badge/BH1750-F9A03C?style=for-the-badge" alt="BH1750"/>
-<img src="https://img.shields.io/badge/Relay_Module-565656?style=for-the-badge" alt="Relay Module"/> <!-- Kept Relay Module as requested -->
+<img src="https://img.shields.io/badge/eFLL-4CAF50?style=for-the-badge" alt="eFLL Fuzzy Logic"/>
+<img src="https://img.shields.io/badge/LED-FF5722?style=for-the-badge" alt="LED Actuator Simulation"/>
 
 ### Backend & Communication
 <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
@@ -71,7 +73,7 @@ This smart IoT-based system provides automated monitoring and control for enviro
 
 ### Deployment
 <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
-<img src="https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white" alt="Google Cloud Run"/>
+<!-- <img src="https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white" alt="Google Cloud Run"/> --> <!-- Keep commented if deployment not finalized -->
 
 </div>
 
@@ -81,30 +83,31 @@ This smart IoT-based system provides automated monitoring and control for enviro
 graph LR
     subgraph Hardware Nodes
         direction LR
-        A[Sensors] --> B(Penyemaian Node);
+        A[Sensors DHT22, BH1750] --> B(Penyemaian Node);
         B -- ESP-NOW --> C(Peremajaan Node);
         C -- ESP-NOW --> D(Dewasa Node);
-        D -- Fuzzy Logic --> J[Actuators];
+        D -- Auto Mode --> E[Fuzzy Logic];
+        E -- Control --> J[Actuators (LEDs)];
     end
 
     subgraph Backend & Cloud
         direction TB
-        D -- MQTT Sensor Data --> E{MQTT Broker};
-        F[Flask Backend] -- Subscribes --> E;
+        D -- MQTT Sensor & Actuator Data --> K{MQTT Broker};
+        F[Flask Backend] -- Subscribes --> K;
         F -- Stores Data --> G[In-Memory State];
         I(Flask API) -- Reads Data --> G;
-        I -- MQTT Cmd --> E;
-        E -- MQTT Cmd --> D;
+        I -- Manual Control Cmd --> K;
+        K -- Manual Control Cmd --> D;
     end
 
     subgraph Frontend
         direction TB
-        H[Web UI] -- API Request --> I;
-        I -- API Response --> H;
-        H -- Control Cmd --> I;
+        H[Web UI] -- API Request (Data) --> I;
+        I -- API Response (Data) --> H;
+        H -- API Request (Control) --> I;
     end
 
-    D -- Manual Override --> J;
+    D -- Manual Mode --> J;
 
     style Hardware Nodes fill:#f9f,stroke:#333,stroke-width:2px
     style Backend & Cloud fill:#ccf,stroke:#333,stroke-width:2px
@@ -113,19 +116,19 @@ graph LR
 
 ## 📊 Project Status
 
-### Core Functionality
-- ✅ **Hardware:** Sensor reading (DHT22, BH1750), ESP-NOW communication chain, Fuzzy Logic controller (auto mode), MQTT publishing (sensor data + actuator state/mode), MQTT command subscription (manual override).
-- ✅ **Backend:** Flask app structure, Firebase Authentication, MQTT data reception & storage (in-memory), Sensor Data API (`/api/sensor/data`), Control Command API (`/api/controls/set_state`).
-- ✅ **Frontend:** Login page, Dashboard display (gauges, section data, status summary, control switches), Real-time updates via polling, Control switch interaction (sending manual commands), Profile page (basic).
+### Core Functionality (Implemented)
+- ✅ **Hardware:** Sensor reading (DHT22, BH1750), ESP-NOW communication chain (`Penyemaian -> Peremajaan -> Dewasa`), Fuzzy Logic controller ('auto' mode for LEDs), MQTT publishing (sensor data + actuator state/mode), MQTT command subscription ('manual' override).
+- ✅ **Backend:** Flask app structure with blueprints, Firebase Authentication (Email/Password), MQTT data reception & storage (in-memory `SensorDataManager`), Sensor Data API (`/api/sensor/data`), Control Command API (`/controls/api/set_state`), Profile Update/Password Change API.
+- ✅ **Frontend:** Login page, Dashboard display (real-time gauges, section data, status summary, control switches with mode indicators), Control switch interaction (sending manual commands), Profile page (view/update name, change password, local picture preview).
 
 ### Key Areas for Future Development
-- ⏱️ **Persistent Data Storage:** Replace in-memory storage with a database (e.g., PostgreSQL, InfluxDB) for historical data.
-- ⏱️ **Hardware Control Refinements:** Implement logic for switching back from "Manual" to "Auto" mode. Use actual relays instead of LEDs.
-- ⏱️ **Alerts & Notifications:** Implement backend logic and notification channels (e.g., email, Telegram) for critical conditions.
-- ⏱️ **Historical Data Visualization:** Add charts/graphs to show trends over time.
-- ⏱️ **Error Handling & Robustness:** Improve error handling across hardware, backend, and frontend.
-- ⏱️ **Deployment:** Refine Docker/Cloud Run deployment, manage secrets securely.
-- ⏱️ **Security:** Implement MQTT authentication, consider ESP-NOW encryption, add CSRF protection to Flask forms/APIs.
+- ⏱️ **Persistent Data Storage:** Replace in-memory storage with a database (e.g., PostgreSQL, InfluxDB) for historical data and trends.
+- ⏱️ **Hardware Control Refinements:** Implement logic for switching back from "Manual" to "Auto" mode. Use actual relays for real equipment control.
+- ⏱️ **Alerts & Notifications:** Implement backend logic and notification channels (e.g., email, Telegram) for critical environmental conditions or system errors.
+- ⏱️ **Historical Data Visualization:** Add charts/graphs to the frontend to display sensor trends over time.
+- ⏱️ **Error Handling & Robustness:** Enhance error handling and recovery mechanisms across hardware, backend, and frontend.
+- ⏱️ **Deployment:** Refine Docker configuration, implement CI/CD pipeline (e.g., to Google Cloud Run), manage secrets securely.
+- ⏱️ **Security:** Implement MQTT authentication/TLS, consider ESP-NOW encryption, add CSRF protection to Flask APIs/forms.
 - ⏱️ **Mobile App:** Develop the planned Kotlin mobile application.
 
 ## 👨‍💻 Contributors
@@ -189,52 +192,61 @@ graph LR
 </table>
 </div>
 
-
-<!-- <link rel="stylesheet" href="static/css/skills.css"> -->
-
 ## 🚀 Quick Setup Guide
 
 ### Prerequisites
-- Python 3.7+
-- Firebase account with credentials
+- Python 3.9+ (check `Dockerfile`)
+- Firebase account and project
+- Firebase Admin SDK credentials file (`firebase-credentials.json`)
+- PlatformIO Core CLI or VS Code Extension (for hardware)
 
 ### Installation (Backend/Frontend)
 
 ```bash
 # Clone the repository
-git clone https://github.com/Tamatimtam/simpleLogin.git # Placeholder URL
+git clone https://github.com/Tamatimtam/simpleLogin.git
 cd simpleLogin
 
-# Install dependencies
+# Create secrets directory (if it doesn't exist)
+mkdir -p secrets
+
+# Place your Firebase Admin SDK credentials file here:
+# ./secrets/firebase-credentials.json
+
+# Install Python dependencies
 pip install -r requirements.txt
 
-# Set up Firebase credentials (if they don't exist)
-mkdir -p secrets
-# Place your firebase-credentials.json file in the secrets/ directory
-
 # Run the Flask application
+# (Ensure FIREBASE_API_KEY is correctly extracted or configured if needed by profile password reset)
 python app2.py
 ```
+The application will typically run on `http://0.0.0.0:4443`.
+
 <div align="left">
 
 ### Installation (Hardware)
 
-1.  Install [PlatformIO Core CLI](https://docs.platformio.org/en/latest/core/installation.html) or use the [PlatformIO IDE extension for VS Code](https://platformio.org/platformio-ide).
-2.  Navigate to the `Hardware/` directory: `cd Hardware`
-3.  **Configure:** Update MAC addresses, WiFi credentials, and MQTT topics in `src/DeWasaNode_Master.cpp`, `src/PeremajaanNode.cpp`, and `src/PenyemaianNode.cpp` as needed. Ensure the ESP-NOW channel (default 6) matches your network or is updated consistently across all node files.
-4.  **Build & Upload:** Use PlatformIO commands (e.g., `pio run -e dewasa_master -t upload`, `pio run -e peremajaan_node -t upload`, etc.). See `Hardware/new.md` for details.
-5.  **Monitor:** Use `pio device monitor -b 115200` to view serial output.
-</div>
+1.  **Navigate** to the `Hardware/` directory: `cd Hardware`
+2.  **Detailed Instructions:** Refer to the `Hardware/new.md` file for comprehensive steps on:
+    *   Finding ESP32 MAC Addresses.
+    *   Configuring MAC addresses in `DeWasaNode_Master.cpp`, `PeremajaanNode.cpp`, and `PenyemaianNode.cpp`.
+    *   Verifying and setting the ESP-NOW WiFi channel (default is 6).
+    *   Configuring WiFi/MQTT settings in `DeWasaNode_Master.cpp`.
+    *   Building and uploading firmware using PlatformIO (e.g., `pio run -e dewasa_master -t upload`).
+    *   Monitoring serial output (`pio device monitor -b 115200`).
+3.  **Summary:** Ensure PlatformIO is installed, update node configurations (MACs, WiFi, MQTT, Channel) in the respective `.cpp` files, then use PlatformIO to build and upload to each ESP32 board.
 
+</div>
 
 ## 📸 Project Gallery
 
 <div align="center">
-    <details open>
-        <summary>📊 <b>View Screenshots</b></summary>
+    <details>
+        <summary>📊 <b>View Screenshots (PLACEHOLDERS - Replace with actual images)</b></summary>
         <br>
-        <img src="https://user-images.githubusercontent.com/12345/screenshot_placeholder_1.png" width="45%" alt="Dashboard Screenshot"/> <!-- Placeholder - Replace with actual image URL -->
-        <img src="https://user-images.githubusercontent.com/12345/screenshot_placeholder_2.png" width="45%" alt="Controls Screenshot"/> <!-- Placeholder - Replace with actual image URL -->
+        <!-- TODO: Replace these placeholder URLs with actual screenshot URLs -->
+        <img src="https://user-images.githubusercontent.com/12345/screenshot_placeholder_1.png" width="45%" alt="Dashboard Screenshot"/>
+        <img src="https://user-images.githubusercontent.com/12345/screenshot_placeholder_2.png" width="45%" alt="Controls Screenshot"/>
         <!-- Add more screenshots or a GIF here -->
     </details>
 </div>
@@ -243,7 +255,7 @@ python app2.py
 
 ## 📄 License
 
-Distributed under the MIT License. See [LICENSE](https://opensource.org/licenses/MIT) for more information.
+Distributed under the MIT License. [MIT License](https://opensource.org/licenses/MIT) for more information.
 
 ---
 
@@ -251,4 +263,3 @@ Distributed under the MIT License. See [LICENSE](https://opensource.org/licenses
 <p>🌱 <b>Growing Technology for Sustainable Farming</b> 🌱</p>
 <p>Made with ❤️ by LokaTech PBL Team @ PNJ</p>
 </div>
-
