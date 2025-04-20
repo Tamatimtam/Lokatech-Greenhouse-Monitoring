@@ -38,8 +38,7 @@ const int LIGHT_LED_PIN = 19;
 // Timing variables
 unsigned long lastSensorReadTime = 0;
 unsigned long lastMqttPublishTime = 0;
-const unsigned long SENSOR_READ_INTERVAL = 1000; // Read sensors every 5 seconds
-const unsigned long MQTT_PUBLISH_INTERVAL = 1000; // Publish to MQTT every 10 seconds
+// SENSOR_READ_INTERVAL and MQTT_PUBLISH_INTERVAL are now defined in NodeConfig.h
 
 // Storage for previous sensor values (for trend calculation)
 float prevTemperature = 0;
@@ -84,8 +83,22 @@ void setup() {
   // Initialize sensor manager
   sensorManager->begin();
 
-  // Initialize MQTT first (this will connect to WiFi)
-  if (!mqttManager->begin()) {
+  // Set WiFi Station mode (needed before setting channel)
+  WiFi.mode(WIFI_STA); // Ensure STA mode is set
+
+  // Set WiFi channel BEFORE connecting to WiFi/MQTT and initializing ESP-NOW
+  Serial.printf("[DeWasaNode_Master] Setting WiFi channel to %d...\n", WIFI_CHANNEL);
+  if (esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+      Serial.printf("[DeWasaNode_Master] ERROR: Failed to set WiFi channel %d!\n", WIFI_CHANNEL);
+  } else {
+      Serial.printf("[DeWasaNode_Master] WiFi channel set to %d successfully.\n", WIFI_CHANNEL);
+  }
+  // IMPORTANT: The Master node's WiFi connection (mqttManager->begin())
+  // will now *only* succeed if the target AP (SSID: "Direktorat Kemendikbud")
+  // is also operating on the channel defined by WIFI_CHANNEL.
+
+  // Initialize MQTT (this will now connect to WiFi on the pre-set channel)
+  if (!mqttManager->begin()) { // <-- MQTT Init happens AFTER setting channel
     Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT (and WiFi)");
     // Consider halting or retrying if WiFi/MQTT is critical
   } else {
@@ -121,19 +134,7 @@ void setup() {
      Serial.println("[DeWasaNode_Master] WARNING: Failed to add Peremajaan as ESP-NOW peer.");
   }
 
-  // Ensure ESP-NOW uses channel 6 AFTER WiFi connection is established
-  // Check if WiFi is connected before setting channel
-  if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("[DeWasaNode_Master] Setting WiFi channel to 6 for ESP-NOW compatibility...");
-      if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
-          Serial.println("[DeWasaNode_Master] ERROR: Failed to set WiFi channel post-connection!");
-      } else {
-          Serial.println("[DeWasaNode_Master] WiFi channel set to 6 successfully.");
-      }
-  } else {
-      Serial.println("[DeWasaNode_Master] WARNING: WiFi not connected, cannot guarantee ESP-NOW channel setting.");
-      // ESP-NOW might still work if the default channel happens to be 6, but it's less reliable.
-  }
+  // Channel is now set *before* WiFi/MQTT connection. This block is removed.
 
   // Initialize the Fuzzy Controller logic (defines sets, rules etc.)
   fuzzyController->begin();
@@ -148,8 +149,8 @@ const unsigned long FUZZY_DEBUG_PRINT_INTERVAL = 5000; // Print fuzzy debug info
 void loop() {
   unsigned long currentTime = millis();
   
-  // Read sensors at regular intervals
-  if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) {
+  // Read sensors at regular intervals using interval from NodeConfig.h
+  if (currentTime - lastSensorReadTime >= 2000UL) {
     lastSensorReadTime = currentTime;
     
     Serial.println("\n[DeWasaNode_Master] Reading sensors...");
@@ -162,7 +163,7 @@ void loop() {
     }
   }
   
-  // Publish to MQTT at regular intervals
+  // Publish to MQTT at regular intervals using interval from NodeConfig.h
   if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
     lastMqttPublishTime = currentTime;
     
@@ -209,8 +210,8 @@ void loop() {
   // Let's run it right after potentially publishing MQTT data
   runFuzzyControl();
   
-  // Small delay to prevent watchdog issues
-  delay(10);
+  // Small delay removed as per plan
+  // delay(10); 
 }
 
 // Updated function to also return counts for debugging

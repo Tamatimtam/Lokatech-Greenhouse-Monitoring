@@ -1,5 +1,6 @@
 #include "ESPNowManager.h"
 #include "../Common/SensorData.h" // Ensure CombinedData is included
+#include "../Common/NodeConfig.h" // Include common configuration
 
 // Initialize static members
 // ESPNowDataCallback ESPNowManager::_dataCallback = nullptr; // Removed
@@ -70,7 +71,7 @@ bool ESPNowManager::addPeer(const uint8_t* mac) {
     // Prepare peer info
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, mac, 6);
-    peerInfo.channel = 6;  // Use channel 6 explicitly
+    peerInfo.channel = WIFI_CHANNEL;  // Use channel from NodeConfig.h
     peerInfo.encrypt = false;
     
     // Add peer

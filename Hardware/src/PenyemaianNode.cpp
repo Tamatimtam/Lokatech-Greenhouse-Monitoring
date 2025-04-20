@@ -8,6 +8,11 @@
 #include "NodeConfig.h" // Include common configuration
 #include "SensorData.h" // Include the data structure definition
 
+// --- ESP-NOW Send Retry Configuration ---
+const int MAX_SEND_RETRIES = 3;                 // Max attempts per data packet
+const unsigned long SEND_CALLBACK_TIMEOUT_MS = 200; // Max wait time for ACK callback (milliseconds)
+const unsigned long RETRY_DELAY_MS = 75;          // Delay between retries (milliseconds)
+
 // Configuration flags
 #define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
 #define LIGHT_SIMULATION_MODE false       // Set to true to simulate BH1750 readings
@@ -18,8 +23,7 @@ uint8_t peremajaanMac[] = {0x4C, 0x11, 0xAE, 0x64, 0xD0, 0x74}; // Replace with 
 // Timing variables
 unsigned long lastSensorReadTime = 0;
 unsigned long lastSendTime = 0;
-const unsigned long SENSOR_READ_INTERVAL = 1000; // Read sensors every 5 seconds
-const unsigned long SEND_INTERVAL = 1000;      // Send data every 5 seconds
+// Interval constants are now defined in NodeConfig.h
 
 // Managers
 SensorManager* sensorManager;
@@ -27,10 +31,18 @@ SensorManager* sensorManager;
 // Data structure to send
 SensorData myData;
 
-// Callback function when data is sent
+// Global flag to track ESP-NOW send status from callback
+volatile bool esp_now_send_success = false;
+
+// Callback function when data is sent - MODIFIED
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("[PenyemaianNode] Last Packet Send Status: ");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+    esp_now_send_success = (status == ESP_NOW_SEND_SUCCESS); // Set flag based on ACK status
+
+    // Optional: Concise logging
+    if (!esp_now_send_success) { // Log only failures from callback
+        Serial.printf("[PenyemaianNode] Send CB to %02X:%02X:%02X:%02X:%02X:%02X : Fail (No ACK)\n",
+                       mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+    }
 }
 
 void setup() {
@@ -49,15 +61,15 @@ void setup() {
   Serial.print("[PenyemaianNode] MAC Address: ");
   Serial.println(WiFi.macAddress());
 
-  // Set the specific WiFi channel for ESP-NOW
-  Serial.println("[PenyemaianNode] Setting WiFi channel to 6 for ESP-NOW...");
+  // Set the specific WiFi channel for ESP-NOW using the value from NodeConfig.h
+  Serial.printf("[PenyemaianNode] Setting WiFi channel to %d for ESP-NOW...\n", WIFI_CHANNEL);
   // Disconnect WiFi as it's not needed for ESP-NOW sending only
   WiFi.disconnect();
-  if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
-    Serial.println("[PenyemaianNode] Error setting WiFi channel");
+  if (esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+    Serial.printf("[PenyemaianNode] Error setting WiFi channel %d\n", WIFI_CHANNEL);
     return;
   } else {
-    Serial.println("[PenyemaianNode] WiFi channel set to 6 successfully.");
+    Serial.printf("[PenyemaianNode] WiFi channel set to %d successfully.\n", WIFI_CHANNEL);
   }
 
 
@@ -73,7 +85,7 @@ void setup() {
   // Register peer (Peremajaan Node)
   esp_now_peer_info_t peerInfo = {};
   memcpy(peerInfo.peer_addr, peremajaanMac, 6);
-  peerInfo.channel = 6; // Must match the channel set above
+  peerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
   peerInfo.encrypt = false;
 
   // Add peer
@@ -93,7 +105,7 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
 
-  // Read sensors periodically
+  // Read sensors periodically using interval from NodeConfig.h
   if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) {
     lastSensorReadTime = currentTime;
 
@@ -124,20 +136,50 @@ void loop() {
     }
   }
 
-  // Send data periodically
+  // Send data periodically WITH RETRIES
   if (currentTime - lastSendTime >= SEND_INTERVAL) {
-    lastSendTime = currentTime;
+      lastSendTime = currentTime;
 
-    Serial.println("[PenyemaianNode] Sending data to Peremajaan node...");
-    esp_err_t result = esp_now_send(peremajaanMac, (uint8_t *) &myData, sizeof(myData));
+      // Note: Data (myData) should have been updated by the sensor read block earlier
 
-    if (result == ESP_OK) {
-      Serial.println("[PenyemaianNode] Sent data successfully.");
-    } else {
-      Serial.print("[PenyemaianNode] Error sending data. ESP-NOW Error Code: ");
-      Serial.println(result);
-    }
-  }
+      Serial.println("[PenyemaianNode] Attempting to send data to Peremajaan...");
+
+      bool sent_successfully_after_retries = false;
+      for (int attempt = 0; attempt < MAX_SEND_RETRIES; ++attempt) {
+          esp_now_send_success = false; // Reset flag before this attempt
+          esp_err_t result = esp_now_send(peremajaanMac, (uint8_t *) &myData, sizeof(myData));
+
+          if (result == ESP_OK) {
+              // Send queued, wait for ACK callback or timeout
+              unsigned long send_start_time = millis();
+              while (!esp_now_send_success && (millis() - send_start_time < SEND_CALLBACK_TIMEOUT_MS)) {
+                  yield(); // Give background tasks time
+                  // delay(5); // Alternative
+              }
+
+              if (esp_now_send_success) {
+                  Serial.printf("[PenyemaianNode] Sent successfully to Peremajaan on attempt %d.\n", attempt + 1);
+                  sent_successfully_after_retries = true;
+                  break; // Exit retry loop
+              } else {
+                  Serial.printf("[PenyemaianNode] Send attempt %d ACK not received within %lu ms.\n", attempt + 1, SEND_CALLBACK_TIMEOUT_MS);
+              }
+          } else {
+              Serial.printf("[PenyemaianNode] esp_now_send error on attempt %d. ESP-NOW Error Code: %d\n", attempt + 1, result);
+          }
+
+          // Delay before next retry if needed
+          if (!sent_successfully_after_retries && attempt < MAX_SEND_RETRIES - 1) {
+              Serial.printf("[PenyemaianNode] Retrying send in %lu ms...\n", RETRY_DELAY_MS);
+              delay(RETRY_DELAY_MS);
+          }
+      } // End of retry loop
+
+      if (!sent_successfully_after_retries) {
+          Serial.println("[PenyemaianNode] ERROR: Failed to send data to Peremajaan after all retries.");
+      }
+  } // End of SEND_INTERVAL block
+
 
   // Small delay to prevent watchdog issues and excessive looping
   delay(10);

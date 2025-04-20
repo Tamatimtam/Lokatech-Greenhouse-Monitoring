@@ -9,6 +9,11 @@
 #include "../lib/SensorManager/SensorManager.h" // Include the Sensor Manager library
 #include "../lib/Common/NodeConfig.h" // Include common configuration
 
+// --- ESP-NOW Send Retry Configuration ---
+const int MAX_SEND_RETRIES = 15;                 // Max attempts per data packet
+const unsigned long SEND_CALLBACK_TIMEOUT_MS = 200; // Max wait time for ACK callback (milliseconds)
+const unsigned long RETRY_DELAY_MS = 75;          // Delay between retries (milliseconds)
+
 // Configuration flags
 #define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
 #define LIGHT_SIMULATION_MODE false       // Changed to true to simulate BH1750 readings
@@ -22,13 +27,15 @@ SensorManager* sensorManager;
 CombinedData combinedDataToSend; // Data structure to send to master
 SensorData receivedPenyemaianData; // Buffer for data received from Penyemaian
 unsigned long lastPenyemaianReceiveTime = 0;
-const unsigned long PENYEMAIAN_DATA_TIMEOUT = 3000UL; // Timeout for Penyemaian data (5 seconds)
+// PENYEMAIAN_DATA_TIMEOUT is now defined in NodeConfig.h
 
 // Timing variables
 unsigned long lastSensorReadTime = 0;
 unsigned long lastSendTime = 0;
-const unsigned long SENSOR_READ_INTERVAL = 1000; // Read sensors every 5 seconds
-const unsigned long SEND_INTERVAL = 1000; // Send combined data to master every 5 seconds
+// SENSOR_READ_INTERVAL and SEND_INTERVAL are now defined in NodeConfig.h
+
+// Global flag to track ESP-NOW send status from callback
+volatile bool esp_now_send_success = false;
 
 // ESP-NOW Callback function for receiving data (from Penyemaian)
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
@@ -56,21 +63,16 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 }
 
 
-// ESP-NOW callback function for sending data (to Dewasa)
+// ESP-NOW callback function for sending data (to Dewasa) - MODIFIED
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    Serial.print("[PeremajaanNode] Send CB to Dewasa (MAC: ");
-    for (int i = 0; i < 6; i++) {
-        Serial.print(mac_addr[i], HEX);
-        if (i < 5) Serial.print(":");
+    esp_now_send_success = (status == ESP_NOW_SEND_SUCCESS); // Set flag based on ACK status
+
+    // Optional: Concise logging
+    if (!esp_now_send_success) { // Log only failures from callback for less noise
+         Serial.printf("[PeremajaanNode] Send CB to %02X:%02X:%02X:%02X:%02X:%02X : Fail (No ACK)\n",
+                       mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
     }
-    Serial.print(" - Status: ");
-    if (status == ESP_NOW_SEND_SUCCESS) {
-        Serial.println("Success");
-    } else {
-        Serial.print("Failed (Code: ");
-        Serial.print(status); // Print the actual error code
-        Serial.println(")");
-    }
+    // Remove the verbose success/fail printing from here, handle in retry loop
 }
 
 // Function prototypes
@@ -104,12 +106,12 @@ void setup() {
     WiFi.disconnect();
     delay(100);
 
-    // Set WiFi channel to 6 BEFORE initializing ESP-NOW
-    Serial.println("[PeremajaanNode] Setting WiFi channel to 6...");
-    if (esp_wifi_set_channel(6, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
-        Serial.println("[PeremajaanNode] ERROR: Failed to set WiFi channel!");
+    // Set WiFi channel using value from NodeConfig.h BEFORE initializing ESP-NOW
+    Serial.printf("[PeremajaanNode] Setting WiFi channel to %d...\n", WIFI_CHANNEL);
+    if (esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
+        Serial.printf("[PeremajaanNode] ERROR: Failed to set WiFi channel %d!\n", WIFI_CHANNEL);
     } else {
-        Serial.println("[PeremajaanNode] WiFi channel set to 6 successfully.");
+        Serial.printf("[PeremajaanNode] WiFi channel set to %d successfully.\n", WIFI_CHANNEL);
     }
     
     // Print MAC address
@@ -130,7 +132,7 @@ void setup() {
     // Register Master Node (Dewasa) as peer for sending
     esp_now_peer_info_t masterPeerInfo = {};
     memcpy(masterPeerInfo.peer_addr, masterMac, 6);
-    masterPeerInfo.channel = 6; // Use channel 6 explicitly
+    masterPeerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
     masterPeerInfo.encrypt = false;
     if (esp_now_add_peer(&masterPeerInfo) != ESP_OK){
       Serial.println("[PeremajaanNode] Failed to add Master (Dewasa) peer");
@@ -142,7 +144,7 @@ void setup() {
     // Note: Receiving works even without adding the sender as a peer, but adding helps manage connections.
     esp_now_peer_info_t penyemaianPeerInfo = {};
     memcpy(penyemaianPeerInfo.peer_addr, penyemaianMac, 6);
-    penyemaianPeerInfo.channel = 6; // Should match Penyemaian's channel
+    penyemaianPeerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
     penyemaianPeerInfo.encrypt = false;
     if (esp_now_add_peer(&penyemaianPeerInfo) != ESP_OK){
       Serial.println("[PeremajaanNode] Failed to add Penyemaian peer (optional)");
@@ -171,50 +173,74 @@ void setup() {
 
 void loop() {
     unsigned long currentTime = millis();
-    
-    // Read local sensors at regular intervals
+
+    // Read local sensors at regular intervals using interval from NodeConfig.h
     if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) {
         lastSensorReadTime = currentTime;
         readLocalSensors(); // Reads local sensors into combinedDataToSend.peremajaanData
     }
 
-    // Send combined data to master at regular intervals
+    // Send combined data to master at regular intervals WITH RETRIES
     if (currentTime - lastSendTime >= SEND_INTERVAL) {
         lastSendTime = currentTime;
 
-        // Check validity of received Penyemaian data
+        // --- Prepare Data to Send (Existing Logic) ---
         bool isPenyemaianValid = (millis() - lastPenyemaianReceiveTime) < PENYEMAIAN_DATA_TIMEOUT;
         combinedDataToSend.isPenyemaianDataValid = isPenyemaianValid;
-
-        // Copy the latest received Penyemaian data (valid or not)
         memcpy(&combinedDataToSend.penyemaianData, &receivedPenyemaianData, sizeof(SensorData));
-        // Ensure validity flags within penyemaianData reflect the timeout status
         if (!isPenyemaianValid) {
             combinedDataToSend.penyemaianData.temperatureValid = false;
             combinedDataToSend.penyemaianData.humidityValid = false;
             combinedDataToSend.penyemaianData.lightValid = false;
         }
+        combinedDataToSend.timestamp = millis(); // Update timestamp just before sending attempt
+        // --- End Prepare Data ---
 
+        Serial.println("[PeremajaanNode] Attempting to send combined data to master...");
 
-        // Update the timestamp for the combined packet
-        combinedDataToSend.timestamp = millis();
+        bool sent_successfully_after_retries = false;
+        for (int attempt = 0; attempt < MAX_SEND_RETRIES; ++attempt) {
+            esp_now_send_success = false; // Reset flag before this attempt
+            esp_err_t result = esp_now_send(masterMac, (uint8_t *) &combinedDataToSend, sizeof(CombinedData));
 
-        // Send the combined data structure
-        Serial.println("[PeremajaanNode] Sending combined data to master node...");
-        // Optional: Print combined data for debugging
-        // Serial.println("  Peremajaan Temp: " + String(combinedDataToSend.peremajaanData.temperature));
-        // Serial.println("  Penyemaian Temp: " + String(combinedDataToSend.penyemaianData.temperature));
-        // Serial.println("  Penyemaian Valid: " + String(combinedDataToSend.isPenyemaianDataValid ? "Yes" : "No"));
+            if (result == ESP_OK) {
+                // Send queued, now wait for the ACK callback or timeout
+                unsigned long send_start_time = millis();
+                while (!esp_now_send_success && (millis() - send_start_time < SEND_CALLBACK_TIMEOUT_MS)) {
+                    // Wait for the callback to set the flag
+                    // Use yield() or a very small delay if needed, but often waiting is enough
+                    yield(); // Give ESP-IDF background tasks time to process ACK
+                    // delay(5); // Alternative if yield() causes issues
+                }
 
-        esp_err_t result = esp_now_send(masterMac, (uint8_t *) &combinedDataToSend, sizeof(CombinedData));
+                if (esp_now_send_success) {
+                    // Callback reported success!
+                    Serial.printf("[PeremajaanNode] Sent successfully to Dewasa on attempt %d.\n", attempt + 1);
+                    sent_successfully_after_retries = true;
+                    break; // Exit the retry loop
+                } else {
+                    // Callback timed out (or reported failure, handled in callback log)
+                    Serial.printf("[PeremajaanNode] Send attempt %d ACK not received within %lu ms.\n", attempt + 1, SEND_CALLBACK_TIMEOUT_MS);
+                }
+            } else {
+                // esp_now_send failed immediately (e.g., queue full, invalid params)
+                Serial.printf("[PeremajaanNode] esp_now_send error on attempt %d. ESP-NOW Error Code: %d\n", attempt + 1, result);
+                // No need to wait for callback if send failed immediately
+            }
 
-        if (result == ESP_OK) {
-            Serial.println("[PeremajaanNode] Combined data sent successfully.");
-        } else {
-            Serial.println("[PeremajaanNode] ERROR: Failed to send combined data, error code: " + String(result));
-            // Consider re-adding peer logic if needed, similar to before
+            // If not successful and more retries are left, delay before next attempt
+            if (!sent_successfully_after_retries && attempt < MAX_SEND_RETRIES - 1) {
+                Serial.printf("[PeremajaanNode] Retrying send in %lu ms...\n", RETRY_DELAY_MS);
+                delay(RETRY_DELAY_MS);
+            }
+        } // End of retry loop
+
+        if (!sent_successfully_after_retries) {
+            Serial.println("[PeremajaanNode] ERROR: Failed to send combined data to Dewasa after all retries.");
+            // Consider additional error handling if needed (e.g., increment failure counter)
         }
-    }
+    } // End of SEND_INTERVAL block
+
 
     // Small delay
     delay(10);

@@ -5,6 +5,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include "../Common/SensorData.h" // Include the common definitions (SensorData and CombinedData)
+#include "../Common/NodeConfig.h" // Include common configuration
 
 // Callback type can remain the same if we process internally, or change if needed
 // Let's keep it internal for now.
@@ -41,8 +42,8 @@ private:
     static unsigned long _lastCombinedDataReceiveTime; // When did we last get a packet from Peremajaan?
     static bool _lastPenyemaianValidityFlag; // Store the validity flag from the last received CombinedData
 
-    // Timeout for considering the entire Peremajaan node offline (no CombinedData received)
-    const unsigned long COMBINED_DATA_TIMEOUT = 10000UL; // e.g., x5 seconds
+    // Timeout is now defined in NodeConfig.h
+    // const unsigned long COMBINED_DATA_TIMEOUT = 10000UL; // Removed
 };
 
 #endif // ESPNOW_MANAGER_H
