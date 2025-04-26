@@ -5,7 +5,7 @@
 
 // Include shared libraries
 #include "SensorManager.h"
-#include "NodeConfig.h" // Include common configuration
+#include "NodeConfig.h" // Include common configuration (contains MAC addresses now)
 #include "SensorData.h" // Include the data structure definition
 
 // --- ESP-NOW Send Retry Configuration ---
@@ -17,8 +17,8 @@ const unsigned long RETRY_DELAY_MS = 75;          // Delay between retries (mill
 #define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
 #define LIGHT_SIMULATION_MODE false       // Set to true to simulate BH1750 readings
 
-// MAC address of the destination node (Peremajaan Node) - UPDATE THIS
-uint8_t peremajaanMac[] = {0x4C, 0x11, 0xAE, 0x64, 0xD0, 0x74}; // Replace with ACTUAL Peremajaan MAC address
+// MAC address of the destination node (Peremajaan Node) - DEFINED IN NodeConfig.h
+// uint8_t peremajaanMac[] = {0xA8, 0x42, 0xE3, 0x5A, 0x78, 0xD4}; // REMOVED - Use MAC_ADDR_PEREMAJAAN from NodeConfig.h
 
 // Timing variables
 unsigned long lastSensorReadTime = 0;
@@ -84,7 +84,7 @@ void setup() {
 
   // Register peer (Peremajaan Node)
   esp_now_peer_info_t peerInfo = {};
-  memcpy(peerInfo.peer_addr, peremajaanMac, 6);
+  memcpy(peerInfo.peer_addr, MAC_ADDR_PEREMAJAAN, 6); // Use central definition
   peerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
   peerInfo.encrypt = false;
 
@@ -147,7 +147,8 @@ void loop() {
       bool sent_successfully_after_retries = false;
       for (int attempt = 0; attempt < MAX_SEND_RETRIES; ++attempt) {
           esp_now_send_success = false; // Reset flag before this attempt
-          esp_err_t result = esp_now_send(peremajaanMac, (uint8_t *) &myData, sizeof(myData));
+          // Use central definition for MAC address
+          esp_err_t result = esp_now_send(MAC_ADDR_PEREMAJAAN, (uint8_t *) &myData, sizeof(myData));
 
           if (result == ESP_OK) {
               // Send queued, wait for ACK callback or timeout

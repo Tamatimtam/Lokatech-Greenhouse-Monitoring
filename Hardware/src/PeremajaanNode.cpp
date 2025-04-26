@@ -7,7 +7,7 @@
 #include <esp_wifi.h> // Needed for esp_wifi_set_channel
 #include "../lib/Common/SensorData.h" // Use relative path for local lib includes
 #include "../lib/SensorManager/SensorManager.h" // Include the Sensor Manager library
-#include "../lib/Common/NodeConfig.h" // Include common configuration
+#include "../lib/Common/NodeConfig.h" // Include common configuration (contains MAC addresses now)
 
 // --- ESP-NOW Send Retry Configuration ---
 const int MAX_SEND_RETRIES = 15;                 // Max attempts per data packet
@@ -17,10 +17,6 @@ const unsigned long RETRY_DELAY_MS = 75;          // Delay between retries (mill
 // Configuration flags
 #define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
 #define LIGHT_SIMULATION_MODE false       // Changed to true to simulate BH1750 readings
-
-// MAC addresses
-uint8_t masterMac[] = {0xE4, 0x65, 0xB8, 0x83, 0xD1, 0x40}; // MAC of the master node (Dewasa) - UPDATE THIS
-uint8_t penyemaianMac[] = {0xA8, 0x42, 0xE3, 0x5A, 0x78, 0xD4}; // MAC of the source node (Penyemaian) - UPDATE THIS
 
 // Global variables
 SensorManager* sensorManager;
@@ -40,8 +36,8 @@ volatile bool esp_now_send_success = false;
 // ESP-NOW Callback function for receiving data (from Penyemaian)
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   Serial.println("[PeremajaanNode] Data received via ESP-NOW.");
-  // Check if data is from the expected Penyemaian MAC
-  if (memcmp(mac, penyemaianMac, 6) != 0) {
+  // Check if data is from the expected Penyemaian MAC using central definition
+  if (memcmp(mac, MAC_ADDR_PENYEMAIAN, 6) != 0) {
       Serial.print("  Received from unexpected MAC: ");
       for (int i = 0; i < 6; i++) { Serial.print(mac[i], HEX); if (i < 5) Serial.print(":"); }
       Serial.println();
@@ -63,13 +59,13 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
 }
 
 
-// ESP-NOW callback function for sending data (to Dewasa) - MODIFIED
+// ESP-NOW callback function for sending data (to Gateway) - MODIFIED
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
     esp_now_send_success = (status == ESP_NOW_SEND_SUCCESS); // Set flag based on ACK status
 
     // Optional: Concise logging
     if (!esp_now_send_success) { // Log only failures from callback for less noise
-         Serial.printf("[PeremajaanNode] Send CB to %02X:%02X:%02X:%02X:%02X:%02X : Fail (No ACK)\n",
+         Serial.printf("[PeremajaanNode] Send CB to Gateway %02X:%02X:%02X:%02X:%02X:%02X : Fail (No ACK)\n",
                        mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
     }
     // Remove the verbose success/fail printing from here, handle in retry loop
@@ -129,21 +125,20 @@ void setup() {
     esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
 
-    // Register Master Node (Dewasa) as peer for sending
-    esp_now_peer_info_t masterPeerInfo = {};
-    memcpy(masterPeerInfo.peer_addr, masterMac, 6);
-    masterPeerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
-    masterPeerInfo.encrypt = false;
-    if (esp_now_add_peer(&masterPeerInfo) != ESP_OK){
-      Serial.println("[PeremajaanNode] Failed to add Master (Dewasa) peer");
+    // Register Gateway Node as peer for sending
+    esp_now_peer_info_t gatewayPeerInfo = {};
+    memcpy(gatewayPeerInfo.peer_addr, MAC_ADDR_GATEWAY, 6); // Use central definition
+    gatewayPeerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
+    gatewayPeerInfo.encrypt = false;
+    if (esp_now_add_peer(&gatewayPeerInfo) != ESP_OK){
+      Serial.println("[PeremajaanNode] Failed to add Gateway peer");
       return;
     }
-    Serial.println("[PeremajaanNode] Master (Dewasa) node added as peer for sending.");
+    Serial.println("[PeremajaanNode] Gateway node added as peer for sending.");
 
     // Register Penyemaian Node as peer for receiving (optional but good practice)
-    // Note: Receiving works even without adding the sender as a peer, but adding helps manage connections.
     esp_now_peer_info_t penyemaianPeerInfo = {};
-    memcpy(penyemaianPeerInfo.peer_addr, penyemaianMac, 6);
+    memcpy(penyemaianPeerInfo.peer_addr, MAC_ADDR_PENYEMAIAN, 6); // Use central definition
     penyemaianPeerInfo.channel = WIFI_CHANNEL; // Use channel from NodeConfig.h
     penyemaianPeerInfo.encrypt = false;
     if (esp_now_add_peer(&penyemaianPeerInfo) != ESP_OK){
@@ -180,7 +175,7 @@ void loop() {
         readLocalSensors(); // Reads local sensors into combinedDataToSend.peremajaanData
     }
 
-    // Send combined data to master at regular intervals WITH RETRIES
+    // Send combined data to gateway at regular intervals WITH RETRIES
     if (currentTime - lastSendTime >= SEND_INTERVAL) {
         lastSendTime = currentTime;
 
@@ -196,12 +191,13 @@ void loop() {
         combinedDataToSend.timestamp = millis(); // Update timestamp just before sending attempt
         // --- End Prepare Data ---
 
-        Serial.println("[PeremajaanNode] Attempting to send combined data to master...");
+        Serial.println("[PeremajaanNode] Attempting to send combined data to Gateway...");
 
         bool sent_successfully_after_retries = false;
         for (int attempt = 0; attempt < MAX_SEND_RETRIES; ++attempt) {
             esp_now_send_success = false; // Reset flag before this attempt
-            esp_err_t result = esp_now_send(masterMac, (uint8_t *) &combinedDataToSend, sizeof(CombinedData));
+            // Send to gatewayMac using central definition
+            esp_err_t result = esp_now_send(MAC_ADDR_GATEWAY, (uint8_t *) &combinedDataToSend, sizeof(CombinedData));
 
             if (result == ESP_OK) {
                 // Send queued, now wait for the ACK callback or timeout
@@ -215,16 +211,16 @@ void loop() {
 
                 if (esp_now_send_success) {
                     // Callback reported success!
-                    Serial.printf("[PeremajaanNode] Sent successfully to Dewasa on attempt %d.\n", attempt + 1);
+                    Serial.printf("[PeremajaanNode] Sent successfully to Gateway on attempt %d.\n", attempt + 1);
                     sent_successfully_after_retries = true;
                     break; // Exit the retry loop
                 } else {
                     // Callback timed out (or reported failure, handled in callback log)
-                    Serial.printf("[PeremajaanNode] Send attempt %d ACK not received within %lu ms.\n", attempt + 1, SEND_CALLBACK_TIMEOUT_MS);
+                    Serial.printf("[PeremajaanNode] Send attempt %d to Gateway ACK not received within %lu ms.\n", attempt + 1, SEND_CALLBACK_TIMEOUT_MS);
                 }
             } else {
                 // esp_now_send failed immediately (e.g., queue full, invalid params)
-                Serial.printf("[PeremajaanNode] esp_now_send error on attempt %d. ESP-NOW Error Code: %d\n", attempt + 1, result);
+                Serial.printf("[PeremajaanNode] esp_now_send error to Gateway on attempt %d. ESP-NOW Error Code: %d\n", attempt + 1, result);
                 // No need to wait for callback if send failed immediately
             }
 
@@ -236,7 +232,7 @@ void loop() {
         } // End of retry loop
 
         if (!sent_successfully_after_retries) {
-            Serial.println("[PeremajaanNode] ERROR: Failed to send combined data to Dewasa after all retries.");
+            Serial.println("[PeremajaanNode] ERROR: Failed to send combined data to Gateway after all retries.");
             // Consider additional error handling if needed (e.g., increment failure counter)
         }
     } // End of SEND_INTERVAL block
