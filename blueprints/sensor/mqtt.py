@@ -19,6 +19,7 @@ class SensorDataManager:
         }
         self.last_update = None
         self.mqtt_connected = False
+        self.socketio = None # Add socketio instance holder
         
         # Initialize MQTT client
         self.client = mqtt.Client()
@@ -36,6 +37,11 @@ class SensorDataManager:
         
         # Add debug flag
         self.debug = True
+
+    def set_socketio(self, socketio_instance):
+        """Allows setting the SocketIO instance after initialization."""
+        self.socketio = socketio_instance
+        logger.info("SocketIO instance set for SensorDataManager")
     
     def on_connect(self, client, userdata, flags, rc):
         """Callback when connection is established"""
@@ -117,6 +123,16 @@ class SensorDataManager:
         self.last_update = datetime.now()
         logger.info("Updated sensor data successfully (including actuators if present)")
         logger.debug(f"Stored data: {json.dumps(self.latest_data, indent=2)}")
+
+        # Emit data via WebSocket if socketio is configured
+        if self.socketio:
+            try:
+                # Emit to the default namespace '/'
+                self.socketio.emit('sensor_update', self.latest_data)
+                logger.info("Emitted 'sensor_update' via WebSocket")
+            except Exception as emit_error:
+                logger.error(f"Failed to emit WebSocket update: {emit_error}")
+
         return True
     
     def get_data(self):

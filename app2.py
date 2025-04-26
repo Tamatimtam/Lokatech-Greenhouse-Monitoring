@@ -7,6 +7,8 @@ import json
 import logging
 from datetime import datetime, timedelta
 import re
+from flask_socketio import SocketIO
+from blueprints.sensor.mqtt import sensor_manager # Import the globally managed instance
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +25,12 @@ logger = logging.getLogger('GreenhouseApp')
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
+
+# Initialize SocketIO - async_mode='threading' is often easiest to start with
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins="*") # Allow all origins for simplicity, refine later if needed
+
+# Provide the socketio instance to the sensor manager
+sensor_manager.set_socketio(socketio)
 
 # Extract Firebase API key from existing frontend config file
 firebase_init_path = os.path.join(app.static_folder, 'js', 'firebase-init.js')
@@ -70,5 +78,6 @@ def index():
     return render_template("login.html")
 
 if __name__ == '__main__':
-    logger.info(f"Starting Flask application on port {port}")
-    app.run(debug=True, port=port, host='0.0.0.0')
+    logger.info(f"Starting Flask-SocketIO application on port {port}")
+    # Use socketio.run() instead of app.run()
+    socketio.run(app, debug=True, port=port, host='0.0.0.0', use_reloader=False) # use_reloader=False often needed with SocketIO
