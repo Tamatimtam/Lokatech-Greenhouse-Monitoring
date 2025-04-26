@@ -22,10 +22,11 @@ export const SystemMonitor = {
     },
 
     updateConnectionStatus(connected) {
-        if (this.connectionTimeout) {
-            clearTimeout(this.connectionTimeout);
-        }
-        this.lastUpdateTime = Date.now();
+        // Timeout logic removed for WebSocket connection
+        // if (this.connectionTimeout) {
+        //     clearTimeout(this.connectionTimeout);
+        // }
+        this.lastUpdateTime = Date.now(); // Still useful to know last status change
         this.status.connected = connected;
         UI.updateConnectionStatusUI(connected); // Call UI function
 
@@ -33,17 +34,8 @@ export const SystemMonitor = {
             UI.hideError(); // Call UI function
         }
 
-        // Set timeout for connection loss detection
-        this.connectionTimeout = setTimeout(() => {
-            // Check if still marked connected AND time elapsed > timeout duration
-            if (this.status.connected && (Date.now() - this.lastUpdateTime) > (CONNECTION_TIMEOUT_DURATION - 500)) { // Check slightly before timeout fires
-                console.warn(`Connection timeout triggered. Last update: ${this.lastUpdateTime}`);
-                this.status.connected = false; // Ensure status is false
-                UI.updateConnectionStatusUI(false); // Update UI
-                UI.showError("Koneksi ke jaringan ESP terputus - Tidak ada data yang diterima"); // Call UI function
-                UI.resetDisplay(); // Call UI function
-            }
-        }, CONNECTION_TIMEOUT_DURATION);
+        // Timeout logic removed for WebSocket connection
+        // this.connectionTimeout = setTimeout(() => { ... }, CONNECTION_TIMEOUT_DURATION);
     },
 
     updateNodeStatus(data) {

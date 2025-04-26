@@ -16,34 +16,49 @@ document.addEventListener('DOMContentLoaded', async function() {
     SystemMonitor.updateConnectionStatus(false); // Start as disconnected
     UI.resetDisplay(); // Set initial UI state
 
-    // Check for initial data passed from server (if available)
-    // This assumes 'window.initialSensorData' is still set in the HTML template
-    const initialData = window.initialSensorData;
-    if (initialData) {
-        DataManager.log("Processing initial server data:", initialData);
-        // Use the main update function which handles state and UI
-        DataManager.updateDashboard(initialData);
-    } else {
-         DataManager.log("No initial server data found.");
-         UI.showError("Menunggu data dari sensor..."); // Show initial waiting message
-    }
+    // Initial data processing removed - data will come via WebSocket
+    // const initialData = window.initialSensorData;
+    // if (initialData) { ... }
 
-    // Start polling for updates
-    setInterval(async () => {
-        try {
-            // Fetch data using the DataManager
-            const data = await DataManager.fetchData();
-            // Update the dashboard using the DataManager's orchestrator function
-            // This function handles null data internally
-            DataManager.updateDashboard(data);
-        } catch (error) {
-            // Catch unexpected errors within the interval loop itself
-            console.error('Error in data update interval:', error);
-            // Ensure UI reflects disconnected state on such errors
-            SystemMonitor.updateConnectionStatus(false);
-            UI.updateStatusSummary();
-        }
-    }, POLLING_INTERVAL); // Use interval from config
+    // Modify initial state display
+    UI.showError("Menyambungkan ke server..."); // Show connecting message initially
 
-    console.log("Dashboard initialization complete.");
+    // --- WebSocket Connection and Event Handling ---
+    console.log("Attempting to connect WebSocket...");
+    const socket = io(); // Connect to the server hosting the page
+
+    socket.on('connect', () => {
+        console.log('WebSocket Connected! SID:', socket.id);
+        SystemMonitor.updateConnectionStatus(true); // Update state/UI
+        // Optional: Request initial data if needed, though relying on first 'sensor_update' is simpler
+        // socket.emit('request_initial_data'); // If you implement this on backend
+        UI.hideError(); // Hide any initial error messages
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.log('WebSocket Disconnected:', reason);
+        SystemMonitor.updateConnectionStatus(false); // Update state/UI
+        UI.showError("Koneksi ke server terputus. Mencoba menyambung ulang..."); // Show specific error
+        // UI.resetDisplay(); // Optionally reset UI on disconnect
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('WebSocket Connection Error:', error);
+        SystemMonitor.updateConnectionStatus(false);
+        UI.showError("Gagal terhubung ke server WebSocket.");
+    });
+
+    // Listen for sensor data updates from the server
+    socket.on('sensor_update', (data) => {
+        DataManager.log('Received sensor_update via WebSocket:', data);
+        // Use the existing DataManager function to process and update UI
+        DataManager.updateDashboard(data);
+        // Update connection status on successful data receipt
+        SystemMonitor.updateConnectionStatus(true);
+    });
+
+    // Polling interval removed
+    // setInterval(async () => { ... }, POLLING_INTERVAL);
+
+    console.log("Dashboard initialization complete, WebSocket connection initiated.");
 });

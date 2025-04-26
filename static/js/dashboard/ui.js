@@ -48,7 +48,7 @@ export const UI = {
             this.elements.connectionIcon.className = connected ? 'fas fa-check-circle' : 'fas fa-circle-exclamation';
         }
         if (this.elements.connectionText) {
-            this.elements.connectionText.textContent = connected ? 'Sistem IoT Terhubung' : 'Sistem IoT Tidak terhubung';
+            this.elements.connectionText.textContent = connected ? 'Terhubung ke Server' : 'Koneksi Server Terputus';
         }
     },
 

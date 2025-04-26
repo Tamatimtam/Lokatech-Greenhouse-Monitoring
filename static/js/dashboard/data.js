@@ -11,6 +11,8 @@ export const DataManager = {
         if (this.debug) console.log('[DataManager]', ...args);
     },
 
+    // fetchData function is no longer used with WebSockets
+    /*
     async fetchData() {
         try {
             this.log('Fetching sensor data...');
@@ -31,7 +33,7 @@ export const DataManager = {
             if (!data || typeof data.sections !== 'object') {
                  console.error('Invalid data format received:', data);
                  return null;
-            } 
+            }
             this.latestDataPayload = data; // Store the valid data
             return data;
         } catch (error) {
@@ -40,6 +42,7 @@ export const DataManager = {
             return null; // Treat network errors as no data available
         }
     },
+    */
 
     // Getter for the UI module to access the latest data for threshold checks
     getLatestData() {
