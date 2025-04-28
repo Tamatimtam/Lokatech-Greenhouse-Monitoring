@@ -21,8 +21,12 @@
 #define LIGHT_SIMULATION_MODE false       // Set to true to simulate BH1750 readings
 
 // WiFi and MQTT configuration
+// const char* ssid = "padahal katanya uangtakan kemana";      // Replace with your WiFi SSID
+// const char* password = "jika memang rejeki akan ditransfer juga";  // Replace with your WiFi password
+
 const char* ssid = "Direktorat Kemendikbud";      // Replace with your WiFi SSID
 const char* password = "NadiemGantengSih";  // Replace with your WiFi password
+
 const char* mqtt_server = "broker.emqx.io"; // Replace if using a different broker
 const int mqtt_port = 1883;                // Standard MQTT port
 const char* mqtt_publish_topic = "lokatech/greenhouse/sensors"; // Topic to publish data TO
@@ -61,7 +65,7 @@ SensorData gatewayPenyemaianData;
 SensorData gatewayPeremajaanData;
 bool gatewayPenyemaianValid = false; // Was Penyemaian data valid when Gateway received it?
 unsigned long lastGatewayDataTime = 0; // Timestamp of last valid message from Gateway
-const unsigned long GATEWAY_DATA_TIMEOUT = 9000UL; // Timeout for gateway data (e.g., 9 seconds) - ADJUST AS NEEDED
+// const unsigned long GATEWAY_DATA_TIMEOUT = 9000UL; // Defined in NodeConfig.h
 
 // Initialize received data structures (in setup or globally)
 void initializeGatewayData() {
