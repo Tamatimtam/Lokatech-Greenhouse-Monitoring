@@ -216,20 +216,20 @@ void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float de
     // Add Dewasa (Master) section
     JsonObject dewasa = sections.createNestedObject("dewasa");
     if (dewasaTempValid) {
-        dewasa["temp"] = round(dewasaTemp);
+        dewasa["temp"] = dewasaTemp;
     } else {
         dewasa["temp"] = nullptr;
     }
-    
+
     if (dewasaHumidityValid) {
-        dewasa["humidity"] = round(dewasaHumidity);
+        dewasa["humidity"] = dewasaHumidity;
     } else {
         dewasa["humidity"] = nullptr;
     }
-    
+
     if (dewasaLightValid) {
         // Use raw lux values for light without converting to percentage
-        dewasa["light"] = round(dewasaLight);
+        dewasa["light"] = dewasaLight;
     } else {
         dewasa["light"] = nullptr;
     }
@@ -244,20 +244,20 @@ void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float de
     if (penyemaianValid) {
         JsonObject penyemaian = sections.createNestedObject("penyemaian");
         if (penyemaianData.temperatureValid) {
-            penyemaian["temp"] = round(penyemaianData.temperature);
+            penyemaian["temp"] = penyemaianData.temperature;
         } else {
             penyemaian["temp"] = nullptr;
         }
-        
+
         if (penyemaianData.humidityValid) {
-            penyemaian["humidity"] = round(penyemaianData.humidity);
+            penyemaian["humidity"] = penyemaianData.humidity;
         } else {
             penyemaian["humidity"] = nullptr;
         }
-        
+
         if (penyemaianData.lightValid) {
             // Use raw lux values for light
-            penyemaian["light"] = round(penyemaianData.lightIntensity);
+            penyemaian["light"] = penyemaianData.lightIntensity;
         } else {
             penyemaian["light"] = nullptr;
         }
@@ -273,20 +273,20 @@ void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float de
     if (peremajaanValid) {
         JsonObject peremajaan = sections.createNestedObject("peremajaan");
         if (peremajaanData.temperatureValid) {
-            peremajaan["temp"] = round(peremajaanData.temperature);
+            peremajaan["temp"] = peremajaanData.temperature;
         } else {
             peremajaan["temp"] = nullptr;
         }
-        
+
         if (peremajaanData.humidityValid) {
-            peremajaan["humidity"] = round(peremajaanData.humidity);
+            peremajaan["humidity"] = peremajaanData.humidity;
         } else {
             peremajaan["humidity"] = nullptr;
         }
-        
+
         if (peremajaanData.lightValid) {
             // Use raw lux values for light
-            peremajaan["light"] = round(peremajaanData.lightIntensity);
+            peremajaan["light"] = peremajaanData.lightIntensity;
         } else {
             peremajaan["light"] = nullptr;
         }
@@ -321,11 +321,11 @@ void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float de
     }
     
     if (tempCount > 0) {
-        averages["temp"] = round(tempSum / tempCount);
+        averages["temp"] = tempSum / tempCount;
     } else {
         averages["temp"] = nullptr;
     }
-    
+
     // Humidity average
     float humiditySum = 0;
     int humidityCount = 0;
@@ -346,11 +346,11 @@ void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float de
     }
     
     if (humidityCount > 0) {
-        averages["humidity"] = round(humiditySum / humidityCount);
+        averages["humidity"] = humiditySum / humidityCount;
     } else {
         averages["humidity"] = nullptr;
     }
-    
+
     // Light average
     float lightSum = 0;
     int lightCount = 0;
@@ -371,7 +371,7 @@ void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float de
     }
     
     if (lightCount > 0) {
-        averages["light"] = round(lightSum / lightCount);
+        averages["light"] = lightSum / lightCount;
     } else {
         averages["light"] = nullptr;
     }

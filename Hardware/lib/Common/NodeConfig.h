@@ -2,10 +2,10 @@
 #define NODECONFIG_H
 
 // --- Communication & Timing Configuration ---
-#define WIFI_CHANNEL 3            // Define the operating channel (1-11 recommended)
+#define WIFI_CHANNEL 6            // Define the operating channel (1-11 recommended)
 #define SENSOR_READ_INTERVAL 2000UL // Read sensors every 3 seconds
 #define SEND_INTERVAL 2000UL        // Send data every 3 seconds (Penyemaian, Peremajaan)
-#define MQTT_PUBLISH_INTERVAL 4000UL // Publish MQTT every 3 seconds (Dewasa)
+#define MQTT_PUBLISH_INTERVAL 2000UL // Publish MQTT every 3 seconds (Dewasa)
 
 // --- Data Validity Timeouts (Considered stale after this duration) ---
 #define PENYEMAIAN_DATA_TIMEOUT 5000UL // Timeout for data from Penyemaian (on Peremajaan)
