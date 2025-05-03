@@ -1,4 +1,4 @@
-// Main entry point for the dashboard functionality
+c// Main entry point for the dashboard functionality
 
 import { POLLING_INTERVAL } from './config.js';
 import { UI } from './ui.js';
@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const socket = io(); // Connect to the server hosting the page
 
     socket.on('connect', () => {
-        console.log('WebSocket Connected! SID:', socket.id);
         SystemMonitor.updateConnectionStatus(true); // Update state/UI
         // Optional: Request initial data if needed, though relying on first 'sensor_update' is simpler
         // socket.emit('request_initial_data'); // If you implement this on backend
