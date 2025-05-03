@@ -1,4 +1,4 @@
-c// Main entry point for the dashboard functionality
+// Main entry point for the dashboard functionality
 
 import { POLLING_INTERVAL } from './config.js';
 import { UI } from './ui.js';

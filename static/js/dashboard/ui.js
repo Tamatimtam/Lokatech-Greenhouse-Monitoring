@@ -10,34 +10,28 @@ export const UI = {
 
     initialize() {
         this.elements = {
-            connectionStatus: document.getElementById('connection-status'), // Corrected typo: documeent -> document
+            connectionStatus: document.getElementById('connection-status'),
             connectionText: document.getElementById('connection-status')?.querySelector('span'),
             connectionIcon: document.getElementById('connection-status')?.querySelector('i'),
             systemError: document.getElementById('system-error'),
             errorMessage: document.getElementById('error-message'),
-            statusContainer: document.getElementById('status-container'), // Original container (fallback)
+            statusContainer: document.getElementById('status-container'),
             // Add elements for switches and mode indicators
             fanSwitch: document.getElementById('fan-switch'),
-            lightSwitch: document.getElementById('light-switch'), // Changed ID here
-            fanModeIndicator: document.getElementById('fan-mode-indicator'), // Assumes this ID will be added to HTML
-            lightModeIndicator: document.getElementById('light-mode-indicator'), // Assumes this ID will be added to HTML
-            // Add elements for the new status summary structure
-            statusSummaryLine: document.getElementById('status-summary-line'), // Assumes this ID will be added
-            statusDetailsContainer: document.getElementById('status-details'), // Assumes this ID will be added
-            statusDetailsToggle: document.getElementById('status-details-toggle') // Assumes this ID will be added
+            lightSwitch: document.getElementById('light-switch'),
+            fanModeIndicator: document.getElementById('fan-mode-indicator'),
+            lightModeIndicator: document.getElementById('light-mode-indicator'),
+            // Status summary elements
+            statusSummaryLine: document.getElementById('status-summary-line')
         };
         
-        // Add listener for the details toggle button
-        this.elements.statusDetailsToggle?.addEventListener('click', () => {
-            if (this.elements.statusDetailsContainer) {
-                const detailsVisible = this.elements.statusDetailsContainer.style.display === 'block';
-                this.elements.statusDetailsContainer.style.display = detailsVisible ? 'none' : 'block';
-                // Use toggleButton reference which is safer
-                if (this.elements.statusDetailsToggle) {
-                     this.elements.statusDetailsToggle.textContent = detailsVisible ? 'Lihat Detail' : 'Sembunyikan Detail';
-                }
-            }
-        });
+        // Initialize status details container with proper styles to prevent flickering on updates
+        const detailsContainer = document.getElementById('status-details');
+        if (detailsContainer) {
+            // Remove any transition-related styles to prevent flickering
+            detailsContainer.style.transition = 'none';
+        }
+        
         // Control initialization is handled in controls.js now
     },
 
@@ -179,26 +173,25 @@ export const UI = {
         });
     },
 
-    // --- NEW updateStatusSummary ---
+    // --- Completely redesigned updateStatusSummary ---
     updateStatusSummary() {
         const summaryLine = this.elements.statusSummaryLine;
-        const detailsContainer = this.elements.statusDetailsContainer;
-        const toggleButton = this.elements.statusDetailsToggle;
+        const detailsContainer = document.getElementById('status-details');
         const fallbackContainer = this.elements.statusContainer;
 
-        if (!summaryLine || !detailsContainer || !toggleButton) {
+        if (!summaryLine || !detailsContainer) {
             if (fallbackContainer) {
-                console.warn("Using fallback statusContainer. Add status-summary-line, status-details, and status-details-toggle elements to HTML for improved summary.");
+                console.warn("Using fallback statusContainer. Add status-summary-line and status-details elements to HTML for improved summary.");
                 const status = SystemMonitor.status;
                 let fallbackHtml = '';
                 if (!status.connected) {
-                    fallbackHtml = `<div class="status-item"><i class="fas fa-triangle-exclamation" style="color: #e74c3c"></i><span>Tidak terhubung ke jaringan ESP</span></div>`;
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-triangle-exclamation"></i><span>Tidak terhubung ke jaringan ESP</span></div>`;
                 } else {
-                    fallbackHtml = `<div class="status-item"><i class="fas fa-check-circle" style="color: #27ae60"></i><span>Terhubung</span></div>`;
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-check-circle"></i><span>Terhubung</span></div>`;
                 }
-                 if (fallbackContainer.innerHTML !== fallbackHtml) {
-                     fallbackContainer.innerHTML = fallbackHtml;
-                 }
+                if (fallbackContainer.innerHTML !== fallbackHtml) {
+                    fallbackContainer.innerHTML = fallbackHtml;
+                }
             } else {
                 console.error("Status summary elements not found.");
             }
@@ -208,115 +201,238 @@ export const UI = {
         const status = SystemMonitor.status;
         let summaryText = '';
         let summaryIcon = 'fa-check-circle';
-        let summaryColor = '#27ae60';
+        let summaryClass = 'status-success';
         const detailMessages = [];
         let allOkOverall = true;
+        
+        // Store current details container HTML to check for changes
+        const oldDetailsHtml = detailsContainer.innerHTML;
 
         if (!status.connected) {
             summaryText = 'Tidak terhubung ke jaringan ESP';
-            summaryIcon = 'fa-triangle-exclamation';
-            summaryColor = '#e74c3c';
+            summaryIcon = 'fa-wifi-slash';
+            summaryClass = 'status-error';
             allOkOverall = false;
         } else {
             const latestData = DataManager.getLatestData();
-            const offlineNodes = SECTIONS.filter(section => !status.nodes[section]?.online);
-            if (offlineNodes.length > 0) {
-                detailMessages.push({ type: 'error', text: `Node ${offlineNodes.map(this.translateSection).join(', ')} offline` });
+            
+            // Check if we have any data at all
+            if (!latestData || !latestData.sections) {
+                summaryText = 'Menunggu data dari sensor';
+                summaryIcon = 'fa-spinner fa-spin';
+                summaryClass = '';
                 allOkOverall = false;
-            }
-
-            SECTIONS.forEach(section => {
-                const nodeStatus = status.nodes[section];
-                if (nodeStatus?.online) {
-                    const sectionValues = latestData?.sections?.[section];
-                    const sectionName = this.translateSection(section);
-
-                    if (!sectionValues) {
-                         detailMessages.push({ type: 'warning', text: `Data untuk ${sectionName} tidak diterima` });
-                         allOkOverall = false;
-                         return;
-                    }
-
-                    const failedSensors = SENSOR_TYPES.filter(type => !nodeStatus.sensors[type]);
-                    if (failedSensors.length > 0) {
-                        detailMessages.push({ type: 'warning', text: `Sensor ${failedSensors.map(this.translateSensor).join(', ')} di ${sectionName} bermasalah` });
-                        allOkOverall = false;
-                    }
-
-                    SENSOR_TYPES.forEach(type => {
-                        if (nodeStatus.sensors[type] && sectionValues[type] !== null) {
-                            const value = sectionValues[type];
-                            const threshold = THRESHOLDS[type];
-                            const sensorName = threshold.name;
-                            let unit = '';
-                            if (type === 'temp') unit = '°C';
-                            if (type === 'humidity') unit = '%';
-                            if (type === 'light') unit = ' lux';
-
-                            let issueFound = false;
-                            let messageText = '';
-
-                            if (threshold.low !== undefined && value < threshold.low) {
-                                messageText = `${sensorName} ${sectionName} terlalu ${type === 'temp' ? 'dingin' : 'kering'} (${value}${unit})`;
-                                issueFound = true;
-                            } else if (threshold.high !== undefined && value > threshold.high) {
-                                messageText = `${sensorName} ${sectionName} terlalu ${type === 'temp' ? 'panas' : 'lembap'} (${value}${unit})`;
-                                issueFound = true;
-                            } else if (threshold.dark !== undefined && value < threshold.dark) {
-                                messageText = `${sensorName} ${sectionName} terlalu gelap (${value}${unit})`;
-                                issueFound = true;
-                            }
-
-                            if (issueFound) {
-                                detailMessages.push({ type: 'warning', text: messageText });
-                                allOkOverall = false;
-                            }
-                        }
-                    });
-                }
-            });
-
-            if (allOkOverall) {
-                summaryText = 'Semua kondisi optimal';
-                summaryIcon = 'fa-check-circle';
-                summaryColor = '#27ae60';
             } else {
-                const hasErrors = detailMessages.some(msg => msg.type === 'error');
-                if (hasErrors) {
-                    summaryText = 'Sistem bermasalah (Node offline)';
-                    summaryIcon = 'fa-triangle-exclamation';
-                    summaryColor = '#e74c3c';
+                const offlineNodes = SECTIONS.filter(section => !status.nodes[section]?.online);
+                if (offlineNodes.length > 0) {
+                    detailMessages.push({ 
+                        type: 'connection', 
+                        text: `Node ${offlineNodes.map(this.translateSection).join(', ')} offline`,
+                        icon: 'fa-server'
+                    });
+                    allOkOverall = false;
+                }
+
+                SECTIONS.forEach(section => {
+                    const nodeStatus = status.nodes[section];
+                    if (nodeStatus?.online) {
+                        const sectionValues = latestData.sections[section];
+                        const sectionName = this.translateSection(section);
+
+                        if (!sectionValues) {
+                            detailMessages.push({ 
+                                type: 'connection', 
+                                text: `Data untuk ${sectionName} tidak diterima`,
+                                icon: 'fa-triangle-exclamation' 
+                            });
+                            allOkOverall = false;
+                            return;
+                        }
+
+                        const failedSensors = SENSOR_TYPES.filter(type => !nodeStatus.sensors[type]);
+                        if (failedSensors.length > 0) {
+                            detailMessages.push({ 
+                                type: 'connection', 
+                                text: `Sensor ${failedSensors.map(this.translateSensor).join(', ')} di ${sectionName} bermasalah`,
+                                icon: 'fa-microchip'
+                            });
+                            allOkOverall = false;
+                        }
+
+                        SENSOR_TYPES.forEach(type => {
+                            if (nodeStatus.sensors[type] && sectionValues[type] !== null) {
+                                const value = sectionValues[type];
+                                const threshold = THRESHOLDS[type];
+                                const sensorName = threshold.name;
+                                let unit = '';
+                                if (type === 'temp') unit = '°C';
+                                if (type === 'humidity') unit = '%';
+                                if (type === 'light') unit = ' lux';
+
+                                let issueFound = false;
+                                let messageText = '';
+
+                                // Format the value to 1 decimal place
+                                const formattedValue = type === 'light' ? Math.round(value) : value.toFixed(1);
+                                
+                                if (type === 'temp' && threshold.low !== undefined && value < threshold.low) {
+                                    messageText = `${sensorName} ${sectionName} terlalu dingin (${formattedValue}${unit})`;
+                                    detailMessages.push({ 
+                                        type: 'temp', 
+                                        text: messageText,
+                                        icon: 'fa-temperature-low',
+                                        value: formattedValue,
+                                        unit: unit,
+                                        section: sectionName
+                                    });
+                                    allOkOverall = false;
+                                } else if (type === 'temp' && threshold.high !== undefined && value > threshold.high) {
+                                    messageText = `${sensorName} ${sectionName} terlalu panas (${formattedValue}${unit})`;
+                                    detailMessages.push({ 
+                                        type: 'temp', 
+                                        text: messageText,
+                                        icon: 'fa-temperature-high',
+                                        value: formattedValue,
+                                        unit: unit,
+                                        section: sectionName
+                                    });
+                                    allOkOverall = false;
+                                } else if (type === 'humidity' && threshold.low !== undefined && value < threshold.low) {
+                                    messageText = `${sensorName} ${sectionName} terlalu kering (${formattedValue}${unit})`;
+                                    detailMessages.push({ 
+                                        type: 'humidity', 
+                                        text: messageText,
+                                        icon: 'fa-droplet-slash',
+                                        value: formattedValue,
+                                        unit: unit,
+                                        section: sectionName
+                                    });
+                                    allOkOverall = false;
+                                } else if (type === 'humidity' && threshold.high !== undefined && value > threshold.high) {
+                                    messageText = `${sensorName} ${sectionName} terlalu lembap (${formattedValue}${unit})`;
+                                    detailMessages.push({ 
+                                        type: 'humidity', 
+                                        text: messageText,
+                                        icon: 'fa-droplet',
+                                        value: formattedValue,
+                                        unit: unit,
+                                        section: sectionName
+                                    });
+                                    allOkOverall = false;
+                                } else if (type === 'light' && threshold.dark !== undefined && value < threshold.dark) {
+                                    messageText = `${sensorName} ${sectionName} terlalu gelap (${formattedValue}${unit})`;
+                                    detailMessages.push({ 
+                                        type: 'light', 
+                                        text: messageText,
+                                        icon: 'fa-moon',
+                                        value: formattedValue,
+                                        unit: unit,
+                                        section: sectionName
+                                    });
+                                    allOkOverall = false;
+                                }
+                            }
+                        });
+                    }
+                });
+
+                if (allOkOverall) {
+                    summaryText = 'Semua kondisi optimal';
+                    summaryIcon = 'fa-check-circle';
+                    summaryClass = 'status-success';
+                    
+                    // Add one success message when all is well
+                    detailMessages.push({ 
+                        type: 'success', 
+                        text: 'Semua sensor berfungsi normal',
+                        icon: 'fa-check-circle'
+                    });
                 } else {
-                    summaryText = 'Peringatan kondisi terdeteksi';
-                    summaryIcon = 'fa-circle-exclamation';
-                    summaryColor = '#f39c12';
+                    const hasConnectionErrors = detailMessages.some(msg => msg.type === 'connection');
+                    if (hasConnectionErrors) {
+                        summaryText = 'Masalah koneksi terdeteksi';
+                        summaryIcon = 'fa-triangle-exclamation';
+                        summaryClass = 'status-error';
+                    } else {
+                        summaryText = 'Peringatan kondisi lingkungan';
+                        summaryIcon = 'fa-circle-exclamation';
+                        summaryClass = '';
+                    }
                 }
             }
         }
 
-        const summaryHtml = `<i class="fas ${summaryIcon}" style="color: ${summaryColor}"></i><span>${summaryText}</span>`;
-        if (summaryLine.innerHTML !== summaryHtml) {
-            summaryLine.innerHTML = summaryHtml;
-        }
+        // Update summary line
+        summaryLine.className = `status-item ${summaryClass}`;
+        summaryLine.innerHTML = `<i class="fas ${summaryIcon}"></i><span>${summaryText}</span>`;
 
+        // Generate details HTML with specific icons and styles for each issue type
         const detailsHtml = detailMessages.map(msg => {
-            const iconClass = msg.type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-exclamation';
-            const iconColor = msg.type === 'error' ? '#e74c3c' : '#f39c12';
-            return `<div class="status-item status-item--detail"><i class="fas ${iconClass}" style="color: ${iconColor}"></i><span>${msg.text}</span></div>`;
+            let iconClass, statusClass;
+            
+            switch(msg.type) {
+                case 'temp':
+                    iconClass = 'icon-temp';
+                    statusClass = 'status-temp';
+                    break;
+                case 'humidity':
+                    iconClass = 'icon-humidity';
+                    statusClass = 'status-humidity';
+                    break;
+                case 'light':
+                    iconClass = 'icon-light';
+                    statusClass = 'status-light';
+                    break;
+                case 'connection':
+                    iconClass = 'icon-connection';
+                    statusClass = 'status-connection';
+                    break;
+                case 'error':
+                    iconClass = 'icon-error';
+                    statusClass = 'status-error';
+                    break;
+                case 'success':
+                    iconClass = 'icon-success';
+                    statusClass = 'status-success';
+                    break;
+                default:
+                    iconClass = 'icon-error';
+                    statusClass = '';
+            }
+            
+            // Create HTML for each status item
+            return `
+                <div class="status-item--detail ${statusClass}" data-id="${msg.type}-${msg.section || ''}">
+                    <div class="status-icon ${iconClass}">
+                        <i class="fas ${msg.icon}"></i>
+                    </div>
+                    <span class="status-text">${msg.text}</span>
+                </div>
+            `;
         }).join('');
 
+        // Only update DOM if the content has changed to prevent flickering
         if (detailsContainer.innerHTML !== detailsHtml) {
-            detailsContainer.innerHTML = detailsHtml;
-        }
-
-        if (detailMessages.length > 0) {
-            toggleButton.style.display = 'inline-block';
-            if (detailsContainer.style.display !== 'block') {
-                toggleButton.textContent = 'Lihat Detail';
-            }
-        } else {
-            toggleButton.style.display = 'none';
-            detailsContainer.style.display = 'none';
+            // Use a data attribute to track which elements are already displayed
+            const existingElements = {};
+            detailsContainer.querySelectorAll('.status-item--detail').forEach(el => {
+                const id = el.getAttribute('data-id');
+                if (id) existingElements[id] = el;
+            });
+            
+            // Parse the new HTML into a document fragment
+            const template = document.createElement('template');
+            template.innerHTML = detailsHtml;
+            const newElements = template.content;
+            
+            // Clear container while preserving existing elements that will be reused
+            detailsContainer.innerHTML = '';
+            
+            // Add the new elements, potentially reusing existing ones to prevent flicker
+            newElements.querySelectorAll('.status-item--detail').forEach(el => {
+                const id = el.getAttribute('data-id');
+                detailsContainer.appendChild(el);
+            });
         }
     },
     // --- END NEW updateStatusSummary ---

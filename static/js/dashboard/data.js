@@ -64,7 +64,9 @@ export const DataManager = {
             return;
         }
 
-        // We have valid data
+        // We have valid data - Store it for UI status checks
+        this.latestDataPayload = data;
+        
         SystemMonitor.updateNodeStatus(data); // Update internal node/sensor status first
         SystemMonitor.updateConnectionStatus(true); // Mark as connected
 

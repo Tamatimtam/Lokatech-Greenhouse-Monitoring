@@ -97,19 +97,104 @@
     {% endcall %}
 
     {% call card.card('RINGKASAN STATUS') %}
-      {# Main container for status - might not be strictly needed anymore but keep for now #}
+      {# Enhanced status container with improved visibility #}
       <div id="status-container"> 
-          {# New line for the overall summary #}
+          {# Summary status line #}
           <div id="status-summary-line" class="status-item">
               <i class="fas fa-spinner fa-spin"></i> 
               <span>Menunggu data sensor...</span>
           </div>
-          {# New button to toggle details, initially hidden #}
-          <button id="status-details-toggle" class="status-details-button" style="display: none;">Lihat Detail</button>
-          {# New container for detailed messages, initially hidden #}
-          <div id="status-details" style="display: none; margin-top: 0.5rem; border-top: 1px solid #eee; padding-top: 0.5rem;">
-              {## Detailed messages will be populated here by JS ##}
+          
+          {# Status details container - now always visible #}
+          <div id="status-details">
+              {## Status details will populate here ##}
           </div>
+          
+          <style>
+            /* Enhanced styling for status elements using brand colors */
+            #status-summary-line {
+              padding: 12px 16px;
+              border-radius: var(--radius-md);
+              margin-bottom: 12px;
+              display: flex;
+              align-items: center;
+              font-weight: 500;
+              background-color: var(--primary-light);
+              color: white;
+            }
+            
+            #status-summary-line i {
+              font-size: 1.2rem;
+              margin-right: 10px;
+            }
+            
+            #status-details {
+              display: grid;
+              grid-gap: 8px;
+            }
+            
+            .status-item--detail {
+              display: grid;
+              grid-template-columns: auto 1fr;
+              grid-gap: 12px;
+              align-items: center;
+              padding: 10px 12px;
+              border-radius: var(--radius-sm);
+              background-color: white;
+              border-left: 4px solid transparent;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            }
+            
+            /* Status type styling */
+            .status-temp {
+              border-left-color: #E74C3C;
+            }
+            
+            .status-humidity {
+              border-left-color: #3498DB;
+            }
+            
+            .status-light {
+              border-left-color: #F9D949;
+            }
+            
+            .status-connection {
+              border-left-color: #9B59B6;
+            }
+            
+            .status-error {
+              border-left-color: #E74C3C;
+            }
+            
+            .status-success {
+              border-left-color: var(--primary);
+            }
+            
+            /* Icon container styling */
+            .status-icon {
+              width: 32px;
+              height: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 50%;
+              font-size: 1rem;
+              color: white;
+            }
+            
+            .status-text {
+              font-size: 0.95rem;
+              color: var(--text-primary);
+            }
+            
+            /* Icon background colors */
+            .icon-temp { background-color: #E74C3C; }
+            .icon-humidity { background-color: #3498DB; }
+            .icon-light { background-color: #F1C40F; }
+            .icon-connection { background-color: #9B59B6; }
+            .icon-error { background-color: #E74C3C; }
+            .icon-success { background-color: var(--primary); }
+          </style>
       </div>
     {% endcall %}
   </div>
