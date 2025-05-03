@@ -30,9 +30,5 @@ secrets
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-<<<<<<< HEAD
-
-=======
->>>>>>> hardware_local/main
 simpleLogin.code-workspace
 deploy.sh
