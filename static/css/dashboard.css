@@ -5,6 +5,7 @@
 @import 'components/status.css';
 @import 'components/navigation.css';
 @import 'components/modal.css';
+@import 'components/mode-toggle.css';
 @import 'layout.css';
 
 /* Dashboard specific styles that don't fit in components */

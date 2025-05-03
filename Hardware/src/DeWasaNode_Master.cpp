@@ -472,6 +472,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message = (char*)payload;
   Serial.printf("[MQTT Callback] Payload: %s\n", message.c_str());
 
+  // Debug: Print the raw bytes of the payload for detailed inspection
+  Serial.print("[MQTT Callback] DEBUG: Raw payload bytes: ");
+  for (unsigned int i = 0; i < length; i++) {
+    Serial.printf("%02X ", payload[i]);
+  }
+  Serial.println();
+
   // Check if the topic matches the control topic
   if (strcmp(topic, mqtt_control_topic) == 0) {
     StaticJsonDocument<128> doc; // Small doc for command parsing
@@ -483,35 +490,124 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       return;
     }
 
+    // Debug: Dump the entire JSON document to see what it actually contains
+    Serial.println("[MQTT Callback] DEBUG: JSON document contents:");
+    serializeJsonPretty(doc, Serial);
+    Serial.println();
+
     // Extract command details
     const char* device = doc["device"]; // "fan" or "light"
-    bool state = doc["state"];          // true or false
-    const char* mode = doc["mode"];     // Should be "manual" from API
+    const char* mode = doc["mode"];     // "manual" or "auto"
+    
+    // Debug: Print individual extracted values with their types
+    Serial.printf("[MQTT Callback] DEBUG: device=%s (exists: %s)\n", 
+                 device ? device : "NULL", doc.containsKey("device") ? "YES" : "NO");
+    Serial.printf("[MQTT Callback] DEBUG: mode=%s (exists: %s)\n", 
+                 mode ? mode : "NULL", doc.containsKey("mode") ? "YES" : "NO");
+    
+    if (doc.containsKey("state")) {
+      bool state = doc["state"];
+      Serial.printf("[MQTT Callback] DEBUG: state=%s (type: %s)\n", 
+                   state ? "true" : "false", 
+                   doc["state"].is<bool>() ? "bool" : 
+                   (doc["state"].is<int>() ? "int" : "other"));
+    } else {
+      Serial.println("[MQTT Callback] DEBUG: state key does not exist");
+    }
 
-    if (!device || !mode) {
-        Serial.println("[MQTT Callback] ERROR: Missing 'device' or 'mode' in command payload.");
+    if (!device) {
+        Serial.println("[MQTT Callback] ERROR: Missing 'device' in command payload.");
         return;
     }
 
-    // Process only manual commands for now
-    if (strcmp(mode, "manual") == 0) {
-        Serial.printf("[MQTT Callback] Manual command received for %s: state=%s\n", device, state ? "ON" : "OFF");
+    // Handle mode switching
+    if (mode) {
+        Serial.printf("[MQTT Callback] DEBUG: Mode present, processing mode='%s'\n", mode);
         if (strcmp(device, "fan") == 0) {
-            fanManual = true; // Set manual mode
-            digitalWrite(FAN_LED_PIN, state ? HIGH : LOW); // Directly set state
-            Serial.printf("[Control] Fan set to %s (Manual Mode)\n", state ? "ON" : "OFF");
-        } else if (strcmp(device, "light") == 0) {
-            lightManual = true; // Set manual mode
-            digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW); // Directly set state
-            Serial.printf("[Control] Light set to %s (Manual Mode)\n", state ? "ON" : "OFF");
-        } else {
+            if (strcmp(mode, "manual") == 0) {
+                // Set manual mode and apply requested state
+                fanManual = true;
+                Serial.println("[MQTT Callback] DEBUG: Setting fanManual=true (Mode: manual)");
+                if (doc.containsKey("state")) {
+                    bool state = doc["state"];
+                    digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
+                    Serial.printf("[Control] Fan set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+                }
+            } 
+            else if (strcmp(mode, "auto") == 0) {
+                // Switch back to automatic control
+                fanManual = false;
+                Serial.println("[MQTT Callback] DEBUG: Setting fanManual=false (Mode: auto)");
+                Serial.println("[Control] Fan switched to Automatic Mode");
+            }
+            else {
+                Serial.printf("[MQTT Callback] DEBUG: Unknown mode value '%s' for fan\n", mode);
+            }
+        } 
+        else if (strcmp(device, "light") == 0) {
+            if (strcmp(mode, "manual") == 0) {
+                // Set manual mode and apply requested state
+                lightManual = true;
+                Serial.println("[MQTT Callback] DEBUG: Setting lightManual=true (Mode: manual)");
+                if (doc.containsKey("state")) {
+                    bool state = doc["state"];
+                    digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
+                    Serial.printf("[Control] Light set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+                }
+            } 
+            else if (strcmp(mode, "auto") == 0) {
+                // Switch back to automatic control
+                lightManual = false;
+                Serial.println("[MQTT Callback] DEBUG: Setting lightManual=false (Mode: auto)");
+                Serial.println("[Control] Light switched to Automatic Mode");
+            }
+            else {
+                Serial.printf("[MQTT Callback] DEBUG: Unknown mode value '%s' for light\n", mode);
+            }
+        } 
+        else {
             Serial.printf("[MQTT Callback] WARNING: Unknown device '%s' in command.\n", device);
         }
-        // TODO: Add logic to switch back to 'auto' mode? (e.g., via timeout or specific command)
-    } else {
-         Serial.printf("[MQTT Callback] Received non-manual mode command for %s: mode=%s. Ignoring for now.\n", device, mode);
-         // Could add logic here to switch back to auto if needed:
-         // if (strcmp(mode, "auto") == 0) { ... fanManual = false; ... }
+    }
+    // Handle state changes in manual mode (without explicit mode in message)
+    else if (doc.containsKey("state")) {
+        Serial.println("[MQTT Callback] DEBUG: No mode specified but state is present");
+        bool state = doc["state"];
+        
+        if (strcmp(device, "fan") == 0) {
+            // Only change state if already in manual mode
+            if (fanManual) {
+                Serial.println("[MQTT Callback] DEBUG: Fan already in manual mode, just changing state");
+                digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
+                Serial.printf("[Control] Fan set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+            } else {
+                // Auto-switch to manual if a state change is requested
+                Serial.println("[MQTT Callback] DEBUG: Fan in auto mode, auto-switching to manual");
+                fanManual = true;
+                digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
+                Serial.printf("[Control] Fan switched to Manual Mode and set to %s\n", state ? "ON" : "OFF");
+            }
+        } 
+        else if (strcmp(device, "light") == 0) {
+            // Only change state if already in manual mode
+            if (lightManual) {
+                Serial.println("[MQTT Callback] DEBUG: Light already in manual mode, just changing state");
+                digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
+                Serial.printf("[Control] Light set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+            } else {
+                // Auto-switch to manual if a state change is requested
+                Serial.println("[MQTT Callback] DEBUG: Light in auto mode, auto-switching to manual");
+                lightManual = true;
+                digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
+                Serial.printf("[Control] Light switched to Manual Mode and set to %s\n", state ? "ON" : "OFF");
+            }
+        } 
+        else {
+            Serial.printf("[MQTT Callback] WARNING: Unknown device '%s' in command.\n", device);
+        }
+    }
+    else {
+        Serial.println("[MQTT Callback] DEBUG: Neither mode nor state is present in the message");
     }
   } else {
       Serial.printf("[MQTT Callback] Message on unhandled topic: %s\n", topic);

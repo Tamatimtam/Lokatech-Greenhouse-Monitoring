@@ -1,0 +1,49 @@
+/* Mode toggle and control enhancements */
+.control {
+  position: relative; /* Make positioning context for children */
+}
+
+.control__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.control-mode-toggle {
+  margin: 6px 0;
+  cursor: pointer;
+  color: #2196F3;
+  font-size: 0.85rem;
+  background-color: #e3f2fd;
+  padding: 4px 10px;
+  border-radius: 3px;
+  user-select: none;
+  display: inline-block;
+  text-align: center;
+  transition: all 0.2s ease;
+  border: 1px solid #bbdefb;
+}
+
+.control-mode-toggle:hover {
+  background-color: #bbdefb;
+}
+
+.mode-indicator {
+  margin-left: 5px;
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: normal;
+}
+
+.cooling-down {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cooldown-indicator {
+  display: inline-block;
+  margin-left: 10px;
+  color: #f57c00;
+  font-size: 0.8rem;
+}
