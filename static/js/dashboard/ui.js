@@ -457,6 +457,15 @@ export const UI = {
         if (this.elements.fanModeIndicator) {
             this.elements.fanModeIndicator.textContent = `(${fanState.mode === 'manual' ? 'Manual' : 'Auto'})`;
             this.elements.fanSwitch?.closest('.control')?.classList.toggle('control--manual', fanState.mode === 'manual');
+            
+            // Update mode toggle appearance
+            const fanModeToggle = document.getElementById('fan-mode-toggle');
+            if (fanModeToggle) {
+                fanModeToggle.dataset.mode = fanState.mode;
+                fanModeToggle.textContent = fanState.mode === 'auto' 
+                    ? 'Alihkan ke Mode Manual' 
+                    : 'Alihkan ke Mode Auto';
+            }
         }
 
         if (this.elements.lightSwitch) {
@@ -465,6 +474,15 @@ export const UI = {
         if (this.elements.lightModeIndicator) {
             this.elements.lightModeIndicator.textContent = `(${lightState.mode === 'manual' ? 'Manual' : 'Auto'})`;
             this.elements.lightSwitch?.closest('.control')?.classList.toggle('control--manual', lightState.mode === 'manual');
+            
+            // Update mode toggle appearance
+            const lightModeToggle = document.getElementById('light-mode-toggle');
+            if (lightModeToggle) {
+                lightModeToggle.dataset.mode = lightState.mode;
+                lightModeToggle.textContent = lightState.mode === 'auto' 
+                    ? 'Alihkan ke Mode Manual' 
+                    : 'Alihkan ke Mode Auto';
+            }
         }
     }
 };

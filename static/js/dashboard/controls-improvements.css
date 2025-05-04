@@ -1,0 +1,132 @@
+/* Control panel improvements */
+.control {
+    position: relative;
+}
+
+.control__actions {
+    position: relative;
+}
+
+/* Switch cooldown styling */
+.switch.cooling-down {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Cooldown progress indicator */
+.cooldown-progress {
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    height: 3px;
+    background: rgba(59, 130, 246, 0.8);
+    border-radius: 2px;
+    transition: width 100ms linear;
+    z-index: 5;
+}
+
+/* Mode toggle improvements */
+.control-mode-toggle {
+    font-size: 0.85rem;
+    color: #4b5563;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.2s ease;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.control-mode-toggle:hover {
+    color: #2563eb;
+}
+
+.control-mode-toggle::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background-color: #4b5563;
+    transition: background-color 0.2s ease;
+}
+
+.control-mode-toggle[data-mode="auto"]::before {
+    background-color: #10b981;
+}
+
+.control-mode-toggle[data-mode="manual"]::before {
+    background-color: #f59e0b;
+}
+
+/* Tooltip styles */
+.tooltip {
+    position: relative;
+}
+
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: 120px;
+    background-color: rgba(55, 65, 81, 0.95);
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.75rem;
+    pointer-events: none;
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Add a small triangle pointer */
+.tooltip .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(55, 65, 81, 0.95) transparent transparent transparent;
+}
+
+/* Animation for cooling down state */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+/* Shake animation for error feedback */
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+.cooling-down .slider {
+    animation: pulse 1.5s infinite;
+}
+
+/* Error states */
+.error-tooltip .tooltip-text {
+    background-color: rgba(220, 38, 38, 0.9) !important;
+}
+
+.error-tooltip .tooltip-text::after {
+    border-color: rgba(220, 38, 38, 0.9) transparent transparent transparent !important;
+}

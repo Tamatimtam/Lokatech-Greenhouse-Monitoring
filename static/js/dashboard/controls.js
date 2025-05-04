@@ -21,18 +21,27 @@ const ControlsManager = {
     
     async sendControlCommand(device, state, mode = "manual") {
         console.log(`Sending command: device=${device}, state=${state}, mode=${mode}`);
+        // Additional debug logging:
+        console.log(`DEBUG: Command data types - device(${typeof device}), state(${typeof state}), mode(${typeof mode})`);
+        
         try {
+            // Prepare the body with exact values to verify what's being sent
+            const body = JSON.stringify({ 
+                device, 
+                state, 
+                mode 
+            });
+            
+            console.log('DEBUG: Raw JSON being sent:', body);
+            console.log('DEBUG: Parsed back for verification:', JSON.parse(body));
+            
             const response = await fetch('/controls/api/set_state', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     // Add CSRF token header if needed by Flask-WTF
                 },
-                body: JSON.stringify({ 
-                    device, 
-                    state, 
-                    mode 
-                })
+                body
             });
 
             if (!response.ok) {
@@ -68,23 +77,64 @@ const ControlsManager = {
             switchEl.classList.add('cooling-down');
             switchEl.disabled = true;
             
-            // Create or update cooldown indicator
-            let cooldownIndicator = document.getElementById(`${device}-cooldown`);
-            if (!cooldownIndicator) {
-                cooldownIndicator = document.createElement('span');
-                cooldownIndicator.id = `${device}-cooldown`;
-                cooldownIndicator.className = 'cooldown-indicator';
-                switchEl.parentNode.appendChild(cooldownIndicator);
+            // Create or update cooldown progress bar
+            let cooldownProgress = document.getElementById(`${device}-cooldown-progress`);
+            if (!cooldownProgress) {
+                cooldownProgress = document.createElement('div');
+                cooldownProgress.id = `${device}-cooldown-progress`;
+                cooldownProgress.className = 'cooldown-progress';
+                const controlActionsDiv = switchEl.closest('.control__actions');
+                if (controlActionsDiv) {
+                    controlActionsDiv.appendChild(cooldownProgress);
+                } else {
+                    switchEl.parentNode.appendChild(cooldownProgress);
+                }
             }
-            cooldownIndicator.textContent = 'Mohon tunggu...';
+            
+            // Reset width and start animation
+            cooldownProgress.style.width = '100%';
+            
+            // Add tooltip to provide user feedback
+            const switchContainer = switchEl.closest('.switch-container') || switchEl.parentNode;
+            if (switchContainer) {
+                switchContainer.classList.add('tooltip');
+                let tooltip = switchContainer.querySelector('.tooltip-text');
+                if (!tooltip) {
+                    tooltip = document.createElement('span');
+                    tooltip.className = 'tooltip-text';
+                    switchContainer.appendChild(tooltip);
+                }
+                tooltip.textContent = 'Sedang diproses...';
+            }
         }
 
         // Clear any existing timeout
         if (cooldown.timeout) {
             clearTimeout(cooldown.timeout);
         }
-
+        
         // Set timeout to reset cooldown
+        const startTime = Date.now();
+        const duration = cooldown.durationMs;
+        
+        // Create animation for progress bar
+        const animateCooldown = () => {
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = Math.max(0, duration - elapsedTime);
+            const progress = (remainingTime / duration) * 100;
+            
+            const cooldownProgress = document.getElementById(`${device}-cooldown-progress`);
+            if (cooldownProgress) {
+                cooldownProgress.style.width = progress + '%';
+            }
+            
+            if (remainingTime > 0) {
+                window.requestAnimationFrame(animateCooldown);
+            }
+        };
+        
+        window.requestAnimationFrame(animateCooldown);
+        
         cooldown.timeout = setTimeout(() => {
             this.clearCooldown(device);
         }, cooldown.durationMs);
@@ -96,17 +146,33 @@ const ControlsManager = {
 
         cooldown.active = false;
         
-        // Remove visual indicator
+        // Remove visual indicators
         const switchEl = document.getElementById(`${device}-switch`);
         if (switchEl) {
             switchEl.classList.remove('cooling-down');
             switchEl.disabled = false;
+            
+            // Remove tooltip class and text
+            const switchContainer = switchEl.closest('.switch-container') || switchEl.parentNode;
+            if (switchContainer) {
+                const tooltip = switchContainer.querySelector('.tooltip-text');
+                if (tooltip) {
+                    tooltip.textContent = '';
+                }
+            }
         }
         
-        // Remove cooldown text
-        const cooldownIndicator = document.getElementById(`${device}-cooldown`);
-        if (cooldownIndicator) {
-            cooldownIndicator.parentNode.removeChild(cooldownIndicator);
+        // Remove progress bar with a fade-out effect
+        const cooldownProgress = document.getElementById(`${device}-cooldown-progress`);
+        if (cooldownProgress) {
+            cooldownProgress.style.transition = 'opacity 0.3s ease';
+            cooldownProgress.style.opacity = '0';
+            
+            setTimeout(() => {
+                if (cooldownProgress.parentNode) {
+                    cooldownProgress.parentNode.removeChild(cooldownProgress);
+                }
+            }, 300);
         }
     },
 
@@ -134,6 +200,7 @@ const ControlsManager = {
                 toggleContainer.id = `${deviceName}-mode-toggle`;
                 toggleContainer.textContent = 'Alihkan ke Mode Auto';
                 toggleContainer.dataset.mode = 'manual'; // Start assuming we're in manual mode when user interacts
+                toggleContainer.title = 'Klik untuk mengubah mode kontrol';
                 
                 // Get the parent control div and append button to it properly
                 const controlDiv = switchElement.closest('.control');
@@ -145,9 +212,17 @@ const ControlsManager = {
                     controlActionsDiv.style.flexDirection = 'column';
                     controlActionsDiv.style.alignItems = 'flex-end';
                     
+                    // Create a better container for the switch with tooltip capabilities
+                    const switchContainer = document.createElement('div');
+                    switchContainer.className = 'switch-container';
+                    switchContainer.style.position = 'relative';
+                    
                     // Move the switch into this container
                     const switchLabel = switchElement.parentNode;
-                    controlActionsDiv.appendChild(switchLabel);
+                    switchContainer.appendChild(switchLabel);
+                    
+                    // Add the switch container to the actions div
+                    controlActionsDiv.appendChild(switchContainer);
                     
                     // Add the toggle to the container
                     controlActionsDiv.appendChild(toggleContainer);

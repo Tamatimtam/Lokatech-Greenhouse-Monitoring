@@ -6,9 +6,20 @@ import { DataManager } from './data.js';
 import { SystemMonitor } from './state.js';
 import { initializeControls } from './controls.js'; // Import the controls initializer
 
+// Load the controls CSS improvements
+const loadControlsStyles = () => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/static/js/dashboard/controls-improvements.css';
+    document.head.appendChild(link);
+};
+
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', async function() {
     console.log("Initializing Dashboard (Modular)...");
+
+    // Load custom CSS improvements
+    loadControlsStyles();
 
     // Initialize UI elements and basic state
     UI.initialize();

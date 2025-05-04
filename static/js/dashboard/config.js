@@ -8,7 +8,7 @@ export const CONNECTION_TIMEOUT_DURATION = 11000; // ms to detect connection los
 
 // Optimal environmental thresholds based on fuzzy logic definitions
 export const THRESHOLDS = {
-    temp: { low: 27, high: 29, name: "Suhu" }, // °C - Optimal range from 27-29
-    humidity: { low: 75, high: 95, name: "Kelembapan" }, // % - Optimal range with peak at 85, zero at 75 and 95
-    light: { dark: 280, name: "Cahaya" } // lux - below 150 is considered dark
+    temp: { low: 9, high: 29, name: "Suhu" }, // °C - Optimal range from 27-29
+    humidity: { low: 50, high: 95, name: "Kelembapan" }, // % - Optimal range with peak at 85, zero at 75 and 95
+    light: { dark: 100, name: "Cahaya" } // lux - below 150 is considered dark
 };
