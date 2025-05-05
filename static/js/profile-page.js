@@ -7,11 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize modals with their specific validation logic
   initModal('profileModal', 'openProfileModal', handleProfileUpdate);
   initModal('passwordModal', 'openPasswordModal', window.passwordModule.handlePasswordUpdate);
+  // Pass handleDeleteAccount as the onSave handler for deleteAccountModal, remove closeModal parameter
+  initModal('deleteAccountModal', 'openDeleteAccountModal', handleDeleteAccount); 
+  initModal('logoutModal', 'logoutButton', handleLogout); // Add logout modal
   
   // Set up other functionality
-  window.passwordModule.setupPasswordToggles();
+  // This will now handle the toggle in the delete modal as well
+  window.passwordModule.setupPasswordToggles(); 
   window.passwordModule.setupPasswordValidation();
-  setupProfilePictureUpload();
+  // setupLogoutHandler(); // Remove this call, function is removed below
   
   // Register global Escape key handler for modals
   document.addEventListener('keydown', function(event) {
@@ -99,31 +103,98 @@ function initModal(modalId, openerId, onSave = null) {
     document.body.style.overflow = 'hidden';
   }
   
-  // Close modal function
+  // Close modal function - Enhanced for robustness
   function closeModal() {
-    modal.classList.remove('modal--active');
-    document.body.style.overflow = '';
-    
-    // Clear form fields if needed
-    const formInputs = modal.querySelectorAll('input:not([disabled])');
-    formInputs.forEach(input => {
-      if (input.type === 'file') return; // Don't clear file inputs
-      input.value = '';
-    });
+    try {
+      // Hide the modal first
+      modal.classList.remove('modal--active');
+      document.body.style.overflow = '';
+
+      // Clear form fields safely
+      const formInputs = modal.querySelectorAll('input:not([disabled])');
+      formInputs.forEach(input => {
+        try { // Add inner try-catch for robustness during field clearing
+          if (input.type === 'file') return; 
+
+          // Reset password fields specifically
+          if (input.type === 'password') {
+              input.value = '';
+              // Also reset the eye icon if it was toggled
+              const toggleContainer = input.closest('.password-input-container');
+              if (toggleContainer) {
+                  const toggleBtnIcon = toggleContainer.querySelector('.password-toggle i');
+                  if (toggleBtnIcon && toggleBtnIcon.classList.contains('fa-eye-slash')) {
+                      input.type = 'password'; // Ensure it's password type
+                      toggleBtnIcon.className = 'fas fa-eye'; // Reset icon
+                  }
+              }
+          } else if (input.id !== 'displayName' && input.id !== 'emailAddress' && input.id !== 'userRole') {
+              // Avoid clearing pre-filled profile info unless it's a password
+              // Check if the input is within the current modal before clearing
+              if (modal.contains(input)) {
+                  input.value = '';
+              }
+          }
+        } catch (clearError) {
+          console.error(`Error clearing input field ${input.id}:`, clearError);
+        }
+      });
+
+      // Reset password strength indicators if present in this modal
+      const strengthMeter = modal.querySelector('.strength-meter__bar');
+      if (strengthMeter) {
+          strengthMeter.style.width = '0%';
+          strengthMeter.className = 'strength-meter__bar';
+          const strengthText = modal.querySelector('.strength-text');
+          if (strengthText) strengthText.textContent = 'Kekuatan kata sandi';
+      }
+      const passwordMatch = modal.querySelector('#passwordMatch');
+      if (passwordMatch) {
+          passwordMatch.textContent = '';
+          passwordMatch.className = '';
+      }
+      const requirementsList = modal.querySelector('.requirements-list');
+      if (requirementsList) {
+          requirementsList.querySelectorAll('li').forEach(item => {
+              item.classList.remove('valid');
+              const icon = item.querySelector('i');
+              // Reset icon to default circle for password requirements
+              if (icon && item.closest('.password-requirements')) { 
+                  icon.className = 'fas fa-circle'; 
+              }
+          });
+      }
+
+    } catch (error) {
+      console.error(`Error in closeModal for ${modalId}:`, error);
+      // Ensure modal is hidden even if field clearing fails
+      modal.classList.remove('modal--active');
+      document.body.style.overflow = '';
+    }
   }
   
   // Event listeners
   opener.addEventListener('click', openModal);
   
-  if (closeBtn) closeBtn.addEventListener('click', closeModal);
-  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+  }
+  
+  // Ensure cancel button listener is correctly attached
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeModal);
+  } else {
+    // Add a warning if the cancel button isn't found, helps debugging
+    console.warn(`Modal ${modalId}: Cancel button (id: cancel${modalId}) not found.`);
+  }
   
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
       if (onSave && typeof onSave === 'function') {
         onSave(modal, closeModal);
       } else {
-        closeModal();
+        // If there's no specific save action, default to closing the modal
+        closeModal(); 
       }
     });
   }
@@ -150,35 +221,6 @@ function closeAllModals() {
     activeModal.classList.remove('modal--active');
   });
   document.body.style.overflow = '';
-}
-
-/**
- * Set up profile picture upload and preview functionality
- */
-function setupProfilePictureUpload() {
-  const fileInput = document.getElementById('profilePictureInput');
-  const previewImage = document.getElementById('profilePicturePreview');
-  const mainProfileImage = document.getElementById('mainProfileImage');
-  
-  if (!fileInput) return;
-  
-  fileInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-      const imageData = e.target.result;
-      
-      if (previewImage) previewImage.src = imageData;
-      if (mainProfileImage) mainProfileImage.src = imageData;
-      
-      sessionStorage.setItem('profile_picture', imageData);
-    };
-    
-    reader.readAsDataURL(file);
-  });
 }
 
 /**
@@ -242,4 +284,126 @@ function showValidationError(message) {
   errorToast.timeoutId = setTimeout(() => {
     errorToast.classList.remove('toast--visible');
   }, 3000);
+}
+
+/**
+ * Handle delete account process
+ * @param {HTMLElement} modal - The modal element
+ * // Remove unused closeModal parameter
+ */
+function handleDeleteAccount(modal) { 
+  const passwordInput = document.getElementById('deleteAccountPassword');
+  const confirmButton = document.getElementById('savedeleteAccountModal'); // Target the correct button
+  
+  if (!passwordInput || !confirmButton) {
+    console.error('Delete account password input or confirm button not found');
+    showValidationError('Terjadi kesalahan internal.');
+    return;
+  }
+
+  const password = passwordInput.value;
+    
+  if (!password) {
+    // This error message should now only show if the field is truly empty
+    showValidationError('Silakan masukkan kata sandi Anda untuk konfirmasi');
+    return;
+  }
+  
+  // Show loading state
+  const originalText = confirmButton.textContent; // Store original text
+  confirmButton.disabled = true;
+  confirmButton.textContent = 'Menghapus...';
+  
+  // Send delete request
+  deleteAccount(password)
+    .then(data => {
+      if (data.status === 'success') {
+        // Don't reset button on success, as we are redirecting
+        showToast('Akun berhasil dihapus');
+        setTimeout(() => {
+          window.location.href = '/'; // Redirect to login page
+        }, 1500);
+      } else {
+        // Reset button state only on failure
+        confirmButton.disabled = false;
+        confirmButton.textContent = originalText; // Restore original text
+        
+        // Show error
+        showValidationError(data.message || 'Gagal menghapus akun');
+      }
+    })
+    .catch(error => {
+      // Reset button state on fetch error
+      confirmButton.disabled = false;
+      confirmButton.textContent = originalText; // Restore original text
+      
+      console.error('Error deleting account:', error);
+      showValidationError('Terjadi kesalahan saat menghapus akun');
+    });
+}
+
+/**
+ * Delete user account with password confirmation
+ * @param {string} password - User's password for verification
+ * @returns {Promise<Object>} - API response
+ */
+function deleteAccount(password) {
+  return fetch('/profile/delete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ password: password })
+  })
+  .then(response => {
+    if (!response.ok && response.status !== 401) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return response.json();
+  });
+}
+
+/**
+ * Handle logout process
+ * @param {HTMLElement} modal - The modal element
+ * @param {Function} closeModal - Function to close the modal
+ */
+function handleLogout(modal, closeModal) {
+  // Show loading state
+  const logoutButton = document.getElementById('savelogoutModal');
+  const originalText = logoutButton.textContent;
+  logoutButton.textContent = 'Keluar...';
+  logoutButton.disabled = true;
+  
+  // Send logout request as POST for CSRF protection
+  fetch('/auth/logout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
+  })
+  .then(response => {
+    // Clear client-side storage
+    sessionStorage.clear();
+    
+    // Redirect to login page
+    window.location.href = '/';
+  })
+  .catch(error => {
+    console.error('Logout error:', error);
+    
+    // Reset button state if there's an error
+    logoutButton.textContent = originalText;
+    logoutButton.disabled = false;
+    
+    // Show error message
+    showValidationError('Terjadi kesalahan saat keluar. Silakan coba lagi.');
+    
+    // Fallback to simple redirect if fetch fails
+    setTimeout(() => {
+      window.location.href = '/auth/logout';
+    }, 2000);
+  });
 }

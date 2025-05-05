@@ -1,10 +1,10 @@
-from flask import render_template, session, request, jsonify, current_app
+from flask import render_template, session, request, jsonify, current_app, redirect
 from . import bp
 from ..decorators import isloggedin
 import logging
 import firebase_admin
 from firebase_admin import auth
-import requests  # Add this import
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +119,69 @@ def update_password():
             return jsonify({'status': 'error', 'message': f'Gagal memperbarui kata sandi'}), 500
     except Exception as e:
         logger.error(f"Password update failed: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Terjadi kesalahan sistem'}), 500
+
+@bp.route("/delete", methods=["POST"])
+@isloggedin
+def delete_account():
+    """
+    Permanently delete a user account
+    
+    Requires password verification for security
+    """
+    try:
+        data = request.json
+        password = data.get('password')
+        
+        # Validate password is provided
+        if not password:
+            logger.warning(f"Missing password in delete account attempt: {session['user']['email']}")
+            return jsonify({'status': 'error', 'message': 'Kata sandi diperlukan untuk konfirmasi'}), 400
+        
+        # Get user email from session
+        email = session['user']['email']
+        
+        try:
+            # Get Firebase user by email
+            firebase_user = auth.get_user_by_email(email)
+            
+            # Verify password using Firebase REST API
+            firebase_api_key = current_app.config.get('FIREBASE_API_KEY')
+            if not firebase_api_key:
+                logger.error("Firebase API key not configured")
+                return jsonify({'status': 'error', 'message': 'Konfigurasi server tidak lengkap'}), 500
+            
+            # Step 1: Verify password by attempting to sign in
+            verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_api_key}"
+            verify_data = {
+                "email": email,
+                "password": password,
+                "returnSecureToken": True
+            }
+            
+            verify_response = requests.post(verify_url, json=verify_data)
+            
+            if not verify_response.ok:
+                logger.warning(f"Invalid password in delete account attempt: {email}")
+                return jsonify({'status': 'error', 'message': 'Kata sandi tidak valid'}), 401
+            
+            # Step 2: Delete user account using Firebase Admin SDK
+            auth.delete_user(firebase_user.uid)
+            
+            # Clear user session
+            session.clear()
+            
+            logger.info(f"User account deleted successfully: {email}")
+            return jsonify({'status': 'success', 'message': 'Akun berhasil dihapus'})
+            
+        except auth.UserNotFoundError:
+            logger.error(f"User not found in Firebase: {email}")
+            return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan'}), 404
+        except Exception as e:
+            logger.error(f"Firebase account deletion error: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'Gagal menghapus akun'}), 500
+    except Exception as e:
+        logger.error(f"Account deletion failed: {str(e)}")
         return jsonify({'status': 'error', 'message': f'Terjadi kesalahan sistem'}), 500
 
 def validate_password(password):

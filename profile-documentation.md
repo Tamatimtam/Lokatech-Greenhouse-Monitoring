@@ -16,10 +16,10 @@ The Profile System is a core component of the LokaTech Greenhouse Monitoring app
 
 ### Purpose
 The Profile System allows users to:
-- View and update their personal information
-- Change their profile picture
+- View and update their personal information (display name)
 - Manage password security
-- Control account settings
+- Control account settings (logout)
+- Delete their account permanently
 
 ### Architecture
 The system follows a Model-View-Controller (MVC) pattern:
@@ -32,7 +32,7 @@ The system follows a Model-View-Controller (MVC) pattern:
 - **Frontend**: 
   - HTML, CSS
   - JavaScript (modular organization with separate files for profile and password functionality)
-  - Browser SessionStorage (temporary data)
+  - Browser SessionStorage (temporary data for user name)
 
 ## Feature Guide
 
@@ -42,7 +42,7 @@ The system follows a Model-View-Controller (MVC) pattern:
 
 #### How It Works
 1. User navigates to the Profile page
-2. The system displays current profile information from the session
+2. The system displays current profile information (name, email, default avatar) from the session
 3. User can edit their display name by clicking "Informasi Profil"
 4. Changes are saved to Firebase and reflected immediately in the UI
 
@@ -88,53 +88,6 @@ function handleProfileUpdate(modal, closeModal) {
 - Immediate visual feedback when changes are made
 - Error handling with user-friendly messages
 - Loading state indication during server communication
-
-### Profile Picture Management
-
-#### How It Works
-1. User clicks "Ubah Foto" in the profile edit modal
-2. File browser opens for image selection
-3. Selected image is displayed in both the modal preview and main profile
-4. Image data is stored in browser SessionStorage for persistence
-
-#### Code Components
-- **Frontend Template**: `templates/profile.html` - Profile picture containers
-- **JavaScript**: `profile-page.js` - `setupProfilePictureUpload()` function
-- **CSS**: `profile-page.css` - Styling for profile images
-
-```javascript
-// Handles profile picture uploads with preview functionality
-function setupProfilePictureUpload() {
-  const fileInput = document.getElementById('profilePictureInput');
-  const previewImage = document.getElementById('profilePicturePreview');
-  const mainProfileImage = document.getElementById('mainProfileImage');
-  
-  if (!fileInput) return;
-  
-  fileInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-      const imageData = e.target.result;
-      
-      if (previewImage) previewImage.src = imageData;
-      if (mainProfileImage) mainProfileImage.src = imageData;
-      
-      sessionStorage.setItem('profile_picture', imageData);
-    };
-    
-    reader.readAsDataURL(file);
-  });
-}
-```
-
-#### Technical Details
-- Uses the FileReader API to handle image files
-- Updates multiple DOM elements to maintain UI consistency
-- SessionStorage maintains the image across page refreshes
 
 ### Password Management System
 
@@ -231,6 +184,118 @@ function handlePasswordUpdate(modal, closeModal) {
 - Password strength requirements are enforced on both client and server
 - Visual feedback helps users create strong passwords
 - Loading states prevent multiple submission attempts
+
+### Logout
+
+#### How It Works
+1. User clicks "Keluar" in the account settings list.
+2. A confirmation modal appears asking the user to confirm the logout action.
+3. If confirmed, a POST request is sent to the `/auth/logout` endpoint.
+4. The backend clears the user's session.
+5. The frontend clears any client-side session storage.
+6. The user is redirected to the login page (`/`).
+
+#### Code Components
+- **Backend Route**: `blueprints/auth/routes.py` - `logout()` function (handles POST)
+- **Frontend Template**: `templates/profile.html` - Logout list item (`id="logoutButton"`) and confirmation modal (`id="logoutModal"`)
+- **JavaScript**: `profile-page.js` - `initModal()` for logout, `handleLogout()` function
+- **CSS**: `profile-page.css` - Styling for logout modal and button (`#savelogoutModal`)
+
+```javascript
+// Function to handle logout process after modal confirmation
+function handleLogout(modal, closeModal) {
+  // Show loading state
+  const logoutButton = document.getElementById('savelogoutModal');
+  const originalText = logoutButton.textContent;
+  logoutButton.textContent = 'Keluar...';
+  logoutButton.disabled = true;
+  
+  // Send logout request as POST for CSRF protection
+  fetch('/auth/logout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
+  })
+  .then(response => {
+    // Clear client-side storage
+    sessionStorage.clear();
+    
+    // Redirect to login page
+    window.location.href = '/';
+  })
+  .catch(error => {
+    // Handle error, reset button, show message
+    // ...existing code...
+  });
+}
+```
+
+#### Security Considerations
+- Uses POST request to prevent CSRF attacks.
+- Server-side session clearing is the primary mechanism.
+- Client-side storage clearing (`sessionStorage.clear()`) provides an extra layer of cleanup.
+- Confirmation modal prevents accidental logout.
+
+### Account Deletion
+
+#### How It Works
+1. User clicks "Hapus akun ini" in the account settings
+2. Account deletion confirmation modal opens, warning the user about the permanent nature of the action.
+3. User must enter their current password into the provided field for verification.
+4. User clicks "Hapus Akun Saya".
+5. A POST request containing the password is sent to `/profile/delete`.
+6. Backend verifies the provided password against the user's actual password using Firebase REST API.
+7. If the password is correct, the backend deletes the user account via Firebase Admin SDK and clears the user session.
+8. User is redirected to the login page (`/`).
+
+#### Code Components
+- **Backend Route**: `blueprints/profile/routes.py` - `delete_account()` function
+- **Frontend Template**: `templates/profile.html` - Delete account list item (`id="openDeleteAccountModal"`) and confirmation modal (`id="deleteAccountModal"`)
+- **JavaScript**: `profile-page.js` - `initModal()` for delete, `handleDeleteAccount()` function, `deleteAccount()` function (fetch call)
+- **CSS**: `profile-page.css` - Styling for delete account list item, modal, and button (`#savedeleteAccountModal`)
+
+```javascript
+// Function to handle the delete account process after modal confirmation
+function handleDeleteAccount(modal) { 
+  const passwordInput = document.getElementById('deleteAccountPassword');
+  const confirmButton = document.getElementById('savedeleteAccountModal'); 
+  
+  // ... validation and loading state ...
+
+  const password = passwordInput.value;
+    
+  // ... check if password is empty ...
+  
+  // Send delete request
+  deleteAccount(password)
+    .then(data => {
+      if (data.status === 'success') {
+        // Show toast and redirect
+        // ...existing code...
+      } else {
+        // Reset button and show error
+        // ...existing code...
+      }
+    })
+    .catch(error => {
+      // Reset button and show error
+      // ...existing code...
+    });
+}
+
+// Function making the API call to delete the account
+function deleteAccount(password) {
+  // ... fetch call to /profile/delete ...
+}
+```
+
+#### Security Considerations
+- **Mandatory Password Verification**: Ensures only the account owner can initiate deletion.
+- **Backend Verification**: Password check happens securely on the server using Firebase REST API.
+- **Irreversible Action**: Clearly communicated to the user in the modal.
+- **Session Clearing**: Immediately logs the user out upon successful deletion.
 
 ### Modal System
 
@@ -345,6 +410,7 @@ blueprints/
 - **GET /profile/**: Renders the profile page with user data
 - **POST /profile/update**: Handles profile information updates
 - **POST /profile/password**: Processes password change requests with security validation
+- **POST /profile/delete**: Processes account deletion requests with password verification
 
 #### Authentication Integration
 The profile system integrates with Firebase Authentication:
@@ -382,6 +448,7 @@ def update_password():
             return jsonify({'status': 'error', 'message': 'Kata sandi baru tidak memenuhi persyaratan keamanan'}), 400
         
         # Get user email from session
+        
         email = session['user']['email']
         
         try:
@@ -446,7 +513,6 @@ The frontend JavaScript code is now split into two files for better organization
 1. **profile-page.js**: Contains the core profile page functionality
    - Modal initialization and management
    - Profile information update handling
-   - Profile picture management
    - UI utility functions and notifications
 
 2. **profile-password.js**: Dedicated file for password-related functionality
@@ -495,7 +561,7 @@ static/js/
 ├─────────────────────────────────────────┤
 │ Profile Info Card                       │
 │ ┌─────────────┐                         │
-│ │ Profile Pic │ Name                    │
+│ │ Default Pic │ Name                    │
 │ │             │ Email                   │
 │ └─────────────┘                         │
 ├─────────────────────────────────────────┤
@@ -503,12 +569,12 @@ static/js/
 │ • Informasi Profil                      │
 │ • Ubah Kata Sandi                       │
 │ • Keluar                                │
+│ • Hapus akun ini (red)                  │
 └─────────────────────────────────────────┘
 ```
 
 ### Modal Components
 1. **Profile Edit Modal**
-   - Profile picture with upload option
    - Display name input field
    - Read-only email field
    - Role information
@@ -518,6 +584,12 @@ static/js/
    - New password field with strength meter
    - Confirm password field
    - Password requirements checklist
+
+3. **Delete Account Modal**
+   - Warning message about permanent deletion
+   - Password verification field
+   - Cancel and confirm buttons
+   - Clear visual indicators of the destructive action
 
 ## Customization and Extension
 
@@ -603,6 +675,7 @@ The Profile System provides a comprehensive user account management solution wit
 | Profile Display | profile.html (lines 27-37) | `updateProfileDisplay()` in profile-page.js | GET /profile/ |
 | Profile Editing | profile.html (lines 57-91) | `handleProfileUpdate()` in profile-page.js | POST /profile/update |
 | Password Management | profile.html (lines 93-140) | Functions in profile-password.js:<br>- `setupPasswordValidation()`<br>- `handlePasswordUpdate()`<br>- `validatePassword()`<br>- `isPasswordValid()` | POST /profile/password |
-| Profile Picture | profile.html (lines 59-70) | `setupProfilePictureUpload()` in profile-page.js | N/A (browser storage) |
+| Logout | profile.html (lines 49-52, 153-159) | `initModal()`, `handleLogout()` in profile-page.js | POST /auth/logout |
+| Account Deletion | profile.html (lines 53-56, 135-151) | `initModal()`, `handleDeleteAccount()`, `deleteAccount()` in profile-page.js | POST /profile/delete |
 | Modal System | macros/modal.html | `initModal()`, `closeAllModals()` in profile-page.js | N/A (frontend only) |
 | Notifications | Generated via JS | `showToast()`, `showValidationError()` in profile-page.js | N/A (frontend only) |

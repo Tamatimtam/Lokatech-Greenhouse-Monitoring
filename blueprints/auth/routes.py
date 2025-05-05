@@ -26,9 +26,20 @@ def login():
         logger.error(f"Login failed: {str(e)}")
         return {'status': 'error', 'message': 'Invalid credentials'}, 400
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["GET", "POST"])
 def logout():
+    """
+    Log out the current user by clearing their session
+    Supports both GET (direct link) and POST (AJAX request) methods for flexibility
+    """
     if 'user' in session:
         logger.info(f"User logged out: {session['user']['email']}")
+    
     session.clear()
+    
+    # Return JSON response for AJAX requests
+    if request.method == "POST":
+        return jsonify({'status': 'success', 'message': 'Berhasil keluar'})
+    
+    # Redirect for direct link access
     return redirect("/")
