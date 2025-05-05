@@ -65,12 +65,14 @@ from blueprints.dashboard import bp as dashboard_bp
 from blueprints.sensor import bp as sensor_bp
 from blueprints.controls import bp as controls_bp
 from blueprints.profile import bp as profile_bp
+from blueprints.history.routes import history as history_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(sensor_bp)
 app.register_blueprint(controls_bp)
 app.register_blueprint(profile_bp)
+app.register_blueprint(history_bp)
 
 # Root route for login page
 @app.route("/")

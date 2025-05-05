@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "macros/navigation.html" as navigation %}
+
+{% block title %}History - Lokatani.id{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    
+    <main class="main-content">
+        <div class="header">
+            <div class="header__content">
+                <h1>History Data</h1>
+                <p>View historical sensor data from the greenhouse</p>
+            </div>
+        </div>
+
+        <div class="card-container">
+            <!-- Time range selector -->
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Time Range</h2>
+                </div>
+                <div class="card__content">
+                    <div class="time-range-selector">
+                        <button class="time-range-btn active" data-days="1">24 Hours</button>
+                        <button class="time-range-btn" data-days="7">7 Days</button>
+                        <button class="time-range-btn" data-days="30">30 Days</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperature Chart -->
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Temperature History</h2>
+                </div>
+                <div class="card__content">
+                    <div class="chart-container">
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humidity Chart -->
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Humidity History</h2>
+                </div>
+                <div class="card__content">
+                    <div class="chart-container">
+                        <canvas id="humidityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Light Chart -->
+            <div class="card">
+                <div class="card__header">
+                    <h2 class="card__title">Light Level History</h2>
+                </div>
+                <div class="card__content">
+                    <div class="chart-container">
+                        <canvas id="lightChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js Library and Date Adapter -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script src="{{ url_for('static', filename='js/history.js') }}"></script>
+{% endblock %}
