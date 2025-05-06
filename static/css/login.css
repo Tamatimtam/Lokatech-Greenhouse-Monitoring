@@ -107,6 +107,111 @@
     line-height: 1.5;
 }
 
+.register-link {
+    color: var(--primary);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--surface);
+    margin: 10% auto;
+    padding: 0;
+    width: 90%;
+    max-width: 500px;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    animation: modalFadeIn 0.3s;
+}
+
+@keyframes modalFadeIn {
+    from {opacity: 0; transform: translateY(-20px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+
+.modal-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+}
+
+.modal-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+.close-modal {
+    color: #aaa;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-modal:hover {
+    color: var(--text-primary);
+}
+
+.secondary-button {
+    height: 50px; /* Explicitly set height to match login-button */
+    padding: 0 var(--spacing-md); /* Adjust padding for horizontal spacing */
+    background: #f1f1f1;
+    color: var(--text-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem; /* Ensure font size matches for consistency */
+    cursor: pointer;
+    transition: 400ms ease;
+    display: inline-flex; /* Added for better text alignment */
+    align-items: center; /* Added for better text alignment */
+    justify-content: center; /* Added for better text alignment */
+}
+
+.secondary-button:hover {
+    background: #e0e0e0;
+}
+
+.info-message--info {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    background-color: #eaf2f8;
+    border-color: #a9cce3;
+    text-align: left;
+    margin-bottom: var(--spacing-md);
+}
+
+.info-message--info i {
+    color: #3498db;
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
 @media (max-width: 768px) {
     .image-section {
         display: none;

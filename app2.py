@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 import re
 from flask_socketio import SocketIO
+from flask_cors import CORS # Import CORS
 from blueprints.sensor.mqtt import sensor_manager # Import the globally managed instance
 
 # Configure logging
@@ -23,6 +24,8 @@ logger = logging.getLogger('GreenhouseApp')
 
 # INIT FLASK
 app = Flask(__name__)
+CORS(app) # Enable CORS for all routes and origins by default
+          # For production, you might want to restrict origins: CORS(app, resources={r"/auth/*": {"origins": "your_frontend_domain.com"}})
 app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
 
@@ -67,7 +70,7 @@ from blueprints.controls import bp as controls_bp
 from blueprints.profile import bp as profile_bp
 from blueprints.history.routes import history as history_bp
 
-app.register_blueprint(auth_bp)
+app.register_blueprint(auth_bp, url_prefix='/auth') # MODIFIED: Added url_prefix
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(sensor_bp)
 app.register_blueprint(controls_bp)

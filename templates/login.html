@@ -36,10 +36,37 @@
             <div class="divider">Pengguna Baru?</div>
 
             <div class="info-message">
-                Untuk mendaftarkan akun baru, silakan hubungi administrator greenhouse setempat.
+                <a href="#" id="openRegisterModal" class="register-link">Daftarkan Akun (Khusus Internal Lokatani)</a>
             </div>
 
             <div id="error-message" style="color: red; margin-top: 10px; text-align: center;"></div>
+        </div>
+        
+        <!-- Registration Modal -->
+        <div id="registerModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Daftar Akun Baru</h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="info-message info-message--info">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Pendaftaran akun hanya tersedia untuk karyawan Lokatani dengan email domain @lokatani.id. Dalam fase development, akun dengan domain @mhsw.pnj.ac.id dapat diterima.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" name="registerEmail" placeholder="nama@lokatani.id" required>
+                    </div>
+                    
+                    <div id="register-error-message" style="color: red; margin-top: 10px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="secondary-button close-modal-btn">Batal</button>
+                    <button type="button" id="submitRegister" class="login-button">Daftar</button>
+                </div>
+            </div>
         </div>
     </div>
     <div class="image-section"></div>
