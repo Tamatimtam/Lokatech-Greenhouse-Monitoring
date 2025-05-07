@@ -7,16 +7,25 @@
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--primary);
+  border: 4px solid white; /* Enhanced border for better contrast on gradient */
   margin-right: var(--spacing-md);
   /* Add box shadow to enhance profile image appearance */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease; /* Added transition */
+}
+
+/* Add hover effect for profile image */
+.profile__image:hover {
+  transform: scale(1.05);
 }
 
 .profile__header {
   display: flex;
   align-items: center;
   padding: var(--spacing-md);
+  /* Add a subtle gradient background to the profile header within the card */
+  background: linear-gradient(to right, rgba(var(--primary-rgb), 0.05), transparent);
+  border-radius: var(--radius-md) var(--radius-md) 0 0; /* Rounded top corners */
 }
 
 .profile__info h2 {
@@ -44,12 +53,29 @@
 .profile__list-item {
   display: flex;
   align-items: center;
-  padding: var(--spacing-md) 0;
+  padding: var(--spacing-md) var(--spacing-lg); /* Adjusted padding */
   border-bottom: 1px solid #eee;
+  transition: all 0.2s ease; /* Added transition */
+  margin: 0 calc(-1 * var(--spacing-lg)); /* Adjust for card padding */
+  border-radius: var(--radius-sm);
+}
+
+/* Add hover effect for list items */
+.profile__list-item:hover {
+  background-color: rgba(var(--primary-rgb), 0.05);
+  padding-left: calc(var(--spacing-lg) + 0.5rem); /* Indent on hover */
+  /* color: var(--primary); */ /* Let individual elements handle color if needed */
 }
 
 .profile__list-item:last-child {
   border-bottom: none;
+  /* margin-top: var(--spacing-md); */ /* Optional: add space before delete */
+  /* border-top: 1px solid #eee; */ /* Optional: separator for delete */
+}
+
+/* Special hover for delete item */
+.profile__list-item:has(.delete-icon):hover {
+  background-color: #fff5f5; /* Light red background on hover */
 }
 
 .profile__list-item i {
@@ -58,6 +84,12 @@
   font-size: 1.2rem;
   width: 24px;
   text-align: center;
+  transition: transform 0.2s ease; /* Added transition */
+}
+
+/* Icon scale on list item hover */
+.profile__list-item:hover i {
+  transform: scale(1.1);
 }
 
 .profile__list-item span, 
@@ -78,6 +110,17 @@
 
 .card--profile .card__content {
   padding: 0;
+}
+
+/* Enhanced Profile Card */
+.card--profile {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.card--profile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* --- EXISTING PROFILE PAGE STYLES --- */
@@ -136,18 +179,32 @@
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1000;
-  transition: transform 0.3s ease;
   font-weight: 500;
+  opacity: 0; /* Start hidden for animation */
+  backdrop-filter: blur(5px); /* Subtle blur for modern feel */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
 }
 
 .toast--visible {
-  transform: translateX(-50%) translateY(0);
+  animation: slideUpFadeIn 0.4s ease forwards;
 }
 
 /* Add to existing toast styles */
 .toast--error {
   background-color: #e74c3c;
   color: white;
+}
+
+/* Keyframe animation for toast */
+@keyframes slideUpFadeIn {
+  from {
+    transform: translateX(-50%) translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Delete account styling */
@@ -220,6 +277,28 @@
 
 #savedeleteAccountModal:hover {
   background-color: #c0392b;
+}
+
+/* Enhanced Modal Styles */
+.modal__content {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease; /* Added opacity */
+  transform: scale(0.9) translateY(20px); /* Start slightly smaller and lower */
+  opacity: 0; /* Start hidden */
+}
+
+.modal--active .modal__content {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* Enhanced Form Controls */
+.form-control {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15); /* Slightly more prominent shadow */
 }
 
 /* Add responsive styling */

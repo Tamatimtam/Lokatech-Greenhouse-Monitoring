@@ -51,6 +51,33 @@ document.addEventListener('DOMContentLoaded', function() {
       closeAllModals();
     }
   });
+
+  // Easter Egg: Avatar Changer
+  const AVATAR_FILENAMES = ['default-avatar.png', 'default-avatar-2.jpeg', 'default-avatar3.jpeg'];
+  const AVATAR_BASE_PATH = '/static/images/'; // Assuming static files are served from /static/
+  let currentAvatarIndex = 0;
+  
+  const profileImageElement = document.getElementById('mainProfileImage');
+
+  if (profileImageElement) {
+    // Load saved avatar from session storage
+    const savedAvatarFilename = sessionStorage.getItem('selectedAvatar');
+    if (savedAvatarFilename && AVATAR_FILENAMES.includes(savedAvatarFilename)) {
+      currentAvatarIndex = AVATAR_FILENAMES.indexOf(savedAvatarFilename);
+      profileImageElement.src = AVATAR_BASE_PATH + savedAvatarFilename;
+    } else {
+      // Set default if nothing saved or invalid
+      profileImageElement.src = AVATAR_BASE_PATH + AVATAR_FILENAMES[0];
+      sessionStorage.setItem('selectedAvatar', AVATAR_FILENAMES[0]);
+    }
+
+    profileImageElement.addEventListener('click', function() {
+      currentAvatarIndex = (currentAvatarIndex + 1) % AVATAR_FILENAMES.length;
+      const newAvatarFilename = AVATAR_FILENAMES[currentAvatarIndex];
+      this.src = AVATAR_BASE_PATH + newAvatarFilename;
+      sessionStorage.setItem('selectedAvatar', newAvatarFilename);
+    });
+  }
 });
 
 /**
