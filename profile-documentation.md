@@ -91,99 +91,68 @@ function handleProfileUpdate(modal, closeModal) {
 
 ### Password Management System
 
-#### How It Works
-1. User clicks "Ubah Kata Sandi" in the account settings
-2. Password change modal opens with three fields:
-   - Current password
-   - New password (with strength meter)
-   - Confirm password
-3. Real-time validation provides feedback on password requirements
-4. After validation, password update is processed through the following steps:
-   - Current password is verified using Firebase Authentication
-   - New password is validated against security requirements
-   - Password is updated in Firebase if all validations pass
-5. User receives confirmation of successful password change or specific error message
+#### How It Works (New Email-Based Flow)
+1. User clicks "Ubah Kata Sandi" in the account settings on the profile page.
+2. A confirmation modal appears, displaying the user's registered email address (e.g., `{{ user.email }}`) and asking for confirmation to send a password change link.
+3. If the user confirms (e.g., clicks "Kirim Email"), the frontend JavaScript directly calls `firebase.auth().sendPasswordResetEmail()` using the authenticated user's email address.
+4. Firebase sends an email to the user containing a secure, time-limited link to change their password.
+5. The user clicks the link in the email. This typically directs them to a standard Firebase-hosted page (or a custom action handler page if configured in the Firebase project settings) where they can enter and confirm their new password.
+6. Firebase handles the validation of the new password on its page according to the project's password policies.
+7. Upon successful submission on the Firebase page, the user's password is updated in Firebase Authentication.
+8. Back in the application, the user receives a toast notification confirming that the password change email has been sent. They should then check their inbox.
 
 #### Password Requirements Validation
-The system enforces strong password policies with visual feedback:
-- Minimum 8 characters
-- At least one uppercase letter
-- At least one number
-- At least one special character
+Password strength and requirements are now primarily enforced by Firebase on its password reset/change page. The in-app client-side validation for new password strength and matching during a password change has been removed.
 
 #### Code Components
-- **Backend Route**: `blueprints/profile/routes.py` - `update_password()` function
-- **Frontend Template**: `templates/profile.html` - Password modal form
+- **Backend Route**: The `POST /profile/password` endpoint and its associated `validate_password` helper function in `blueprints/profile/routes.py` have been **removed**. The password change initiation and process are now handled by the Firebase client-side SDK and Firebase services.
+- **Frontend Template**: `templates/profile.html` - The `passwordModal` has been simplified to a confirmation dialog. Input fields for current/new/confirm password, strength meter, and requirements list have been removed from this modal.
 - **JavaScript**: 
-  - `profile-password.js`: Dedicated file for password functionality
-    - `setupPasswordValidation()`: Sets up real-time validation
-    - `validatePassword()`: Checks password strength
-    - `handlePasswordUpdate()`: Processes the password change
-  - `profile-page.js`: Main profile page functionality that calls password functions
-- **CSS**: `profile-page.css` - Styling for password strength indicators
+  - `profile-page.js`:
+    - The `initModal()` call for `passwordModal` now uses `handleRequestPasswordChangeEmail` as its save handler.
+    - `handleRequestPasswordChangeEmail()`: This new function retrieves the user's email, calls `firebase.auth().sendPasswordResetEmail(userEmail)`, shows a loading state, displays a toast notification upon success or error, and closes the modal.
+  - `profile-password.js`: This file has been **removed** as its functionalities (in-app password validation, old update handler) are no longer needed for the password change feature. The `setupPasswordToggles` function was moved to `profile-page.js` for use by other modals (e.g., Delete Account).
+- **CSS**: `profile-page.css` - CSS rules for the removed password strength meter, requirements list, and match indicators have been removed.
 
 ```javascript
-// Password update handler with server communication from profile-password.js
-function handlePasswordUpdate(modal, closeModal) {
-  const currentPassword = document.getElementById('currentPassword').value;
-  const newPassword = document.getElementById('newPassword').value;
-  const confirmPassword = document.getElementById('confirmPassword').value;
-  
-  // Validate inputs
-  if (!currentPassword) {
-    showValidationError('Kata sandi saat ini diperlukan');
+// Key JavaScript function in profile-page.js for the new password change flow
+async function handleRequestPasswordChangeEmail(modal, closeModal) {
+  const userEmailElement = document.getElementById('userEmailForPasswordChange');
+  // Fallback to emailAddress input if the span isn't found or populated, though the span should be primary.
+  const userEmail = userEmailElement ? userEmailElement.textContent : document.getElementById('emailAddress')?.value;
+
+  if (!userEmail) {
+    showValidationError('Tidak dapat menemukan alamat email pengguna.');
     return;
   }
-  
-  if (!isPasswordValid(newPassword)) {
-    showValidationError('Harap penuhi semua persyaratan kata sandi');
-    return;
-  }
-  
-  if (newPassword !== confirmPassword) {
-    showValidationError('Kata sandi tidak cocok');
-    return;
-  }
-  
-  // Show loading indicator
-  const saveButton = document.getElementById('savepasswordModal');
+
+  const saveButton = document.getElementById('savepasswordModal'); // ID of the "Kirim Email" button in passwordModal
   const originalText = saveButton.textContent;
-  saveButton.textContent = 'Memperbarui...';
+  saveButton.textContent = 'Mengirim...';
   saveButton.disabled = true;
-  
-  // Send update to server
-  fetch('/profile/password', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({ 
-      currentPassword: currentPassword,
-      newPassword: newPassword
-    })
-  })
-  .then(response => response.json())
-  .then(data => {
-    // Handle response and update UI
-    // ...existing code...
-  })
-  .catch(error => {
-    // Error handling
-    // ...existing code...
-  });
+
+  try {
+    // Firebase client SDK call to send the password reset email
+    await firebase.auth().sendPasswordResetEmail(userEmail);
+    showToast(`Email untuk mengubah kata sandi telah dikirim ke ${userEmail}. Silakan periksa kotak masuk Anda.`);
+    closeModal(); // Close the confirmation modal
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    showValidationError(error.message || 'Gagal mengirim email perubahan kata sandi.');
+  } finally {
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+  }
 }
 ```
 
 #### Security Considerations
-- Current password verification ensures only the authorized user can change the password
-- Two-step verification process:
-  1. First authenticates with current password using Firebase REST API
-  2. Then updates password using Firebase Admin SDK only if authentication succeeds
-- Client-side validation is complemented by comprehensive server-side validation
-- Password strength requirements are enforced on both client and server
-- Visual feedback helps users create strong passwords
-- Loading states prevent multiple submission attempts
+- The security of the password change process now relies on:
+    - The user being authenticated within the application to access the profile page and initiate the request.
+    - The security of the user's email account (to receive the reset link).
+    - Firebase's secure link generation, handling, and its password setting page.
+- This flow eliminates the need for the application to handle or verify the user's current password for a password change initiated by an already logged-in user.
+- It aligns with standard web practices for password changes and resets.
 
 ### Logout
 
@@ -409,7 +378,6 @@ blueprints/
 #### Key Routes
 - **GET /profile/**: Renders the profile page with user data
 - **POST /profile/update**: Handles profile information updates
-- **POST /profile/password**: Processes password change requests with security validation
 - **POST /profile/delete**: Processes account deletion requests with password verification
 
 #### Authentication Integration
@@ -421,79 +389,6 @@ The profile system integrates with Firebase Authentication:
   - Only allows password changes after successful verification
   - Validates password complexity requirements server-side
 - Maintains user state in the Flask session
-
-```python
-@bp.route("/password", methods=["POST"])
-@isloggedin
-def update_password():
-    """
-    Update user password in Firebase
-    
-    Requires current password verification for security and validates 
-    that the new password meets strength requirements
-    """
-    try:
-        data = request.json
-        current_password = data.get('currentPassword')
-        new_password = data.get('newPassword')
-        
-        # Validate inputs
-        if not current_password or not new_password:
-            logger.warning(f"Missing password fields in update attempt: {session['user']['email']}")
-            return jsonify({'status': 'error', 'message': 'Semua bidang kata sandi diperlukan'}), 400
-        
-        # Validate new password requirements
-        if not validate_password(new_password):
-            logger.warning(f"Weak password attempt: {session['user']['email']}")
-            return jsonify({'status': 'error', 'message': 'Kata sandi baru tidak memenuhi persyaratan keamanan'}), 400
-        
-        # Get user email from session
-        
-        email = session['user']['email']
-        
-        try:
-            # Get Firebase user by email
-            firebase_user = auth.get_user_by_email(email)
-            
-            # Verify current password using Firebase REST API
-            firebase_api_key = current_app.config.get('FIREBASE_API_KEY')
-            if not firebase_api_key:
-                logger.error("Firebase API key not configured")
-                return jsonify({'status': 'error', 'message': 'Konfigurasi server tidak lengkap'}), 500
-            
-            # Step 1: Verify current password by attempting to sign in
-            verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_api_key}"
-            verify_data = {
-                "email": email,
-                "password": current_password,
-                "returnSecureToken": True
-            }
-            
-            verify_response = requests.post(verify_url, json=verify_data)
-            
-            if not verify_response.ok:
-                logger.warning(f"Invalid current password attempt: {email}")
-                return jsonify({'status': 'error', 'message': 'Kata sandi saat ini tidak valid'}), 401
-            
-            # Step 2: Update password using Firebase Admin SDK
-            auth.update_user(
-                firebase_user.uid,
-                password=new_password
-            )
-            
-            logger.info(f"Password updated successfully for user: {email}")
-            return jsonify({'status': 'success', 'message': 'Kata sandi berhasil diperbarui'})
-            
-        except auth.UserNotFoundError:
-            logger.error(f"User not found in Firebase: {email}")
-            return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan'}), 404
-        except Exception as e:
-            logger.error(f"Firebase password update error: {str(e)}")
-            return jsonify({'status': 'error', 'message': f'Gagal memperbarui kata sandi'}), 500
-    except Exception as e:
-        logger.error(f"Password update failed: {str(e)}")
-        return jsonify({'status': 'error', 'message': f'Terjadi kesalahan sistem'}), 500
-```
 
 ### Frontend Architecture
 

@@ -83,54 +83,10 @@
     </div>
   {% endcall %}
   
-  {% call modal.modal('passwordModal', 'Ubah Kata Sandi') %}
-    <div class="password-edit">
-      <div class="form-group">
-        <label for="currentPassword">Kata Sandi Saat Ini</label>
-        <div class="password-input-container">
-          <input type="password" id="currentPassword" class="form-control" placeholder="Masukkan kata sandi Anda saat ini" required>
-          <button type="button" class="password-toggle" tabindex="-1">
-            <i class="fas fa-eye"></i>
-          </button>
-        </div>
-      </div>
-      
-      <div class="form-group">
-        <label for="newPassword">Kata Sandi Baru</label>
-        <div class="password-input-container">
-          <input type="password" id="newPassword" class="form-control" placeholder="Masukkan kata sandi baru Anda" required>
-          <button type="button" class="password-toggle" tabindex="-1">
-            <i class="fas fa-eye"></i>
-          </button>
-        </div>
-        <div class="password-strength">
-          <div class="strength-meter">
-            <div class="strength-meter__bar" id="passwordStrength"></div>
-          </div>
-          <span class="strength-text" id="strengthText">Kekuatan kata sandi</span>
-        </div>
-      </div>
-      
-      <div class="form-group">
-        <label for="confirmPassword">Konfirmasi Kata Sandi</label>
-        <div class="password-input-container">
-          <input type="password" id="confirmPassword" class="form-control" placeholder="Konfirmasi kata sandi baru Anda" required>
-          <button type="button" class="password-toggle" tabindex="-1">
-            <i class="fas fa-eye"></i>
-          </button>
-        </div>
-        <small id="passwordMatch"></small>
-      </div>
-      
-      <div class="password-requirements">
-        <h4>Persyaratan Kata Sandi:</h4>
-        <ul class="requirements-list">
-          <li id="length-check"><i class="fas fa-circle"></i> Minimal 8 karakter</li>
-          <li id="uppercase-check"><i class="fas fa-circle"></i> Minimal 1 huruf kapital</li>
-          <li id="number-check"><i class="fas fa-circle"></i> Minimal 1 angka</li>
-          <li id="special-check"><i class="fas fa-circle"></i> Minimal 1 karakter khusus</li>
-        </ul>
-      </div>
+  {% call modal.modal('passwordModal', 'Ubah Kata Sandi', saveButtonText="Kirim Email", cancelButtonText="Batal") %}
+    <div class="password-change-confirmation">
+      <p>Link untuk mengubah kata sandi akan dikirimkan ke alamat email Anda yang terdaftar: <strong><span id="userEmailForPasswordChange">{{ user.email if user else 'email.anda@contoh.com' }}</span></strong>.</p>
+      <p>Apakah Anda yakin ingin melanjutkan?</p>
     </div>
   {% endcall %}
   
@@ -173,6 +129,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/profile-password.js') }}"></script>
+<script src="{{ url_for('static', filename='js/firebase-init.js') }}"></script> <!-- ADD THIS LINE -->
+<!-- Removed script tag for profile-password.js -->
 <script src="{{ url_for('static', filename='js/profile-page.js') }}"></script>
 {% endblock %}
