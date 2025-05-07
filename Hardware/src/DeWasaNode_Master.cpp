@@ -27,8 +27,10 @@
 const char* ssid = "Direktorat Kemendikbud";      // Replace with your WiFi SSID
 const char* password = "NadiemGantengSih";  // Replace with your WiFi password
 
-const char* mqtt_server = "broker.emqx.io"; // Replace if using a different broker
-const int mqtt_port = 1883;                // Standard MQTT port
+const char* mqtt_server = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"; // HiveMQ Cloud server
+const int mqtt_port = 8883;                // TLS MQTT port
+const char* mqtt_username = "LokataniAdmin"; // MQTT username
+const char* mqtt_password = "LokataniAdmin123"; // MQTT password
 const char* mqtt_publish_topic = "lokatech/greenhouse/sensors"; // Topic to publish data TO
 const char* mqtt_control_topic = "lokatech/greenhouse/controls/set"; // Topic to receive commands FROM
 
@@ -109,8 +111,9 @@ void setup() {
   // Initialize managers
   sensorManager = new SensorManager(DHT_PIN, TEMP_HUMID_SIMULATION_MODE, LIGHT_SIMULATION_MODE);
   // espNowManager = new ESPNowManager(); // Removed
-  // Pass the PUBLISH topic to the manager constructor
-  mqttManager = new MQTTManager(ssid, password, mqtt_server, mqtt_port, mqtt_publish_topic);
+  // Pass both PUBLISH and CONTROL topics to the manager constructor
+  // Initialize the MQTT Manager with username and password
+  mqttManager = new MQTTManager(ssid, password, mqtt_server, mqtt_port, mqtt_publish_topic, mqtt_control_topic, mqtt_username, mqtt_password);
   fuzzyController = new FuzzyController(); // Initialize Fuzzy Controller
 
   // Initialize LED pins
@@ -138,17 +141,20 @@ void setup() {
     Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT (and WiFi)");
     // Consider halting or retrying if WiFi/MQTT is critical
   } else {
-      // Connect to MQTT broker only after WiFi is up via mqttManager->begin()
+      // Set the callback BEFORE trying to connect
+      Serial.println("[DeWasaNode_Master] Setting MQTT callback...");
+      mqttManager->setCallback(mqttCallback);
+      Serial.printf("[DeWasaNode_Master] MQTT callback set to %p\n", mqttCallback);
+      
+      // Now try to connect to MQTT broker
       if (mqttManager->connect()) {
         Serial.println("[DeWasaNode_Master] Connected to MQTT broker");
-        // Set the callback AFTER successful connection
-        mqttManager->getClient().setCallback(mqttCallback); // Use the PubSubClient instance via getter if available, or modify MQTTManager
-        // Subscribe to the control topic
-        if (mqttManager->getClient().subscribe(mqtt_control_topic)) {
-             Serial.printf("[DeWasaNode_Master] Subscribed to control topic: %s\n", mqtt_control_topic);
-        } else {
-             Serial.println("[DeWasaNode_Master] ERROR: Failed to subscribe to control topic!");
-        }
+        Serial.printf("[DeWasaNode_Master] Control topic is: %s\n", mqtt_control_topic);
+        
+        // Double-check subscription
+        bool resubscribeSuccess = mqttManager->getClient().subscribe(mqtt_control_topic, 1);
+        Serial.printf("[DeWasaNode_Master] Double-check subscription: %s\n", 
+                     resubscribeSuccess ? "SUCCESS" : "FAILED");
       } else {
          Serial.println("[DeWasaNode_Master] WARNING: Failed to connect to MQTT broker initially.");
       }
@@ -296,6 +302,27 @@ void loop() {
 
   // Handle MQTT connection and message processing
   mqttManager->loop();
+  
+  // Ensure we're subscribed to the control topic if MQTT is connected
+  static unsigned long lastSubscriptionCheckTime = 0;
+  if (currentTime - lastSubscriptionCheckTime >= 10000) { // Check every 10 seconds (was 30)
+    lastSubscriptionCheckTime = currentTime;
+    if (mqttManager->isConnected()) {
+      // Test sending a message to ourselves (loopback) to verify MQTT reception
+      char testMsg[100];
+      sprintf(testMsg, "{\"device\":\"test\",\"mode\":\"test\",\"state\":false}");
+      
+      // Force a resubscription to ensure we're listening
+      bool subscribeResult = mqttManager->getClient().subscribe(mqtt_control_topic, 1); // QoS 1
+      Serial.printf("[DeWasaNode_Master] Subscription check - Topic: %s, Result: %s\n", 
+                   mqtt_control_topic, subscribeResult ? "SUCCESS" : "FAILED");
+                   
+      // Send a test message to the control topic to test reception
+      bool publishResult = mqttManager->getClient().publish(mqtt_control_topic, testMsg);
+      Serial.printf("[DeWasaNode_Master] Self-test message sent to %s: %s\n", 
+                   mqtt_control_topic, publishResult ? "SUCCESS" : "FAILED");
+    }
+  }
 
   // Run Fuzzy Logic Control periodically (could be tied to MQTT interval or separate)
   // Let's run it right after potentially publishing MQTT data
@@ -465,15 +492,26 @@ void runFuzzyControl() {
 
 // --- MQTT Callback Function ---
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  Serial.printf("[MQTT Callback] Message arrived on topic: %s\n", topic);
+  Serial.printf("\n*** [MQTT Callback] Message arrived! ***\n");
+  Serial.printf("  Topic: %s (expected: %s)\n", topic, mqtt_control_topic);
+  Serial.printf("  Topics match: %s\n", (strcmp(topic, mqtt_control_topic) == 0) ? "YES" : "NO");
+  Serial.printf("  Message length: %d bytes\n", length);
 
   // Null-terminate the payload to treat it as a C-string
-  payload[length] = '\0';
-  String message = (char*)payload;
-  Serial.printf("[MQTT Callback] Payload: %s\n", message.c_str());
+  char* payloadCopy = (char*)malloc(length + 1);
+  if (!payloadCopy) {
+    Serial.println("[MQTT Callback] ERROR: Out of memory for payload copy");
+    return;
+  }
+  
+  memcpy(payloadCopy, payload, length);
+  payloadCopy[length] = '\0';
+  String message = String(payloadCopy);
+  
+  Serial.printf("  Payload: %s\n", message.c_str());
 
   // Debug: Print the raw bytes of the payload for detailed inspection
-  Serial.print("[MQTT Callback] DEBUG: Raw payload bytes: ");
+  Serial.print("  Raw bytes: ");
   for (unsigned int i = 0; i < length; i++) {
     Serial.printf("%02X ", payload[i]);
   }
@@ -482,16 +520,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   // Check if the topic matches the control topic
   if (strcmp(topic, mqtt_control_topic) == 0) {
     StaticJsonDocument<128> doc; // Small doc for command parsing
-    DeserializationError error = deserializeJson(doc, message);
+    DeserializationError error = deserializeJson(doc, payloadCopy);
+    free(payloadCopy); // Free the memory after use
 
     if (error) {
-      Serial.print("[MQTT Callback] ERROR: deserializeJson() failed: ");
-      Serial.println(error.c_str());
+      Serial.printf("  ERROR: JSON parsing failed: %s\n", error.c_str());
       return;
     }
 
     // Debug: Dump the entire JSON document to see what it actually contains
-    Serial.println("[MQTT Callback] DEBUG: JSON document contents:");
+    Serial.println("  JSON contents:");
     serializeJsonPretty(doc, Serial);
     Serial.println();
 
@@ -500,19 +538,19 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     const char* mode = doc["mode"];     // "manual" or "auto"
     
     // Debug: Print individual extracted values with their types
-    Serial.printf("[MQTT Callback] DEBUG: device=%s (exists: %s)\n", 
+    Serial.printf("  device=%s (exists: %s)\n", 
                  device ? device : "NULL", doc.containsKey("device") ? "YES" : "NO");
-    Serial.printf("[MQTT Callback] DEBUG: mode=%s (exists: %s)\n", 
+    Serial.printf("  mode=%s (exists: %s)\n", 
                  mode ? mode : "NULL", doc.containsKey("mode") ? "YES" : "NO");
     
     if (doc.containsKey("state")) {
       bool state = doc["state"];
-      Serial.printf("[MQTT Callback] DEBUG: state=%s (type: %s)\n", 
+      Serial.printf("  state=%s (type: %s)\n", 
                    state ? "true" : "false", 
                    doc["state"].is<bool>() ? "bool" : 
                    (doc["state"].is<int>() ? "int" : "other"));
     } else {
-      Serial.println("[MQTT Callback] DEBUG: state key does not exist");
+      Serial.println("  state key does not exist");
     }
 
     if (!device) {

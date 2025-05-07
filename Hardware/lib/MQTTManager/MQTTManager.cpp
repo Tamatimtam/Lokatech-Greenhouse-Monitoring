@@ -1,10 +1,13 @@
 #include "MQTTManager.h"
 
 MQTTManager::MQTTManager(const char* ssid, const char* password, const char* mqttServer, 
-                         int mqttPort, const char* mqttTopic)
+                         int mqttPort, const char* mqttPublishTopic, const char* mqttControlTopic,
+                         const char* mqttUser, const char* mqttPassword)
     : _ssid(ssid), _password(password), _mqttServer(mqttServer), 
-      _mqttTopic(mqttTopic), _mqttPort(mqttPort), _mqttClient(_wifiClient),
-      _lastReconnectAttempt(0) {
+      _mqttPublishTopic(mqttPublishTopic), _mqttControlTopic(mqttControlTopic), // Store both topics
+      _mqttUser(mqttUser), _mqttPassword(mqttPassword), // Store MQTT credentials
+      _mqttPort(mqttPort), _mqttClient(_wifiClientSecure),
+      _lastReconnectAttempt(0), _callback(nullptr) {
 }
 
 bool MQTTManager::begin() {
@@ -12,6 +15,9 @@ bool MQTTManager::begin() {
     if (!connectWiFi()) {
         return false;
     }
+    
+    // Skip SSL certificate validation (less secure, but works for testing)
+    _wifiClientSecure.setInsecure();
     
     // Configure MQTT server
     _mqttClient.setServer(_mqttServer, _mqttPort);
@@ -58,6 +64,15 @@ bool MQTTManager::connect() {
         Serial.print(" Port: ");
         Serial.println(_mqttPort);
         
+        // Important: Set the callback BEFORE connecting
+        // This ensures callback is set whether we're connecting for the first time or reconnecting
+        if (_callback) {
+            _mqttClient.setCallback(_callback);
+            Serial.printf("[MQTTManager] Callback set to %p\n", _callback);
+        } else {
+            Serial.println("[MQTTManager] WARNING: MQTT callback not set. No messages will be received.");
+        }
+        
         // Create a client ID based on MAC address and timestamp
         String clientId = "ESP32Dewasa-";
         clientId += String(WiFi.macAddress());
@@ -67,12 +82,38 @@ bool MQTTManager::connect() {
         Serial.print("[MQTTManager] Client ID: ");
         Serial.println(clientId);
         
+        // Log user credentials status (not the actual values)
+        if (_mqttUser && _mqttPassword) {
+            Serial.println("[MQTTManager] Using MQTT authentication");
+        } else {
+            Serial.println("[MQTTManager] No MQTT credentials provided, connecting without authentication");
+        }
+        
         // Try to connect with timeout
         unsigned long startAttemptTime = millis();
         
-        // Connect with ClientID only, no username/password (for public brokers)
-        if (_mqttClient.connect(clientId.c_str())) {
+        bool connected = false;
+        if (_mqttUser && _mqttPassword) {
+            // Connect with ClientID, Username and Password
+            connected = _mqttClient.connect(clientId.c_str(), _mqttUser, _mqttPassword);
+        } else {
+            // Connect with ClientID only
+            connected = _mqttClient.connect(clientId.c_str());
+        }
+        
+        if (connected) {
             Serial.println("[MQTTManager] MQTT connected successfully");
+            
+            // Subscribe to the control topic immediately after connecting
+            bool subscribeSuccess = _mqttClient.subscribe(_mqttControlTopic, 1); // QoS 1 for more reliability
+            if (subscribeSuccess) {
+                 Serial.printf("[MQTTManager] Subscribed to control topic: %s\n", _mqttControlTopic);
+            } else {
+                 Serial.printf("[MQTTManager] ERROR: Failed to subscribe to control topic %s! PubSubClient state: %d\n", _mqttControlTopic, _mqttClient.state());
+                 // Decide if failure to subscribe should mean connection failed.
+                 // For now, we'll return true but log the error.
+            }
+            
             return true;
         } else {
             int state = _mqttClient.state();
@@ -120,7 +161,7 @@ bool MQTTManager::publish(const String& payload) {
     Serial.println("[MQTTManager] Publishing data to MQTT:");
     Serial.println(payload);
     Serial.print("[MQTTManager] Topic: ");
-    Serial.println(_mqttTopic);
+    Serial.println(_mqttPublishTopic); // Use the publish topic
     
     // Get the payload size
     size_t payloadSize = payload.length();
@@ -128,7 +169,7 @@ bool MQTTManager::publish(const String& payload) {
     Serial.println(payloadSize);
     
     // Publish with QoS 0, no-retain
-    bool result = _mqttClient.publish(_mqttTopic, payload.c_str(), false);
+    bool result = _mqttClient.publish(_mqttPublishTopic, payload.c_str(), false); // Use the publish topic
     
     if (result) {
         Serial.println("[MQTTManager] MQTT publish successful");
@@ -149,6 +190,14 @@ bool MQTTManager::isConnected() {
 PubSubClient& MQTTManager::getClient() {
     return _mqttClient;
 }
+
+// Implementation for the new setCallback method
+void MQTTManager::setCallback(MQTT_CALLBACK_SIGNATURE) {
+    _callback = callback;
+    // Note: The callback is actually set on the PubSubClient instance
+    // within the connect() method after a successful connection.
+}
+
 
 void MQTTManager::loop() {
     // Process MQTT messages and maintain the connection, but only if WiFi is connected
@@ -174,7 +223,6 @@ void MQTTManager::loop() {
                  // Attempt to reconnect MQTT (connect() checks WiFi status internally)
                  Serial.println("[MQTTManager] MQTT disconnected. Attempting reconnection...");
                  if (connect()) {
-                     _lastReconnectAttempt = 0; // Reset counter if successful
                      Serial.println("[MQTTManager] MQTT reconnection successful");
                  } else {
                      Serial.println("[MQTTManager] MQTT reconnection failed");
