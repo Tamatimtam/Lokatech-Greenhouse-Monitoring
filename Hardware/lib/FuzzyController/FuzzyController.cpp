@@ -36,8 +36,8 @@ FuzzySet* lightOn = new FuzzySet(0.9, 1, 1, 1);
 
 // --- FuzzyController Class Implementation ---
 
-FuzzyController::FuzzyController() : _fuzzy(nullptr), _crispFanOutput(0.0f), _crispLightOutput(0.0f) {
-    // Constructor initializes pointer to null and outputs to 0 (OFF state)
+FuzzyController::FuzzyController() : _fuzzy(nullptr), _crispFanOutput(0.0f), _crispLightOutput(0.0f), _isFanOn(false) {
+    // Constructor initializes pointer to null, outputs to 0 (OFF state), and fan state to OFF
 }
 
 FuzzyController::~FuzzyController() {
@@ -201,8 +201,23 @@ void FuzzyController::run() {
 }
 
 bool FuzzyController::getFanOutput() const {
-    // Simple thresholding: if defuzzified value is closer to 1 (ON) than 0 (OFF)
-    return (_crispFanOutput > 0.5f); 
+    // Hysteresis logic for fan control
+    const float ON_THRESHOLD = 0.6f; // Crisp output value to turn fan ON
+    const float OFF_THRESHOLD = 0.4f; // Crisp output value to turn fan OFF
+
+    if (_isFanOn) {
+        // If fan is currently ON, turn OFF only if crisp output drops below OFF_THRESHOLD
+        if (_crispFanOutput < OFF_THRESHOLD) {
+            _isFanOn = false;
+        }
+    } else {
+        // If fan is currently OFF, turn ON only if crisp output exceeds ON_THRESHOLD
+        if (_crispFanOutput > ON_THRESHOLD) {
+            _isFanOn = true;
+        }
+    }
+
+    return _isFanOn;
 }
 
 bool FuzzyController::getLightOutput() const {

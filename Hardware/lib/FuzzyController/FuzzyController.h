@@ -51,6 +51,10 @@ public: // Add public getters for these degrees
     float getMembershipLightAdequate() const { return _lightMembership[1]; }
     float getRawFanOutput() const { return _crispFanOutput; } // Getter for raw output
     float getRawLightOutput() const { return _crispLightOutput; } // Getter for raw output
+
+private:
+    // State variable for hysteresis
+    mutable bool _isFanOn;
 };
 
 #endif // FUZZY_CONTROLLER_H
