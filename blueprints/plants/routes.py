@@ -16,20 +16,20 @@ PLANT_DATA = {
         'description': 'Bayam adalah sayuran hijau yang kaya akan nutrisi, termasuk zat besi, kalsium, dan vitamin A, C, dan K. Sangat baik untuk pertumbuhan dan menjaga kesehatan tubuh.',
         'growing_time': '21-30 hari',
         'optimal_conditions': {
-            'temperature': {'min': 25, 'max': 30, 'unit': '°C', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
-            'humidity': {'min': 60, 'max': 80, 'unit': '%', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
+            'temperature': {'min': 20, 'max': 30, 'unit': '°C', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
+            'humidity': {'min': 60, 'max': 75, 'unit': '%', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
             'light': {'min': 10000, 'max': 25000, 'unit': 'lux', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
         },
         'image': 'bayam.jpg'
     },
     'kale': {
-        'name': 'Kale',
+        'name': 'Kale',  # Fixed the key from 'namesas' to 'name'
         'scientific_name': 'Brassica oleracea var. sabellica',
         'description': 'Kale adalah sayuran superfood yang kaya akan vitamin A, C, dan K, serta antioksidan. Memiliki rasa yang sedikit pahit namun sangat bermanfaat untuk kesehatan.',
         'growing_time': '55-75 hari',
         'optimal_conditions': {
-            'temperature': {'min': 15, 'max': 20, 'unit': '°C', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
-            'humidity': {'min': 50, 'max': 70, 'unit': '%', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
+            'temperature': {'min': 10, 'max': 30, 'unit': '°C', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
+            'humidity': {'min': 55, 'max': 70, 'unit': '%', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
             'light': {'min': 8000, 'max': 18000, 'unit': 'lux', 'label_min': 'Rendah', 'label_max': 'Tinggi'},
         },
         'image': 'kale.jpg'
