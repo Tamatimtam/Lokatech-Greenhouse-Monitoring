@@ -3,19 +3,47 @@
  * Combines modal functionality and profile-specific features
  */
 
+// Moved from profile-password.js
+/**
+ * Set up password visibility toggles for all relevant password inputs
+ */
+function setupPasswordToggles() {
+  const toggles = document.querySelectorAll('.password-toggle');
+  
+  toggles.forEach(toggle => {
+    // Check if listener already attached to prevent duplicates if this function is called multiple times
+    if (toggle.dataset.listenerAttached === 'true') return;
+
+    toggle.addEventListener('click', function() {
+      const input = this.previousElementSibling; // Assumes input is direct sibling before button
+      const icon = this.querySelector('i');
+      
+      if (input && input.matches('input[type="password"], input[type="text"]')) {
+        const isPasswordVisible = input.type === 'text';
+        input.type = isPasswordVisible ? 'password' : 'text';
+        if (icon) {
+          icon.className = isPasswordVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
+        }
+      } else {
+        console.warn('Password toggle button is not adjacent to a password input field or input field is missing.');
+      }
+    });
+    toggle.dataset.listenerAttached = 'true'; // Mark as listener attached
+  });
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
   // Initialize modals with their specific validation logic
   initModal('profileModal', 'openProfileModal', handleProfileUpdate);
-  initModal('passwordModal', 'openPasswordModal', window.passwordModule.handlePasswordUpdate);
-  // Pass handleDeleteAccount as the onSave handler for deleteAccountModal, remove closeModal parameter
+  // Updated handler for passwordModal
+  initModal('passwordModal', 'openPasswordModal', handleRequestPasswordChangeEmail); 
   initModal('deleteAccountModal', 'openDeleteAccountModal', handleDeleteAccount); 
-  initModal('logoutModal', 'logoutButton', handleLogout); // Add logout modal
+  initModal('logoutModal', 'logoutButton', handleLogout);
   
   // Set up other functionality
-  // This will now handle the toggle in the delete modal as well
-  window.passwordModule.setupPasswordToggles(); 
-  window.passwordModule.setupPasswordValidation();
-  // setupLogoutHandler(); // Remove this call, function is removed below
+  setupPasswordToggles(); // Call the moved function
+  // Removed: window.passwordModule.setupPasswordValidation();
   
   // Register global Escape key handler for modals
   document.addEventListener('keydown', function(event) {
@@ -78,6 +106,38 @@ function handleProfileUpdate(modal, closeModal) {
 }
 
 /**
+ * New handler for requesting password change email
+ * @param {HTMLElement} modal - The modal element
+ * @param {Function} closeModal - Function to close the modal
+ */
+async function handleRequestPasswordChangeEmail(modal, closeModal) {
+  const userEmailElement = document.getElementById('userEmailForPasswordChange');
+  const userEmail = userEmailElement ? userEmailElement.textContent : document.getElementById('emailAddress')?.value;
+
+  if (!userEmail) {
+    showValidationError('Tidak dapat menemukan alamat email pengguna.');
+    return;
+  }
+
+  const saveButton = document.getElementById('savepasswordModal'); // Assumes this is the ID of the "Kirim Email" button
+  const originalText = saveButton.textContent;
+  saveButton.textContent = 'Mengirim...';
+  saveButton.disabled = true;
+
+  try {
+    await firebase.auth().sendPasswordResetEmail(userEmail);
+    showToast(`Email untuk mengubah kata sandi telah dikirim ke ${userEmail}. Silakan periksa kotak masuk Anda.`);
+    closeModal();
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    showValidationError(error.message || 'Gagal mengirim email perubahan kata sandi.');
+  } finally {
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+  }
+}
+
+/**
  * Initialize a modal component
  * @param {string} modalId - The ID of the modal element
  * @param {string} openerId - The ID of the element that opens the modal
@@ -101,6 +161,14 @@ function initModal(modalId, openerId, onSave = null) {
   function openModal() {
     modal.classList.add('modal--active');
     document.body.style.overflow = 'hidden';
+    // If it's the password change modal, update the email display just in case
+    if (modalId === 'passwordModal') {
+        const userEmailForDisplay = document.getElementById('userEmailForPasswordChange');
+        const currentProfileEmail = document.getElementById('emailAddress')?.value;
+        if (userEmailForDisplay && currentProfileEmail) {
+            userEmailForDisplay.textContent = currentProfileEmail;
+        }
+    }
   }
   
   // Close modal function - Enhanced for robustness
@@ -116,7 +184,7 @@ function initModal(modalId, openerId, onSave = null) {
         try { // Add inner try-catch for robustness during field clearing
           if (input.type === 'file') return; 
 
-          // Reset password fields specifically
+          // Reset password fields specifically (still relevant for deleteAccountModal)
           if (input.type === 'password') {
               input.value = '';
               // Also reset the eye icon if it was toggled
@@ -140,30 +208,8 @@ function initModal(modalId, openerId, onSave = null) {
         }
       });
 
-      // Reset password strength indicators if present in this modal
-      const strengthMeter = modal.querySelector('.strength-meter__bar');
-      if (strengthMeter) {
-          strengthMeter.style.width = '0%';
-          strengthMeter.className = 'strength-meter__bar';
-          const strengthText = modal.querySelector('.strength-text');
-          if (strengthText) strengthText.textContent = 'Kekuatan kata sandi';
-      }
-      const passwordMatch = modal.querySelector('#passwordMatch');
-      if (passwordMatch) {
-          passwordMatch.textContent = '';
-          passwordMatch.className = '';
-      }
-      const requirementsList = modal.querySelector('.requirements-list');
-      if (requirementsList) {
-          requirementsList.querySelectorAll('li').forEach(item => {
-              item.classList.remove('valid');
-              const icon = item.querySelector('i');
-              // Reset icon to default circle for password requirements
-              if (icon && item.closest('.password-requirements')) { 
-                  icon.className = 'fas fa-circle'; 
-              }
-          });
-      }
+      // Removed cleanup for password strength meter, match indicator, and requirements list
+      // as they are no longer part of the simplified passwordModal.
 
     } catch (error) {
       console.error(`Error in closeModal for ${modalId}:`, error);
