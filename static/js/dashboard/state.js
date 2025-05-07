@@ -21,24 +21,60 @@ export const SystemMonitor = {
         }
     },
 
-    updateConnectionStatus(connected) {
-        // Timeout logic removed for WebSocket connection
-        // if (this.connectionTimeout) {
-        //     clearTimeout(this.connectionTimeout);
-        // }
-        this.lastUpdateTime = Date.now(); // Still useful to know last status change
-        this.status.connected = connected;
-        UI.updateConnectionStatusUI(connected); // Call UI function
+    // Starts the connection timeout timer
+    startConnectionTimeout() {
+        // Clear any existing timeout first
+        this.clearConnectionTimeout();
 
-        if (connected) {
-            UI.hideError(); // Call UI function
+        this.connectionTimeout = setTimeout(() => {
+            console.warn("Connection timeout: No data received for 8 seconds.");
+            this.updateConnectionStatus(false); // Mark as disconnected
+            // Explicitly reset display and update status summary on timeout
+            UI.resetDisplay();
+            UI.updateStatusSummary();
+            UI.showError("Koneksi ke hardware terputus. Menunggu data..."); // Show specific error
+        }, CONNECTION_TIMEOUT_DURATION);
+    },
+
+    // Clears the connection timeout timer
+    clearConnectionTimeout() {
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+            this.connectionTimeout = null;
         }
+    },
 
-        // Timeout logic removed for WebSocket connection
-        // this.connectionTimeout = setTimeout(() => { ... }, CONNECTION_TIMEOUT_DURATION);
+    updateConnectionStatus(connected) {
+        this.lastUpdateTime = Date.now(); // Still useful to know last status change
+        
+        // Only update if the status is actually changing
+        if (this.status.connected !== connected) {
+            this.status.connected = connected;
+            UI.updateConnectionStatusUI(connected); // Call UI function
+
+            if (connected) {
+                UI.hideError(); // Call UI function
+                // When connected, start the timeout to detect data loss
+                this.startConnectionTimeout();
+            } else {
+                // When disconnected (e.g., WebSocket disconnect), clear the timeout
+                this.clearConnectionTimeout();
+                // Explicitly reset display and update status summary on disconnect
+                UI.resetDisplay();
+                UI.updateStatusSummary();
+                UI.showError("Koneksi ke server terputus. Mencoba menyambung ulang..."); // Show specific error
+            }
+        } else if (connected) {
+             // If already connected and this function is called, it means data was received.
+             // Clear and restart the timeout to signify fresh data.
+             this.startConnectionTimeout();
+        }
     },
 
     updateNodeStatus(data) {
+        // When new data is received and processed, clear and restart the timeout
+        this.startConnectionTimeout();
+
         if (!data || !data.sections) return false;
 
         SECTIONS.forEach(section => {
