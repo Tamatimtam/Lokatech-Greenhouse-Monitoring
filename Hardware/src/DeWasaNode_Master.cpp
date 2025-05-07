@@ -33,6 +33,7 @@ const char* mqtt_username = "LokataniAdmin"; // MQTT username
 const char* mqtt_password = "LokataniAdmin123"; // MQTT password
 const char* mqtt_publish_topic = "lokatech/greenhouse/sensors"; // Topic to publish data TO
 const char* mqtt_control_topic = "lokatech/greenhouse/controls/set"; // Topic to receive commands FROM
+const char* mqtt_subscribe_topic = "#"; // Subscribe to all topics
 
 // MAC addresses of peer nodes (REMOVED - Not used for ESP-NOW in this node)
 // uint8_t penyemaianMac[] = {0x30, 0xAE, 0xA4, 0x96, 0xA3, 0x48}; // Removed
@@ -136,27 +137,34 @@ void setup() {
   //     Serial.printf("[DeWasaNode_Master] WiFi channel set to %d successfully.\n", WIFI_CHANNEL); // Removed
   // } // Removed
 
+  // ***** MODIFICATION START *****
+  // Set the callback BEFORE calling begin() or connect() on mqttManager
+  Serial.println("[DeWasaNode_Master] Setting MQTT callback on MQTTManager...");
+  mqttManager->setCallback(mqttCallback);
+  Serial.printf("[DeWasaNode_Master] MQTTManager's internal callback pointer set using function at %p\n", (void*)mqttCallback);
+  // ***** MODIFICATION END *****
+
   // Initialize MQTT (this will now connect to WiFi on the pre-set channel)
-  if (!mqttManager->begin()) { // <-- MQTT Init happens AFTER setting channel
+  // mqttManager->begin() will call mqttManager->connect() internally, which will use the callback set above.
+  if (!mqttManager->begin()) { 
     Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT (and WiFi)");
     // Consider halting or retrying if WiFi/MQTT is critical
   } else {
-      // Set the callback BEFORE trying to connect
-      Serial.println("[DeWasaNode_Master] Setting MQTT callback...");
-      mqttManager->setCallback(mqttCallback);
-      Serial.printf("[DeWasaNode_Master] MQTT callback set to %p\n", mqttCallback);
+      // mqttManager->begin() already attempted connection.
+      // The callback is set.
+      // mqttManager->connect() was called inside begin(). If it succeeded, we are connected.
+      // If it failed, the loop() will handle reconnection.
       
-      // Now try to connect to MQTT broker
-      if (mqttManager->connect()) {
-        Serial.println("[DeWasaNode_Master] Connected to MQTT broker");
-        Serial.printf("[DeWasaNode_Master] Control topic is: %s\n", mqtt_control_topic);
-        
-        // Double-check subscription
-        bool resubscribeSuccess = mqttManager->getClient().subscribe(mqtt_control_topic, 1);
-        Serial.printf("[DeWasaNode_Master] Double-check subscription: %s\n", 
-                     resubscribeSuccess ? "SUCCESS" : "FAILED");
+      if (mqttManager->isConnected()) {
+        Serial.println("[DeWasaNode_Master] Connected to MQTT broker (from begin call)");
+        // Subscription to mqtt_control_topic is handled within MQTTManager::connect()
+        // The subscription to mqtt_subscribe_topic = "#" below is additional.
+        Serial.printf("[DeWasaNode_Master] Verifying subscription to general topic: %s\n", mqtt_subscribe_topic);
+        bool generalSubscribeSuccess = mqttManager->getClient().subscribe(mqtt_subscribe_topic, 1); // QoS 1
+        Serial.printf("[DeWasaNode_Master] Subscription to %s: %s\n", 
+                     mqtt_subscribe_topic, generalSubscribeSuccess ? "SUCCESS" : "FAILED");
       } else {
-         Serial.println("[DeWasaNode_Master] WARNING: Failed to connect to MQTT broker initially.");
+         Serial.println("[DeWasaNode_Master] WARNING: Failed to connect to MQTT broker initially (during begin). Will retry in loop.");
       }
   }
 
@@ -247,7 +255,7 @@ void loop() {
 
 
   // Read sensors at regular intervals using interval from NodeConfig.h
-  if (currentTime - lastSensorReadTime >= 1000UL) { // Use constant from NodeConfig.h
+  if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { // Corrected from 1000UL to SENSOR_READ_INTERVAL
     lastSensorReadTime = currentTime;
 
     Serial.println("\n[DeWasaNode_Master] Reading sensors...");
@@ -310,17 +318,20 @@ void loop() {
     if (mqttManager->isConnected()) {
       // Test sending a message to ourselves (loopback) to verify MQTT reception
       char testMsg[100];
-      sprintf(testMsg, "{\"device\":\"test\",\"mode\":\"test\",\"state\":false}");
+      // Construct a valid JSON command payload for testing
+      sprintf(testMsg, "{\"device\":\"fan\",\"state\":true,\"mode\":\"manual\"}");
       
-      // Force a resubscription to ensure we're listening
-      bool subscribeResult = mqttManager->getClient().subscribe(mqtt_control_topic, 1); // QoS 1
-      Serial.printf("[DeWasaNode_Master] Subscription check - Topic: %s, Result: %s\n", 
-                   mqtt_control_topic, subscribeResult ? "SUCCESS" : "FAILED");
-                   
-      // Send a test message to the control topic to test reception
+      // The MQTTManager should already be subscribed to mqtt_control_topic upon successful connection.
+      // The subscription to mqtt_subscribe_topic = "#" is an additional general subscription.
+      // We can log the subscription status for mqtt_control_topic if desired, but it's managed by MQTTManager.
+      // For this self-test, we publish to mqtt_control_topic.
+      
       bool publishResult = mqttManager->getClient().publish(mqtt_control_topic, testMsg);
       Serial.printf("[DeWasaNode_Master] Self-test message sent to %s: %s\n", 
                    mqtt_control_topic, publishResult ? "SUCCESS" : "FAILED");
+      if(publishResult) {
+        Serial.printf("  Test Payload: %s\n", testMsg);
+      }
     }
   }
 
