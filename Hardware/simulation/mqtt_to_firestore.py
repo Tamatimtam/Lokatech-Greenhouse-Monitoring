@@ -20,8 +20,10 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # MQTT Configuration
-MQTT_SERVER = "broker.emqx.io"
-MQTT_PORT = 1883
+MQTT_SERVER = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"
+MQTT_PORT = 8883  # TLS port
+MQTT_USER = "LokataniAdmin"
+MQTT_PASSWORD = "LokataniAdmin123"
 MQTT_SUBSCRIBE_TOPIC = "lokatech/greenhouse/sensors"
 
 # Data Collection Configuration
@@ -199,7 +201,15 @@ def run_collector():
     client.on_message = on_message
     
     try:
+        # Set username and password
+        client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+        
+        # Enable TLS for secure connection
+        client.tls_set() # Uses system CA certificates
+        
+        # Connect to HiveMQ Cloud
         client.connect(MQTT_SERVER, MQTT_PORT)
+        print(f"Connected to HiveMQ Cloud MQTT broker on {MQTT_SERVER}:{MQTT_PORT}")
         client.loop_forever()  # Start the MQTT client loop
     except KeyboardInterrupt:
         print("Collector stopped by user.")

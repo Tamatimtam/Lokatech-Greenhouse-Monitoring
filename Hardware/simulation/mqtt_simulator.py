@@ -4,8 +4,10 @@ import time
 import random
 
 # MQTT Configuration (from Hardware/new.md)
-MQTT_SERVER = "broker.emqx.io"
-MQTT_PORT = 1883
+MQTT_SERVER = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"
+MQTT_PORT = 8883  # TLS port
+MQTT_USER = "LokataniAdmin"
+MQTT_PASSWORD = "LokataniAdmin123"
 MQTT_PUBLISH_TOPIC = "lokatech/greenhouse/sensors"
 
 # Simulation Configuration
@@ -65,6 +67,13 @@ client.on_connect = on_connect
 # --- Main Simulation Loop ---
 def run_simulator():
     try:
+        # Set username and password
+        client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+        
+        # Enable TLS for secure connection
+        client.tls_set() # Uses system CA certificates
+        
+        # Connect to HiveMQ Cloud
         client.connect(MQTT_SERVER, MQTT_PORT)
         client.loop_start() # Start the MQTT client loop in a non-blocking way
 
