@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "macros/card.html" as card %}
+{% import "macros/status.html" as status %}
+{% import "macros/navigation.html" as navigation %}
+
+{% block title %}Plants Guide - Greenhouse Monitoring{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plants.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="header">
+    <div class="header__content">
+      <h1>Apa yang kita tanam hari ini?</h1>
+      <p>Informasi tentang tanaman dan kondisi tumbuh yang optimal</p>
+    </div>
+      <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+  </header>
+
+  <div class="grid grid--2col">
+    {% call card.card('Bayam') %}
+      <div class="plant-card">
+        <div class="plant-card__image">
+          <img src="{{ url_for('static', filename='images/plants/bayam.jpg') }}" alt="Bayam">
+        </div>
+        <div class="plant-card__content">
+          <p>Bayam adalah sayuran hijau yang kaya akan nutrisi. Cocok untuk ditanam di greenhouse dengan kondisi yang tepat.</p>
+          <a href="/plants/bayam" class="button button--primary">
+            <i class="fas fa-info-circle"></i> Lihat Detail
+          </a>
+        </div>
+      </div>
+    {% endcall %}
+
+    {% call card.card('Kale') %}
+      <div class="plant-card">
+        <div class="plant-card__image">
+          <img src="{{ url_for('static', filename='images/plants/kale.jpg') }}" alt="Kale">
+        </div>
+        <div class="plant-card__content">
+          <p>Kale adalah superfood yang penuh dengan vitamin dan mineral. Ideal untuk dibudidayakan di greenhouse.</p>
+          <a href="/plants/kale" class="button button--primary">
+            <i class="fas fa-info-circle"></i> Lihat Detail
+          </a>
+        </div>
+      </div>
+    {% endcall %}
+  </div>
+
+  {{ navigation.bottom_nav('plants') }}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/plants.js') }}"></script>
+{% endblock %}

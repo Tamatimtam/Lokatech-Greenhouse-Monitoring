@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% import "macros/card.html" as card %}
+{% import "macros/status.html" as status %}
+{% import "macros/navigation.html" as navigation %}
+
+{% block title %}{{ plant.name }} - Greenhouse Monitoring{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plants.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  /* Additional inline styles for loading state */
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    border-radius: var(--radius-md);
+  }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(40, 98, 71, 0.3);
+    border-radius: 50%;
+    border-top: 4px solid var(--primary);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="header">
+    <div class="header__content">
+      <h1>{{ plant.name }}</h1>
+      <p><em>{{ plant.scientific_name }}</em></p>
+    </div>
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+  </header>
+
+  <div class="plant-detail-grid">
+    {% call card.card('Informasi Tanaman') %}
+      <div class="plant-detail">
+        <div class="plant-info-layout">
+          <div class="plant-image">
+            <img src="{{ url_for('static', filename='images/plants/' + plant.image) }}" alt="{{ plant.name }}">
+          </div>
+          <div class="plant-description">
+            <p>{{ plant.description }}</p>
+            <div class="plant-info">
+              <div class="plant-info__item">
+                <i class="fas fa-calendar-alt plant-info__icon"></i>
+                <span class="plant-info__label">Waktu Panen:</span>
+                <span class="plant-info__value">{{ plant.growing_time }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endcall %}
+
+    {% call card.card('Target Kondisi Optimal') %}
+      <div class="optimal-conditions" id="optimal-conditions-container">
+        <!-- Loading overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+          <div class="spinner"></div>
+        </div>
+        
+        {% for condition_key, condition_data in plant.optimal_conditions.items() %}
+        <div class="optimal-condition-card">
+          <div class="condition-header">
+            {% if condition_key == 'temperature' %}
+              <i class="fas fa-thermometer-half condition-icon"></i>
+              <span class="condition-name">Suhu</span>
+            {% elif condition_key == 'humidity' %}
+              <i class="fas fa-tint condition-icon"></i>
+              <span class="condition-name">Kelembapan</span>
+            {% elif condition_key == 'light' %}
+              <i class="fas fa-sun condition-icon"></i>
+              <span class="condition-name">Cahaya</span>
+            {% elif condition_key == 'soil_moisture' %}
+              <i class="fas fa-water condition-icon"></i>
+              <span class="condition-name">Kelembapan Tanah</span>
+            {% endif %}
+            
+            <!-- Current value display (will be updated by JS) -->
+            <div class="current-value-container">
+              <span class="current-value" id="current-{{ condition_key }}">--</span>
+              <span class="unit-label">{{ condition_data.unit }}</span>
+            </div>
+          </div>
+          
+          <div class="target-analysis">
+            <div class="target-label">Target kondisi rata-rata {{ condition_data.min }}-{{ condition_data.max }} {{ condition_data.unit }}</div>
+          </div>
+          
+          <div class="range-slider-container">
+            <div class="range-slider" id="{{ condition_key }}-slider">
+              <div class="range-track"></div>
+              <div class="range-optimal" style="left: 0%; right: 0%"></div>
+              <div class="target-bubble" id="{{ condition_key }}-target">
+                <div class="target-bubble-value">{{ condition_data.min }}-{{ condition_data.max }}</div>
+              </div>
+              <div class="range-min-marker">{{ condition_data.min }}</div>
+              <div class="range-max-marker">{{ condition_data.max }}</div>
+              <div class="current-marker" id="{{ condition_key }}-marker"></div>
+              <div class="current-bubble" id="{{ condition_key }}-bubble">
+                <span class="current-bubble-value">--</span>
+              </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between;">
+              <div class="range-low">Rendah <span class="range-value">{{ condition_data.min }}</span></div>
+              <div class="range-high">Tinggi <span class="range-value">{{ condition_data.max }}</span></div>
+            </div>
+          </div>
+          
+          <!-- Status message (will be updated by JS) -->
+          <div class="status-message" id="status-{{ condition_key }}">Menunggu data...</div>
+        </div>
+        {% endfor %}
+      </div>
+    {% endcall %}
+
+    {% call card.card('Saran Perawatan') %}
+      <div class="plant-care">
+        <div class="care-item">
+          <i class="fas fa-fill-drip care-item__icon"></i>
+          <div class="care-item__content">
+            <h3>Penyiraman</h3>
+            <p>Jaga tanah tetap lembab tapi tidak tergenang. Siram secara rutin terutama saat udara panas.</p>
+          </div>
+        </div>
+        <div class="care-item">
+          <i class="fas fa-seedling care-item__icon"></i>
+          <div class="care-item__content">
+            <h3>Pemupukan</h3>
+            <p>Gunakan pupuk organik atau kompos untuk menjaga kesuburan tanah dan kesehatan tanaman.</p>
+          </div>
+        </div>
+        <div class="care-item">
+          <i class="fas fa-bug care-item__icon"></i>
+          <div class="care-item__content">
+            <h3>Hama & Penyakit</h3>
+            <p>Perhatikan tanda-tanda serangan hama seperti ulat dan kutu daun. Gunakan pengendalian hama organik.</p>
+          </div>
+        </div>
+      </div>
+    {% endcall %}
+  </div>
+
+  <div class="back-button-container">
+    <a href="/plants" class="button button--secondary">
+      <i class="fas fa-arrow-left"></i> Kembali ke Daftar Tanaman
+    </a>
+  </div>
+
+  {{ navigation.bottom_nav('plants') }}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/plant-detail.js') }}"></script>
+{% endblock %}

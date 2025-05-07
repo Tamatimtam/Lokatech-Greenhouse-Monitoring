@@ -1,0 +1,504 @@
+.plant-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.plant-card__image {
+  width: 100%;
+  height: 220px; /* Increased height to show more of the image */
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+}
+
+.plant-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Changed from cover to contain to show the full image */
+  transition: transform 0.3s ease;
+  max-height: 100%;
+  transform: scale(1.05);
+}
+
+.plant-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.plant-card__content p {
+  margin-bottom: var(--spacing-md);
+  flex: 1;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Limit to 3 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.button {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button--primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.button--primary:hover {
+  background-color: var(--primary-light);
+}
+
+.button--secondary {
+  background-color: var(--text-secondary);
+  color: white;
+}
+
+.button--secondary:hover {
+  background-color: #888888;
+}
+
+/* Plant detail styles */
+.plant-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+@media (min-width: 768px) {
+  .plant-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.plant-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Two-column layout for plant info */
+.plant-info-layout {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 576px) {
+  .plant-info-layout {
+    flex-direction: row;
+    gap: var(--spacing-md);
+  }
+}
+
+.plant-image {
+  width: 100%;
+  height: 220px; /* Adjusted for better proportion */
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  flex-shrink: 0;
+}
+
+@media (min-width: 576px) {
+  .plant-image {
+    width: 45%;
+    margin-bottom: 0;
+  }
+}
+
+.plant-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Changed from cover to contain */
+  max-height: 100%;
+}
+
+.plant-description {
+  margin-bottom: var(--spacing-md);
+}
+
+.plant-info {
+  margin-top: var(--spacing-md);
+}
+
+.plant-info__item {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.plant-info__icon {
+  color: var(--primary);
+  margin-right: var(--spacing-sm);
+  width: 20px;
+  text-align: center;
+}
+
+.plant-info__label {
+  font-weight: 500;
+  margin-right: var(--spacing-sm);
+}
+
+.plant-info__value {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+/* Optimal conditions card styles */
+.optimal-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.optimal-condition-card {
+  background-color: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.condition-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.optimal-condition__icon {
+  color: var(--primary);
+  margin-right: var(--spacing-sm);
+  width: 20px;
+  text-align: center;
+}
+
+.optimal-condition__label {
+  font-weight: 500;
+}
+
+.optimal-range {
+  margin-top: var(--spacing-sm);
+}
+
+.range-values {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xs);
+}
+
+.range-unit {
+  color: var(--text-secondary);
+}
+
+/* Modern slider component inspired by reference images */
+.target-title {
+  text-align: center;
+  color: var(--primary-dark);
+  font-size: 1.4rem;
+  margin-bottom: var(--spacing-lg);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.optimal-condition-card {
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: var(--spacing-lg);
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.condition-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  position: relative;
+}
+
+.condition-icon {
+  color: var(--primary);
+  font-size: 1.2rem;
+  margin-right: var(--spacing-sm);
+}
+
+.condition-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.current-value {
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: var(--primary-dark);
+  margin-right: 4px;
+  transition: color 0.3s ease;
+}
+
+.unit-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Current value container */
+.current-value-container {
+  display: flex;
+  align-items: baseline;
+}
+
+.target-analysis {
+  margin-bottom: var(--spacing-sm);
+  text-align: center;
+}
+
+.target-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.range-slider-container {
+  display: flex;
+  flex-direction: column;
+  margin: var(--spacing-md) 0;
+}
+
+.range-low, .range-high {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.range-low {
+  float: left;
+  text-align: left;
+}
+
+.range-high {
+  float: right;
+  text-align: right;
+}
+
+.range-value {
+  font-weight: 700;
+  margin-left: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.range-slider {
+  position: relative;
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  margin: var(--spacing-md) 0;
+  width: 100%;
+  transition: height 0.2s ease;
+  cursor: pointer;
+}
+
+.range-slider:hover {
+  height: 8px;
+}
+
+.range-track {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+}
+
+.range-optimal {
+  position: absolute;
+  height: 100%;
+  background-color: rgba(46, 204, 113, 0.2);
+  border: none;
+  border-radius: 3px;
+  z-index: 2;
+  transition: background-color 0.3s ease;
+}
+
+.range-slider:hover .range-optimal {
+  background-color: rgba(46, 204, 113, 0.3);
+}
+
+/* Min-max markers on the slider */
+.range-min-marker,
+.range-max-marker {
+  position: absolute;
+  top: 100%;
+  transform: translateX(-50%);
+  font-size: 0;
+  color: transparent;
+  width: 2px;
+  height: 6px;
+  background-color: rgba(0, 0, 0, 0.3);
+  margin-top: 2px;
+  z-index: 1;
+}
+
+.current-marker {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  background-color: var(--primary);
+  border: 2px solid white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  transition: left 0.5s ease;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.current-bubble {
+  position: absolute;
+  bottom: 20px;
+  transform: translateX(-50%);
+  background-color: var(--primary-dark);
+  color: white;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 4;
+  transition: opacity 0.3s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* .current-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--primary-dark) transparent transparent transparent;
+} */
+
+.target-bubble {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: var(--primary-dark);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+
+.current-marker.in-range {
+  background-color: var(--primary);
+}
+
+.current-marker.out-of-range {
+  background-color: #E53935; /* Red color for out of range */
+}
+
+Add circle around the marker for better visibility
+.current-marker::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+}
+
+.status-message {
+  margin-top: var(--spacing-sm);
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 4px 0;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.status-message.in-range {
+  color: var(--primary);
+}
+
+.status-message.out-of-range {
+  color: #E53935;
+}
+
+/* Plant care section */
+.plant-care {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.care-item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.care-item__icon {
+  color: var(--primary);
+  margin-right: var(--spacing-md);
+  margin-top: 4px;
+  width: 20px;
+  text-align: center;
+}
+
+.care-item__content h3 {
+  margin-bottom: var(--spacing-xs);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.back-button-container {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
