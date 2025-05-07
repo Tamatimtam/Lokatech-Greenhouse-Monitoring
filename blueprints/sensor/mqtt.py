@@ -29,11 +29,16 @@ class SensorDataManager:
         
         # Connect to MQTT broker
         try:
-            self.client.connect("broker.emqx.io", 1883, 60)
+            # Set username and password
+            self.client.username_pw_set("LokataniAdmin", "LokataniAdmin123")
+            # Enable TLS for secure connection on port 8883
+            self.client.tls_set()  # Uses system CA certificates
+            # Connect using new HiveMQ Cloud broker
+            self.client.connect("d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud", 8883, 60)
             self.client.loop_start()
-            logger.info("Connected to MQTT broker")
+            logger.info("Connected to HiveMQ Cloud MQTT broker")
         except Exception as e:
-            logger.error(f"Failed to connect to MQTT broker: {e}")
+            logger.error(f"Failed to connect to HiveMQ Cloud MQTT broker: {e}")
         
         # Add debug flag
         self.debug = True

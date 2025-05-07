@@ -126,6 +126,6 @@ Each document has the following structure:
 *   **Timezones:** Be mindful of how timestamps are handled. Firestore stores timestamps as UTC. The Python code uses `datetime.datetime.now()`, which is timezone-aware if configured, but the display on the frontend might depend on the browser's local timezone and how Chart.js handles the time scale.
 *   **Error Handling:** Basic error handling is present (checking for file existence, catching exceptions during Firestore operations and data processing), but robust error reporting and logging might be needed for production environments.
 *   **Dependencies:** Ensure all dependencies listed in `requirements.txt` are installed (`firebase-admin`, `paho-mqtt`).
-*   **MQTT Broker:** The `mqtt_to_firestore.py` script connects to a specific MQTT broker (`broker.emqx.io`). This needs to be running and accessible, and sensor data needs to be published to the configured topic (`lokatech/greenhouse/sensors`).
+*   **MQTT Broker:** The `mqtt_to_firestore.py` script connects to a specific MQTT broker (`d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud`). This is a secure connection using TLS on port 8883 with username/password authentication. Sensor data needs to be published to the configured topic (`lokatech/greenhouse/sensors`).
 
 This documentation provides a comprehensive overview of the history page's implementation and dependencies.

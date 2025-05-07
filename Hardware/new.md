@@ -120,16 +120,19 @@ GPIO19  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Light Simulati
 *   If your WiFi AP (used by the Master node) consistently uses a different channel, you **must** update the channel number (e.g., `6`) in all these locations.
 
 ### 3. WiFi & MQTT Credentials (Master Node Only)
-*   Update `ssid`, `password`, `mqtt_server`, `mqtt_port`, `mqtt_publish_topic`, and `mqtt_control_topic` in `DeWasaNode_Master.cpp`.
+*   Update `ssid`, `password`, `mqtt_server`, `mqtt_port`, `mqtt_username`, `mqtt_password`, `mqtt_publish_topic`, and `mqtt_control_topic` in `DeWasaNode_Master.cpp`.
     ```cpp
     const char* ssid = "Direktorat Kemendikbud"; // Your WiFi SSID
     const char* password = "NadiemGantengSih"; // Your WiFi password
-    const char* mqtt_server = "broker.emqx.io"; // Public broker
-    const int mqtt_port = 1883;
+    const char* mqtt_server = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"; // HiveMQ Cloud server
+    const int mqtt_port = 8883; // TLS/SSL MQTT port
+    const char* mqtt_username = "LokataniAdmin"; // MQTT username
+    const char* mqtt_password = "LokataniAdmin123"; // MQTT password
     const char* mqtt_publish_topic = "lokatech/greenhouse/sensors"; // Topic for publishing sensor data
     const char* mqtt_control_topic = "lokatech/greenhouse/controls/set"; // Topic for receiving commands
     ```
     *   The Master node publishes data to `mqtt_publish_topic` and subscribes to `mqtt_control_topic`.
+    *   Note that port 8883 uses TLS/SSL encryption, which is more secure than standard MQTT.
 
 ### 4. Simulation Mode (Optional, Per Node)
 *   In each node's `.cpp` file (`PenyemaianNode.cpp`, `PeremajaanNode.cpp`, `DeWasaNode_Master.cpp`), configure sensor simulation if hardware is missing or faulty:
@@ -306,12 +309,13 @@ The following rules are implemented in `FuzzyController::defineRules()`:
 ## Security Considerations
 
 *   Current implementation uses unencrypted ESP-NOW.
-*   MQTT communication uses a public broker without username/password authentication or TLS encryption.
+*   MQTT communication now uses HiveMQ Cloud with TLS encryption and username/password authentication, providing improved security.
 *   For production environments, consider:
     *   Enabling ESP-NOW encryption (requires managing keys).
-    *   Using a private MQTT broker with authentication and TLS.
+    *   Further hardening by using client certificates for MQTT connections.
     *   Adding security measures to the Flask application (e.g., CSRF protection if forms are added).
+    *   Implementing secure credential storage on the ESP32 (avoid hardcoding credentials).
 
 ---
-*Document Updated: 2025-04-20* (Reflects actual Fuzzy Logic implementation and other corrections)
+*Document Updated: 2025-05-07* (Updated MQTT configuration to use secure HiveMQ Cloud broker)
 
