@@ -195,11 +195,15 @@ def save_data_to_firestore():
                     firestore_doc_data["stats"][section_name][data_type_name] = None
 
 
-        # Get a reference to the Firestore collection and set the document
-        doc_ref = db.collection('greenhouse_data').document(document_id_str)
-        doc_ref.set(firestore_doc_data)
+        # Get a reference to the Firestore collection and set the document for the primary collection
+        doc_ref_primary = db.collection('greenhouse_data').document(document_id_str)
+        doc_ref_primary.set(firestore_doc_data)
+        print(f"Data successfully saved to 'greenhouse_data' with document ID: {document_id_str}")
 
-        print(f"Data successfully saved to Firestore with document ID: {document_id_str}")
+        # Also save to the new 'lokatech_db' collection
+        doc_ref_new_collection = db.collection('lokatech_db').document(document_id_str)
+        doc_ref_new_collection.set(firestore_doc_data)
+        print(f"Data successfully saved to 'lokatech_db' with document ID: {document_id_str}")
 
     except Exception as e:
         print(f"Error saving data to Firestore: {e}")
