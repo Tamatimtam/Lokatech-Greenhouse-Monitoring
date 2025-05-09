@@ -34,6 +34,10 @@ private:
     // Store the last calculated crisp outputs
     float _crispFanOutput;
     float _crispLightOutput;
+    
+    // Store current sensor values for use in run()
+    float _currentTemp;
+    float _currentLight;
 
     // Store last calculated membership degrees for debugging
     float _tempMembership[3]; // Index 0: Cold, 1: Optimal, 2: Hot
