@@ -21,17 +21,19 @@
       <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
   </header>
 
-  <div class="grid grid--2col">
+  <div class="plants-grid">
     {% call card.card('Bayam') %}
       <div class="plant-card">
         <div class="plant-card__image">
           <img src="{{ url_for('static', filename='images/plants/bayam.jpg') }}" alt="Bayam">
         </div>
         <div class="plant-card__content">
-          <p>Bayam adalah sayuran hijau yang kaya akan nutrisi. Cocok untuk ditanam di greenhouse dengan kondisi yang tepat.</p>
-          <a href="/plants/bayam" class="button button--primary">
-            <i class="fas fa-info-circle"></i> Lihat Detail
-          </a>
+          <p class="plant-description">Bayam adalah sayuran hijau yang kaya akan nutrisi. Cocok untuk ditanam di greenhouse dengan kondisi yang tepat.</p>
+          <div class="plant-card__action">
+            <a href="/plants/bayam" class="button button--primary">
+              <i class="fas fa-info-circle"></i> Lihat Detail
+            </a>
+          </div>
         </div>
       </div>
     {% endcall %}
@@ -42,10 +44,12 @@
           <img src="{{ url_for('static', filename='images/plants/kale.jpg') }}" alt="Kale">
         </div>
         <div class="plant-card__content">
-          <p>Kale adalah superfood yang penuh dengan vitamin dan mineral. Ideal untuk dibudidayakan di greenhouse.</p>
-          <a href="/plants/kale" class="button button--primary">
-            <i class="fas fa-info-circle"></i> Lihat Detail
-          </a>
+          <p class="plant-description">Kale adalah superfood yang penuh dengan vitamin dan mineral. Ideal untuk dibudidayakan di greenhouse.</p>
+          <div class="plant-card__action">
+            <a href="/plants/kale" class="button button--primary">
+              <i class="fas fa-info-circle"></i> Lihat Detail
+            </a>
+          </div>
         </div>
       </div>
     {% endcall %}
