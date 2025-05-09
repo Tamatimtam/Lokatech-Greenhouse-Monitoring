@@ -1,297 +1,328 @@
-# Greenhouse Monitoring System - Project Documentation
+# LokaTech Greenhouse Monitoring - Hardware System Documentation
 
-## Project Overview
+## 1. Project Overview
 
-This document provides technical details and setup instructions for the greenhouse monitoring system. The system consists of multiple ESP32 nodes monitoring different growth zones:
+This document provides technical details and setup instructions for the LokaTech Greenhouse Monitoring System's hardware components. The system employs multiple ESP32 nodes to monitor environmental conditions across different greenhouse sections and uses a combination of ESP-NOW and Serial communication for data aggregation, culminating in MQTT communication from a master node to the backend.
 
-1.  **Dewasa Node (Master)** - Mature plants section (**Implemented & Tested**)
-2.  **Peremajaan Node (Intermediate)** - Young plants section (**Implemented & Tested**)
-3.  **Penyemaian Node (Satellite)** - Seedling section (**Implemented & Tested**)
+The primary hardware architecture consists of the following nodes:
 
-Each node has temperature, humidity, and light sensors. The data flow uses ESP-NOW in a chain:
-`Penyemaian -> Peremajaan -> Dewasa`
-The Dewasa node acts as the master, receiving combined data from the Peremajaan node, running a fuzzy logic controller based on average environmental conditions to manage actuators (simulated by LEDs when in "auto" mode), sending the aggregated system status to an MQTT server, and listening for manual override commands via MQTT.
+1.  **Penyemaian Node**: Monitors the seedling section. Reads local sensors (temperature, humidity, light) and transmits `SensorData` via ESP-NOW to the Peremajaan Node.
+2.  **Peremajaan Node**: Monitors the young plants section. Reads local sensors, receives `SensorData` from the Penyemaian Node, combines this into `CombinedData`, and transmits it via ESP-NOW to the Gateway Node.
+3.  **Gateway Node**: Acts as a bridge. Receives `CombinedData` from the Peremajaan Node via ESP-NOW and forwards this data as a JSON string over a Serial connection to the Dewasa Node.
+4.  **Dewasa Node (Master)**: Monitors the mature plants section. Reads local sensors, receives JSON data from the Gateway Node via Serial, calculates overall average environmental conditions, runs a Fuzzy Logic Controller to determine actuator states (simulated by LEDs), and publishes aggregated sensor data and actuator states to an MQTT broker. It also subscribes to an MQTT topic to receive manual control commands from the backend.
 
-## Code Structure and Implementation Status
+## 2. Code Structure
 
-The project uses PlatformIO and is organized into shared libraries and node-specific source files.
+The PlatformIO project in the `Hardware/` directory is organized as follows:
 
-### Main Node Files (`src/`)
+### 2.1. Main Node Files (`src/`)
 
-*   **`DeWasaNode_Master.cpp`**: Main firmware for the Dewasa/Master node. Coordinates sensor reading, ESP-NOW reception, Fuzzy Logic control, WiFi/MQTT communication, and actuator (LED) control. **(Implemented & Tested)**
-*   **`PeremajaanNode.cpp`**: Main firmware for the Peremajaan intermediate node. Reads local sensors, receives data from Penyemaian via ESP-NOW, combines the data, and sends it to the Master (Dewasa) via ESP-NOW. **(Implemented & Tested)**
-*   **`PenyemaianNode.cpp`**: Main firmware for the Penyemaian satellite node. Reads local sensors and sends data to the Peremajaan node via ESP-NOW. **(Implemented & Tested)**
-*   **`GetMacAddress.cpp`**: Utility sketch to easily find an ESP32's MAC address.
+*   **`PenyemaianNode.cpp`**: Firmware for the Penyemaian (seedling) satellite node.
+*   **`PeremajaanNode.cpp`**: Firmware for the Peremajaan (young plant) intermediate node.
+*   **`GatewayNode.cpp`**: Firmware for the ESP-NOW to Serial gateway node.
+*   **`DeWasaNode_Master.cpp`**: Firmware for the Dewasa (mature plant) master node.
+*   **`GetMacAddress.cpp`**: Utility sketch to find an ESP32's MAC address.
+*   *(Other files like `RemajaNode_Master.cpp`, `SensorPeremajaanNode.cpp`, `HX711_Reader.cpp`, `Test.cpp` are not part of the primary documented system at this time.)*
 
-### Shared Libraries (`lib/`)
+### 2.2. Shared Libraries (`lib/`)
 
 *   **`Common/`**:
-    *   `NodeConfig.h`: Defines common hardware settings (e.g., `DHT_PIN`).
-    *   `SensorData.h`: Defines `struct SensorData` (used between Penyemaian and Peremajaan) and `struct CombinedData` (used between Peremajaan and Dewasa). **Crucial: This file must be identical across all nodes.**
-*   **`SensorManager/`**: Class handling DHT22 (temperature/humidity) and BH1750 (light) sensor operations. Includes simulation capabilities. Used by all nodes.
-*   **`ESPNowManager/`**: Class managing ESP-NOW communication (peer registration, receiving `CombinedData`) on the Master (Dewasa) node. Stores the latest data extracted from `CombinedData` and handles data validity timeouts (`COMBINED_DATA_TIMEOUT` defined in `ESPNowManager.h`).
-*   **`MQTTManager/`**: Class handling WiFi connection and MQTT communication (JSON payload generation including actuator states, publishing sensor data, subscribing to control topic) for the Master node.
-*   **`FuzzyController/`**: Class implementing the fuzzy logic control system (using the `eFLL` library) on the Master node. Takes average sensor readings as input and determines ON/OFF states for actuators when in "auto" mode.
+    *   `NodeConfig.h`: Defines common hardware settings (e.g., `DHT_PIN`, `WIFI_CHANNEL`), MAC addresses for all nodes, and data validity timeouts. **Crucial: This file must be configured correctly for all nodes.**
+    *   `SensorData.h`: Defines `struct SensorData` (used by Penyemaian and Peremajaan) and `struct CombinedData` (used by Peremajaan and Gateway).
+*   **`SensorManager/`**: (`SensorManager.h`, `SensorManager.cpp`)
+    *   Class handling DHT22 (temperature/humidity) and BH1750 (light) sensor operations.
+    *   Includes sensor reading, validity checking, and optional simulation capabilities.
+    *   Used by Penyemaian, Peremajaan, and Dewasa nodes.
+*   **`MQTTManager/`**: (`MQTTManager.h`, `MQTTManager.cpp`)
+    *   Class handling WiFi connection and MQTT communication for the Dewasa Node.
+    *   Manages JSON payload generation (sensor data, actuator states), publishing to MQTT, and subscribing to control topics.
+*   **`FuzzyController/`**: (`FuzzyController.h`, `FuzzyController.cpp`)
+    *   Class implementing the fuzzy logic control system (using the `eFLL` library) on the Dewasa Node.
+    *   Takes average sensor readings as input and determines ON/OFF states for actuators (simulated by LEDs) when in "auto" mode.
+*   *(The `lib/ESPNowManager/` library is not actively used by the Dewasa node in the current primary system architecture.)*
 
-## Hardware Requirements
+## 3. Hardware Requirements
 
-### For Each Node
-- 1× ESP32 development board
-- 1× DHT22 temperature and humidity sensor
-- 1× BH1750 light intensity sensor
-- 1× Breadboard
-- Jumper wires
-- Power supply
+### 3.1. Penyemaian Node
+*   1x ESP32 development board
+*   1x DHT22 temperature and humidity sensor
+*   1x BH1750 light intensity sensor
+*   Breadboard, jumper wires, power supply
 
-### Additional for Master Node (Dewasa)
-- WiFi connectivity for MQTT communication
-- 2x LEDs (e.g., standard 5mm LEDs) for actuator simulation
-- 2x Current-limiting resistors (e.g., 220Ω or 330Ω) for the LEDs
+### 3.2. Peremajaan Node
+*   1x ESP32 development board
+*   1x DHT22 temperature and humidity sensor
+*   1x BH1750 light intensity sensor
+*   Breadboard, jumper wires, power supply
 
-## Pin Connections & Configuration
+### 3.3. Gateway Node
+*   1x ESP32 development board
+*   Breadboard, jumper wires, power supply
+    *   *Note: The Gateway Node does not require its own sensors as its primary role is data forwarding.*
 
-### Common Pins (`lib/Common/NodeConfig.h`)
-*   **DHT22 Data Pin**: Defined as `DHT_PIN 4`. Connect the DHT22 data line to GPIO4 on all nodes using it.
+### 3.4. Dewasa Node (Master)
+*   1x ESP32 development board
+*   1x DHT22 temperature and humidity sensor
+*   1x BH1750 light intensity sensor
+*   2x LEDs (e.g., standard 5mm LEDs) for actuator simulation (Fan & Light)
+*   2x Current-limiting resistors (e.g., 220Ω or 330Ω) for the LEDs
+*   WiFi connectivity for MQTT communication
+*   Breadboard, jumper wires, power supply
 
-### I2C Pins (BH1750)
-*   The BH1750 sensor uses I2C. The `SensorManager` initializes I2C using `Wire.begin();` without specific pins.
-*   This uses the **ESP32 default I2C pins**:
-    *   **GPIO 21 (SDA)**
-    *   **GPIO 22 (SCL)**
-*   Connect the BH1750 SDA to GPIO21 and SCL to GPIO22. VCC to 3.3V, GND to GND.
+## 4. Pin Connections & Configuration
 
-### Wiring Diagrams
+### 4.1. Common Sensor Pins (Penyemaian, Peremajaan, Dewasa)
 
-**DHT22 Connection**
-```
-ESP32                DHT22
------                -----
-3.3V    --------    VCC
-GPIO4   --------    DATA  (As defined in NodeConfig.h)
-GND     --------    GND
-```
+*   **DHT22 Data Pin**:
+    *   Defined in `lib/Common/NodeConfig.h` as `DHT_PIN 4`.
+    *   Connect the DHT22 data line to **GPIO4** on each ESP32 using it.
+    *   Wiring:
+        ```
+        ESP32                DHT22
+        -----                -----
+        3.3V    --------    VCC
+        GPIO4   --------    DATA
+        GND     --------    GND
+        ```
 
-**BH1750 Connection**
-```
-ESP32                BH1750
------                ------
-3.3V    --------    VCC
-GND     --------    GND
-GPIO21  --------    SDA   (Default I2C SDA)
-GPIO22  --------    SCL   (Default I2C SCL)
-```
+*   **BH1750 I2C Pins**:
+    *   The `SensorManager` uses default ESP32 I2C pins:
+        *   **GPIO21 (SDA)**
+        *   **GPIO22 (SCL)**
+    *   Connect BH1750 SDA to GPIO21 and SCL to GPIO22. VCC to 3.3V, GND to GND.
+    *   Wiring:
+        ```
+        ESP32                BH1750
+        -----                ------
+        3.3V    --------    VCC
+        GND     --------    GND
+        GPIO21  --------    SDA
+        GPIO22  --------    SCL
+        ```
 
-**Actuator Simulation LEDs (Master Node Only)**
-```
-ESP32                Components
------                ----------
-GPIO18  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Fan Simulation LED)
-GPIO19  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Light Simulation LED)
-```
+### 4.2. Actuator Simulation LEDs (Dewasa Node Only)
 
-## System Configuration
-
-### 1. MAC Addresses (All Nodes)
-*   **Find MACs:** Use the `GetMacAddress.cpp` sketch (or monitor serial output during startup) to find the unique MAC address of each ESP32 board.
-*   **Update Master (`DeWasaNode_Master.cpp`):** Set the correct MAC address for `peremajaanMac` (the node sending `CombinedData`).
-    ```cpp
-    // Example: Update with ACTUAL Peremajaan MAC
-    uint8_t peremajaanMac[] = {0x4C, 0x11, 0xAE, 0x64, 0xD0, 0x74};
+*   Pins defined in `DeWasaNode_Master.cpp`:
+    *   Fan Simulation LED: `FAN_LED_PIN = 18` (GPIO18)
+    *   Light Simulation LED: `LIGHT_LED_PIN = 19` (GPIO19)
+*   Wiring:
     ```
-*   **Update Peremajaan Node (`PeremajaanNode.cpp`):** Set the correct `masterMac` (Dewasa) and `penyemaianMac`.
-    ```cpp
-    // Example: Update with ACTUAL Master and Penyemaian MACs
-    uint8_t masterMac[] = {0xE4, 0x65, 0xB8, 0x83, 0xD1, 0x40};
-    uint8_t penyemaianMac[] = {0x30, 0xAE, 0xA4, 0x96, 0xA3, 0x48};
-    ```
-*   **Update Penyemaian Node (`PenyemaianNode.cpp`):** Set the correct `peremajaanMac`.
-    ```cpp
-    // Example: Update with ACTUAL Peremajaan MAC
-    uint8_t peremajaanMac[] = {0x4C, 0x11, 0xAE, 0x64, 0xD0, 0x74};
+    ESP32 (Dewasa)       Components
+    --------------       ----------
+    GPIO18  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Fan LED)
+    GPIO19  --------    Resistor ---- LED (+) ---- LED (-) ---- GND  (Light LED)
     ```
 
-### 2. ESP-NOW Channel (All Nodes) - **CRITICAL**
-*   To ensure reliable ESP-NOW communication alongside the Master's WiFi connection, all nodes **must** use the same, fixed WiFi channel.
-*   **Channel 6** is currently hardcoded in:
-    *   `PenyemaianNode.cpp` (`esp_wifi_set_channel(6, ...)` and `peerInfo.channel = 6;`)
-    *   `PeremajaanNode.cpp` (`esp_wifi_set_channel(6, ...)` and `peerInfo.channel = 6;` for both peers)
-    *   `ESPNowManager.cpp` (`peerInfo.channel = 6;` in `addPeer` - used for Peremajaan peer on Master)
-    *   `DeWasaNode_Master.cpp` (`esp_wifi_set_channel(6, ...)` after MQTT connection)
-*   If your WiFi AP (used by the Master node) consistently uses a different channel, you **must** update the channel number (e.g., `6`) in all these locations.
+### 4.3. Serial Connection (Gateway Node <-> Dewasa Node)
 
-### 3. WiFi & MQTT Credentials (Master Node Only)
-*   Update `ssid`, `password`, `mqtt_server`, `mqtt_port`, `mqtt_username`, `mqtt_password`, `mqtt_publish_topic`, and `mqtt_control_topic` in `DeWasaNode_Master.cpp`.
-    ```cpp
+*   Both nodes use `Serial2` for this communication.
+*   **Gateway Node (`GatewayNode.cpp`):**
+    *   `#define SERIAL_TO_DEWASA Serial2`
+    *   `SERIAL_TO_DEWASA.begin(SERIAL_BAUD_RATE, SERIAL_8N1, 16, 17);` (RX2=GPIO16, TX2=GPIO17)
+*   **Dewasa Node (`DeWasaNode_Master.cpp`):**
+    *   `Serial2.begin(115200, SERIAL_8N1, 16, 17);` (RX2=GPIO16, TX2=GPIO17)
+*   **Wiring:**
+    ```
+    Gateway ESP32        Dewasa ESP32
+    -------------        -------------
+    GPIO17 (TX2) ------> GPIO16 (RX2)
+    GPIO16 (RX2) <------ GPIO17 (TX2)
+    GND          -------- GND (Essential for reliable serial communication)
+    ```
+    *   **Important:** Ensure baud rates match (currently 115200 in both files).
+
+## 5. System Configuration (Critical Setup Steps)
+
+### 5.1. MAC Addresses
+
+*   **Find MACs:** Use the `GetMacAddress.cpp` sketch (PlatformIO environment: `get_mac_address`) to find the unique MAC address of each ESP32 board. Upload the sketch and monitor the serial output.
+*   **Update `lib/Common/NodeConfig.h`:**
+    *   Open `Hardware/lib/Common/NodeConfig.h`.
+    *   Replace the placeholder MAC addresses with the actual MAC addresses for your ESP32 boards:
+        ```c++
+        // MAC Address of the Penyemaian Node
+        const uint8_t MAC_ADDR_PENYEMAIAN[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // Replace with actual
+
+        // MAC Address of the Peremajaan Node
+        const uint8_t MAC_ADDR_PEREMAJAAN[] = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // Replace with actual
+
+        // MAC Address of the NEW Gateway Node
+        const uint8_t MAC_ADDR_GATEWAY[]    = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // Replace with actual
+
+        // MAC Address of the Dewasa/Master Node
+        const uint8_t MAC_ADDR_DEWASA[]     = {0xXX, 0xXX, 0xXX, 0xXX, 0xXX, 0xXX}; // Replace with actual
+        ```
+    *   This file is shared, so these definitions will be used by all relevant nodes.
+
+### 5.2. ESP-NOW WiFi Channel
+
+*   All nodes participating in ESP-NOW communication (Penyemaian, Peremajaan, Gateway) **must** operate on the same WiFi channel.
+*   This channel is defined in `lib/Common/NodeConfig.h`:
+    ```c++
+    #define WIFI_CHANNEL 1 // Define the operating channel (1-11 recommended)
+    ```
+    *   Currently set to **Channel 1**. If you need to change this (e.g., due to interference), modify it here. All ESP-NOW nodes will use this value.
+*   The Dewasa Node connects to a standard WiFi Access Point for MQTT. Its operating channel will be determined by that AP. Since the Dewasa node no longer directly participates in ESP-NOW communication (it receives data via Serial from the Gateway), its AP channel does not need to match `WIFI_CHANNEL`.
+
+### 5.3. WiFi & MQTT Credentials (Dewasa Node Only)
+
+*   Open `Hardware/src/DeWasaNode_Master.cpp`.
+*   Update the following constants with your WiFi network and MQTT broker details:
+    ```c++
+    // const char* ssid = "padahal katanya uangtakan kemana";
+    // const char* password = "jika memang rejeki akan ditransfer juga";
+
     const char* ssid = "Direktorat Kemendikbud"; // Your WiFi SSID
-    const char* password = "NadiemGantengSih"; // Your WiFi password
+    const char* password = "NadiemGantengSih";   // Your WiFi password
+
     const char* mqtt_server = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"; // HiveMQ Cloud server
-    const int mqtt_port = 8883; // TLS/SSL MQTT port
+    const int mqtt_port = 8883;                // TLS MQTT port
     const char* mqtt_username = "LokataniAdmin"; // MQTT username
     const char* mqtt_password = "LokataniAdmin123"; // MQTT password
-    const char* mqtt_publish_topic = "lokatech/greenhouse/sensors"; // Topic for publishing sensor data
-    const char* mqtt_control_topic = "lokatech/greenhouse/controls/set"; // Topic for receiving commands
+    const char* mqtt_publish_topic = "lokatech/greenhouse/sensors";
+    const char* mqtt_control_topic = "lokatech/greenhouse/controls/set";
     ```
-    *   The Master node publishes data to `mqtt_publish_topic` and subscribes to `mqtt_control_topic`.
-    *   Note that port 8883 uses TLS/SSL encryption, which is more secure than standard MQTT.
+    *   The system uses HiveMQ Cloud with TLS encryption (port 8883) and username/password authentication.
 
-### 4. Simulation Mode (Optional, Per Node)
-*   In each node's `.cpp` file (`PenyemaianNode.cpp`, `PeremajaanNode.cpp`, `DeWasaNode_Master.cpp`), configure sensor simulation if hardware is missing or faulty:
-    ```cpp
+### 5.4. Serial Baud Rate (Gateway & Dewasa Nodes)
+
+*   The serial communication baud rate between the Gateway Node and the Dewasa Node must match.
+*   **Gateway Node (`GatewayNode.cpp`):** `const long SERIAL_BAUD_RATE = 115200;`
+*   **Dewasa Node (`DeWasaNode_Master.cpp`):** `Serial2.begin(115200, ...);`
+*   Both are currently set to **115200**.
+
+### 5.5. Sensor Simulation Mode (Optional, Per Node)
+
+*   For testing without physical sensors, simulation mode can be enabled in the respective node's `.cpp` file:
+    *   `PenyemaianNode.cpp`
+    *   `PeremajaanNode.cpp`
+    *   `DeWasaNode_Master.cpp`
+    ```c++
     #define TEMP_HUMID_SIMULATION_MODE false // true = simulate DHT22
     #define LIGHT_SIMULATION_MODE false      // true = simulate BH1750
     ```
-*   Simulation generates random realistic values. See `SensorManager.cpp` for ranges.
-*   Note: Validity flags are preserved individually even if one sensor fails (e.g., if DHT fails, simulated light validity is still reported correctly).
+*   When enabled, `SensorManager` generates random realistic values.
 
-## Building and Uploading (PlatformIO)
+### 5.6. Data Timeouts
 
-Ensure you have the correct PlatformIO environments configured in `platformio.ini`.
+*   Various data validity timeouts are defined in `lib/Common/NodeConfig.h` (e.g., `PENYEMAIAN_DATA_TIMEOUT`, `COMBINED_DATA_TIMEOUT`, `GATEWAY_DATA_TIMEOUT`). These determine how long data from a preceding node is considered fresh.
 
-*   **Dewasa Master Node:**
-    *   Build/Upload: `pio run -e dewasa_master -t upload` (or use VS Code PlatformIO buttons)
-*   **Peremajaan Node:**
-    *   Build/Upload: `pio run -e peremajaan_node -t upload`
-*   **Penyemaian Node:**
-    *   Build/Upload: `pio run -e penyemaian_node -t upload`
-*   **Monitor Serial Output:** `pio device monitor -b 115200`
+## 6. Data Flow & Structures
 
-## JSON Data Format (MQTT Payload)
+1.  **Penyemaian Node to Peremajaan Node (ESP-NOW):**
+    *   Structure: `SensorData` (defined in `SensorData.h`)
+        ```c++
+        struct SensorData {
+            char nodeName[16];
+            float temperature;
+            float humidity;
+            float lightIntensity;
+            bool temperatureValid;
+            bool humidityValid;
+            bool lightValid;
+            unsigned long timestamp; // millis() from sending node
+        };
+        ```
 
-The Master node publishes data to the `mqtt_publish_topic` (`lokatech/greenhouse/sensors`) in this format:
+2.  **Peremajaan Node to Gateway Node (ESP-NOW):**
+    *   Structure: `CombinedData` (defined in `SensorData.h`)
+        ```c++
+        struct CombinedData {
+            SensorData peremajaanData;    // Data from Peremajaan node's sensors
+            SensorData penyemaianData;    // Data received from Penyemaian node
+            bool isPenyemaianDataValid; // Flag: was penyemaianData recent when Peremajaan sent?
+            unsigned long timestamp;    // millis() when this packet was created by Peremajaan
+        };
+        ```
 
-```json
-{
-  "timestamp": 1678886400, // Example Unix timestamp (actually millis()/1000)
-  "sections": {
-    "dewasa": { // Data from Master node's local sensors
-      "temp": 28.1,
-      "humidity": 67,
-      "light": null, // Example: BH1750 failed on Master
-      "trends": { "temp": "equals", "humidity": "equals", "light": "equals" } // Note: Trends are placeholders
-    },
-    "peremajaan": { // Data originating from Peremajaan node (via CombinedData)
-      "temp": 28.5,
-      "humidity": 70,
-      "light": 8645, // Value is in lux
-      "trends": { "temp": "equals", "humidity": "equals", "light": "equals" } // Note: Trends are placeholders
-    },
-    "penyemaian": { // Data originating from Penyemaian node (via CombinedData)
-      "temp": null, // Example: Sensor failed on Penyemaian node
-      "humidity": null,
-      "light": 500, // Example: Light sensor worked on Penyemaian
-      "trends": { "temp": "equals", "humidity": "equals", "light": "equals" } // Note: Trends are placeholders
-    }
-  },
-  "averages": { // Average of available sensor readings across sections with valid data
-    "temp": 28,     // Example: Average of Dewasa and Peremajaan only (rounded)
-    "humidity": 68, // Example: Average of Dewasa and Peremajaan only (rounded)
-    "light": 4573   // Example: Average of Peremajaan (8645) and Penyemaian (500) -> (8645+500)/2 (rounded)
-  },
-  "actuators": { // Current state and mode of actuators on the Master node
-    "fan": {
-      "state": true,   // Current state (true=ON, false=OFF)
-      "mode": "auto"   // Current mode ("auto" or "manual")
-    },
-    "light": {
-      "state": false,
-      "mode": "manual" // Example: Light is manually turned off via MQTT command
-    }
-  }
-}
-```
-*   Numeric values are rounded to integers (or one decimal for temp) in the final JSON.
-*   Light intensity (`light`) is reported in **lux**.
-*   `null` values indicate failed sensor reads on the originating node, or that the data from a satellite node timed out (timeout set by `COMBINED_DATA_TIMEOUT` in `ESPNowManager.h` for Peremajaan/Penyemaian data reception on Master).
-*   Trends are currently placeholders (`"equals"`) in the `MQTTManager` implementation and would require storing previous values on the Master node to be calculated properly.
-*   The `actuators` object reflects the current state of the fan/light LEDs (as read from the pins) and whether they are being controlled by the fuzzy logic (`auto`) or by a user command (`manual`).
+3.  **Gateway Node to Dewasa Node (Serial):**
+    *   Format: JSON string, sent over `Serial2`.
+    *   Example structure generated by `GatewayNode.cpp`:
+        ```json
+        {
+          "timestamp_ms": 12345678, // Original Peremajaan packet timestamp
+          "isPenyemaianValid": true,
+          "peremajaan": {
+            "temp": 25.5, "hum": 60.1, "light": 7500 // or null if invalid
+          },
+          "penyemaian": {
+            "temp": 26.1, "hum": 62.3, "light": 6800 // or null if invalid
+          }
+        }
+        ```
+    *   `DeWasaNode_Master.cpp` parses this JSON to update `gatewayPenyemaianData` and `gatewayPeremajaanData`.
 
-## MQTT Control Commands
+4.  **Dewasa Node to MQTT Broker (MQTT):**
+    *   Topic: `lokatech/greenhouse/sensors` (defined in `DeWasaNode_Master.cpp`)
+    *   Format: JSON string, generated by `MQTTManager::generateJsonPayload()`.
+    *   Structure (example):
+        ```json
+        {
+          "timestamp": 1678886400, // Unix epoch seconds
+          "sections": {
+            "dewasa": { "temp": 28.1, "humidity": 67, "light": null, "trends": {"temp": "equals", ...} },
+            "peremajaan": { "temp": 28.5, "humidity": 70, "light": 8645, "trends": {...} }, // From Gateway
+            "penyemaian": { "temp": null, "humidity": null, "light": 500, "trends": {...} }  // From Gateway
+          },
+          "averages": { "temp": 28.3, "humidity": 68, "light": 4573 },
+          "actuators": {
+            "fan": { "state": true, "mode": "auto" },
+            "light": { "state": false, "mode": "manual" }
+          }
+        }
+        ```
+    *   `null` values indicate invalid or timed-out sensor data.
+    *   Trends are currently placeholders.
+    *   Light intensity is in **lux**.
 
-The Master node listens on the `mqtt_control_topic` (`lokatech/greenhouse/controls/set`) for commands to manually override actuators. The expected command format is a JSON string:
+5.  **Backend/Web UI to Dewasa Node (MQTT Control Command):**
+    *   Topic: `lokatech/greenhouse/controls/set` (subscribed by `DeWasaNode_Master.cpp`)
+    *   Format: JSON string.
+    *   Example:
+        ```json
+        {"device":"fan", "state":true, "mode":"manual"}
+        ```
+        or
+        ```json
+        {"device":"light", "mode":"auto"}
+        ```
+    *   The `DeWasaNode_Master.cpp`'s `mqttCallback` function parses these commands to switch actuator modes (auto/manual) and set manual states.
 
-```json
-{
-  "device": "fan",   // or "light"
-  "state": true,     // true for ON, false for OFF
-  "mode": "manual"   // Must be "manual" to trigger override
-}
-```
-*   Receiving a `manual` command for a device will:
-    1. Set its corresponding `fanManual` or `lightManual` flag to `true` on the Master node.
-    2. Directly set the state of the corresponding LED pin (`FAN_LED_PIN` or `LIGHT_LED_PIN`) via `digitalWrite`.
-    3. Prevent the fuzzy logic controller from changing that specific actuator's state while the `...Manual` flag is true.
-*   **Note:** There is currently no automatic mechanism implemented to switch a device back from `manual` to `auto` mode (e.g., after a timeout or via a specific "set auto" command). Manual mode persists until the device restarts or potentially receives another command (though only "manual" mode is currently processed).
+## 7. Fuzzy Logic Control System (Dewasa Node)
 
-## Troubleshooting
+The Dewasa Node implements a fuzzy logic controller for automated environmental management when actuators are in "auto" mode.
 
-*   **MQTT Connection Issues:** Check WiFi credentials, broker address/port, network connectivity. See `MQTTManager` logs in the Master node's Serial Monitor.
-*   **Sensor Reading Failures:** Check wiring (DHT=GPIO4, BH1750=GPIO21/22), power supply. Check `SensorManager` logs on the relevant node. Enable simulation mode to isolate hardware issues.
-*   **ESP-NOW Communication Issues (Penyemaian -> Peremajaan):**
-    *   **Verify MAC Addresses:** Check `peremajaanMac` in `PenyemaianNode.cpp` and `penyemaianMac` in `PeremajaanNode.cpp`.
-    *   **Verify Channel:** Ensure Channel 6 (or your chosen channel) is set in both `PenyemaianNode.cpp` and `PeremajaanNode.cpp`.
-    *   **Check Initialization:** Look for ESP-NOW init and peer addition logs on both nodes.
-    *   **Check `SensorData.h`:** Ensure the `struct SensorData` definition is identical.
-    *   **Check Distance/Obstacles.**
-*   **ESP-NOW Communication Issues (Peremajaan -> Dewasa):**
-    *   **Verify MAC Addresses:** Check `masterMac` in `PeremajaanNode.cpp` and `peremajaanMac` in `DeWasaNode_Master.cpp`.
-    *   **Verify Channel:** Ensure Channel 6 (or your chosen channel) is set in both `PeremajaanNode.cpp` and `DeWasaNode_Master.cpp`.
-    *   **Check Initialization:** Look for ESP-NOW init and peer addition logs on both nodes (`ESPNowManager` logs on Master).
-    *   **Check `SensorData.h`:** Ensure the `struct CombinedData` definition is identical.
-    *   **Check `COMBINED_DATA_TIMEOUT`:** If data appears missing on the dashboard, check `ESPNowManager.h` timeout and Peremajaan sending interval.
-    *   **Check Distance/Obstacles.**
-*   **Master Node Crash on Startup:** If the Dewasa node crashes, ensure WiFi/MQTT initialization (`mqttManager->begin()`) happens *before* ESP-NOW initialization (`espNowManager->begin()`) in `DeWasaNode_Master.cpp`'s `setup()` function.
-*   **Unexpected Fuzzy Logic Output / Actuator State:**
-    *   Check the detailed Fuzzy Control Debug output in the Dewasa node's Serial Monitor (prints every `FUZZY_DEBUG_PRINT_INTERVAL`).
-    *   Verify the calculated `avgTemp`, `avgHumidity`, `avgLight` values being fed into the fuzzy system.
-    *   Check the membership degrees (e.g., `Temp -> Cold:0.20 Optimal:0.80 Hot:0.00`).
-    *   Check the raw defuzzified outputs (`Fan Raw: 0.85`, `Light Raw: 0.10`).
-    *   Confirm the final ON/OFF state matches the threshold logic (`> 0.5f`).
-    *   Ensure the actuator is not stuck in `manual` mode (check MQTT payload or debug logs).
-    *   Verify the fuzzy sets and rules in `lib/FuzzyController/FuzzyController.cpp` match the intended logic.
+### 7.1. Inputs
+The fuzzy system takes three average environmental readings as input, calculated by `DeWasaNode_Master.cpp::calculateAverages()` from all available valid sensor data (local Dewasa, and data from Peremajaan & Penyemaian via Gateway):
+*   Average Temperature
+*   Average Humidity
+*   Average Light Intensity
 
-## Fuzzy Logic Control System (**Implemented**)
+### 7.2. Membership Functions
+Defined in `Hardware/lib/FuzzyController/FuzzyController.cpp`:
 
-### Overview
+*   **Temperature (`temp_range`: 0-40°C):**
+    *   `tempCold`: Trapezoidal `[-1, -1, 5, 8]`
+    *   `tempOptimal`: Trapezoidal `[5, 10, 29, 31]`
+    *   `tempHot`: Trapezoidal `[29, 31, 40, 40]`
+*   **Humidity (`hum_range`: 0-100%):**
+    *   `humidityDry`: Trapezoidal `[-1, -1, 40, 50]`
+    *   `humidityOptimal`: Trapezoidal `[40, 55, 75, 90]`
+    *   `humidityHumid`: Trapezoidal `[80, 90, 100, 100]`
+*   **Light (`light_range`: 0-1000 lux for MFs, actual sensor range can be higher):**
+    *   `lightDark`: Trapezoidal `[0, 0, 150, 350]`
+    *   `lightAdequate`: Trapezoidal `[150, 350, 1000, 1000]`
 
-The Dewasa (master) node includes a fuzzy logic controller implemented using the `eFLL` library (`lib/FuzzyController/`). When actuators are in "auto" mode, this controller automatically determines the desired state (ON/OFF) for the Fan and Light simulation LEDs (GPIO 18 and 19) based on the average environmental conditions calculated from available sensor data (Dewasa, Peremajaan, Penyemaian).
+*(Refer to `fuzzy.py` for a script to visualize these membership functions. The generated `fuzzy_membership_functions.png` and `fuzzy_transition_detail.png` show these plots.)*
 
-### Input Variables and Membership Functions
+### 7.3. Output Controls (Simulated by LEDs)
+*   **Fan State**: ON/OFF (Controls `FAN_LED_PIN`)
+    *   Fuzzy Sets: `fanOff` (triangular near 0), `fanOn` (triangular near 1)
+*   **Light State**: ON/OFF (Controls `LIGHT_LED_PIN`)
+    *   Fuzzy Sets: `lightOff` (triangular near 0), `lightOn` (triangular near 1)
 
-The controller uses the average sensor readings calculated by the `calculateAverages` function in `DeWasaNode_Master.cpp`.
-
-1.  **Average Temperature (`avgTemp`)**
-    *   **Universe**: 0-40°C
-    *   **Fuzzy Sets**:
-        *   `tempCold`: Trapezoidal [-1, -1, 5, 8] (Fully Cold below 5°C, drops to 0 at 8°C)
-        *   `tempOptimal`: Trapezoidal [5, 10, 25, 30] (Starts rising at 5°C, fully Optimal 10-25°C, drops to 0 at 30°C)
-        *   `tempHot`: Trapezoidal [27, 30, 40, 40] (Starts rising at 27°C, fully Hot above 30°C)
-
-2.  **Average Humidity (`avgHumidity`)**
-    *   **Universe**: 0-100%
-    *   **Fuzzy Sets**:
-        *   `humidityDry`: Trapezoidal [-1, -1, 40, 50] (Fully Dry below 40%, drops to 0 at 50%)
-        *   `humidityOptimal`: Trapezoidal [40, 55, 75, 90] (Starts rising at 40%, fully Optimal 55-75%, drops to 0 at 90%)
-        *   `humidityHumid`: Trapezoidal [80, 90, 100, 100] (Starts rising at 80%, fully Humid above 90%)
-
-3.  **Average Light Level (`avgLight`)**
-    *   **Universe**: 0-1000 lux (Note: `generateJsonPayload` uses lux, but fuzzy input range might need adjustment based on typical readings)
-    *   **Fuzzy Sets**:
-        *   `lightDark`: Trapezoidal [0, 0, 50, 200] (Fully Dark below 50 lux, drops to 0 at 200 lux)
-        *   `lightAdequate`: Trapezoidal [150, 500, 1500, 1500] (Starts rising at 150 lux, fully Adequate 500-1500 lux) *Note: upper range extends beyond universe defined above, may need review.*
-
-*(See `fuzzy.py` script and generated `fuzzy_membership_functions.png` for visualization)*
-
-### Output Controls
-
-1.  **Fan State**: Simple ON/OFF control.
-    *   **Fuzzy Sets**: `fanOff` (triangular near 0), `fanOn` (triangular near 1)
-2.  **Light State**: Simple ON/OFF control.
-    *   **Fuzzy Sets**: `lightOff` (triangular near 0), `lightOn` (triangular near 1)
-
-### Fuzzy Rules
-
-The following rules are implemented in `FuzzyController::defineRules()`:
-
+### 7.4. Fuzzy Rules
+Implemented in `FuzzyController::defineRules()`:
 *   **Fan Control:**
     1.  IF `avgTemp` IS `tempHot` THEN Fan IS `fanOn`.
     2.  IF `avgHumidity` IS `humidityHumid` THEN Fan IS `fanOn`.
@@ -301,21 +332,66 @@ The following rules are implemented in `FuzzyController::defineRules()`:
     5.  IF `avgLight` IS `lightDark` THEN Light IS `lightOn`.
     6.  IF `avgLight` IS `lightAdequate` THEN Light IS `lightOff`.
 
-### Defuzzification
+### 7.5. Defuzzification & Output Logic
+*   `FuzzyController::run()` calculates crisp output values (0-1) for Fan and Light.
+*   `FuzzyController::getFanOutput()`: Implements hysteresis. Turns ON if crisp output `> 0.9f`, turns OFF if crisp output `<= 0.1f`.
+*   `FuzzyController::getLightOutput()`: Turns ON if `lightDark` membership `> 0.9f`, turns OFF if `lightDark` membership `< 0.1f`.
 
-*   The `FuzzyController::run()` method calls `_fuzzy->defuzzify(1)` for Fan and `_fuzzy->defuzzify(2)` for Light. This calculates a crisp output value (between 0 and 1) for each actuator, likely using the Centroid method (eFLL default).
-*   The `getFanOutput()` and `getLightOutput()` methods then apply a simple threshold: if the defuzzified value is `> 0.5f`, the output is considered ON (true), otherwise OFF (false). This boolean result controls the LEDs when in "auto" mode.
+## 8. Building and Uploading (PlatformIO)
 
-## Security Considerations
+Ensure PlatformIO Core CLI or VS Code Extension is installed.
 
-*   Current implementation uses unencrypted ESP-NOW.
-*   MQTT communication now uses HiveMQ Cloud with TLS encryption and username/password authentication, providing improved security.
-*   For production environments, consider:
-    *   Enabling ESP-NOW encryption (requires managing keys).
-    *   Further hardening by using client certificates for MQTT connections.
-    *   Adding security measures to the Flask application (e.g., CSRF protection if forms are added).
-    *   Implementing secure credential storage on the ESP32 (avoid hardcoding credentials).
+1.  **Navigate** to the `Hardware/` directory.
+2.  **Select Environment:** Use the PlatformIO interface or CLI to select the target environment.
+3.  **Build & Upload Commands:**
+    *   **Penyemaian Node:** `pio run -e penyemaian_node -t upload`
+    *   **Peremajaan Node:** `pio run -e peremajaan_node -t upload`
+    *   **Gateway Node:** `pio run -e gateway_node -t upload`
+    *   **Dewasa Node (Master):** `pio run -e deewasa_master -t upload`
+    *   **Get MAC Address Utility:** `pio run -e get_mac_address -t upload`
+4.  **Monitor Serial Output:** `pio device monitor -b 115200` (or use PlatformIO's built-in serial monitor).
+
+## 9. Actuator Control Path (Web UI to Hardware)
+
+*   The frontend dashboard (`static/js/dashboard/controls.js`) sends HTTP POST requests to `/controls/api/set_state` for manual actuator control.
+*   The Dewasa Node (`DeWasaNode_Master.cpp`) listens for MQTT commands on `lokatech/greenhouse/controls/set` to change actuator states/modes.
+*   **Current Status (TODO):** The Flask backend route that receives the HTTP POST from the web UI and publishes the corresponding command to the MQTT topic is **not yet implemented**. Manual control from the web UI will not function until this backend bridge is created.
+
+## 10. Troubleshooting
+
+*   **No Data on Dewasa Node from Gateway:**
+    *   Verify Serial wiring (TX on Gateway to RX on Dewasa, RX to TX, GND to GND).
+    *   Ensure `SERIAL_BAUD_RATE` matches in `GatewayNode.cpp` and `DeWasaNode_Master.cpp`.
+    *   Check `GatewayNode.cpp` serial monitor for ESP-NOW reception from Peremajaan and JSON forwarding logs.
+    *   Check `DeWasaNode_Master.cpp` serial monitor for JSON parsing logs from Serial2.
+*   **Gateway Not Receiving from Peremajaan (ESP-NOW):**
+    *   Verify `MAC_ADDR_PEREMAJAAN` in `NodeConfig.h` matches Peremajaan's actual MAC.
+    *   Verify `MAC_ADDR_GATEWAY` in `NodeConfig.h` matches Gateway's actual MAC.
+    *   Ensure `WIFI_CHANNEL` in `NodeConfig.h` is identical for both Peremajaan and Gateway.
+    *   Check `PeremajaanNode.cpp` serial monitor for send status (ACKs).
+    *   Check `GatewayNode.cpp` serial monitor for receive callbacks.
+    *   Check distance/obstacles.
+*   **Peremajaan Not Receiving from Penyemaian (ESP-NOW):**
+    *   Similar checks as above, but for `MAC_ADDR_PENYEMAIAN`, `MAC_ADDR_PEREMAJAAN`, and `WIFI_CHANNEL` between these two nodes.
+*   **MQTT Connection Issues (Dewasa Node):**
+    *   Verify WiFi credentials (`ssid`, `password`) in `DeWasaNode_Master.cpp`.
+    *   Verify MQTT broker details (`mqtt_server`, `mqtt_port`, `mqtt_username`, `mqtt_password`) in `DeWasaNode_Master.cpp`.
+    *   Check network connectivity of the Dewasa Node's WiFi.
+    *   Monitor `MQTTManager` logs in Dewasa Node's serial output.
+*   **Sensor Reading Failures (Any Node):**
+    *   Check sensor wiring (DHT to `DHT_PIN`, BH1750 I2C to GPIO21/22).
+    *   Check power supply to sensors.
+    *   Monitor `SensorManager` logs on the relevant node. Enable simulation mode to isolate hardware issues.
+*   **Unexpected Fuzzy Logic Output / Actuator State (Dewasa Node):**
+    *   Check detailed Fuzzy Control Debug output in Dewasa Node's serial monitor.
+    *   Verify calculated `avgTemp`, `avgHumidity`, `avgLight` values.
+    *   Ensure actuators are not stuck in `manual` mode (check MQTT payload or debug logs).
+
+## 11. Security Considerations
+
+*   **ESP-NOW:** Communication is currently unencrypted. For production, consider enabling ESP-NOW encryption (requires key management).
+*   **Serial (Gateway to Dewasa):** This communication is unencrypted and typically short-range. Physical security of the nodes is important.
+*   **MQTT:** Communication with HiveMQ Cloud uses TLS encryption and username/password authentication, which is a good security baseline.
+*   **Credentials:** WiFi and MQTT credentials are currently hardcoded in `DeWasaNode_Master.cpp`. For production, explore more secure methods like provisioning or secure storage if available on ESP32.
 
 ---
-*Document Updated: 2025-05-07* (Updated MQTT configuration to use secure HiveMQ Cloud broker)
-
