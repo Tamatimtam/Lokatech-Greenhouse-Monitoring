@@ -10,17 +10,22 @@ SensorManager::SensorManager(int dhtPin, bool tempHumidSimulation, bool lightSim
 void SensorManager::begin() {
     // Initialize DHT sensor
     _dht.begin();
+#if DEBUG_SENSOR_MANAGER
     Serial.println("[SensorManager] DHT22 sensor initialized");
+#endif
     
     // Initialize BH1750 light sensor
     Wire.begin();
     if (_lightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+#if DEBUG_SENSOR_MANAGER
         Serial.println("[SensorManager] BH1750 sensor initialized");
+#endif
     } else {
         Serial.println("[SensorManager] ERROR: Failed to initialize BH1750 sensor!");
     }
     
     // Log simulation mode status
+#if DEBUG_SENSOR_MANAGER
     if (_tempHumidSimulationMode) {
         Serial.println("[SensorManager] Temperature & humidity simulation mode ENABLED");
     }
@@ -28,6 +33,7 @@ void SensorManager::begin() {
     if (_lightSimulationMode) {
         Serial.println("[SensorManager] Light intensity simulation mode ENABLED");
     }
+#endif
 
     // Initialize random seed for simulation
     if (_tempHumidSimulationMode || _lightSimulationMode) {
@@ -65,15 +71,15 @@ bool SensorManager::readSensors() {
             _humidity = hum_reading;
             _temperatureValid = true; // Set flag to true
             _humidityValid = true;    // Set flag to true
+#if DEBUG_SENSOR_MANAGER
             Serial.println("[SensorManager] Temperature: " + String(_temperature) + "°C");
             Serial.println("[SensorManager] Humidity: " + String(_humidity) + "%");
+#endif
         } else {
-            // One or both readings failed (NaN or 0.0). Do not update member variables.
-            // Flags _temperatureValid and _humidityValid remain false (as set at the start).
-            Serial.print("[SensorManager] ERROR: Failed to read plausible data from DHT sensor!");
+            // Critical/important warning, consider always printing or having a separate ERROR flag
+            Serial.print("[SensorManager] WARNING: Failed to read plausible data from DHT sensor!");
             Serial.print(" Temp Raw: "); Serial.print(temp_reading);
             Serial.print(", Hum Raw: "); Serial.println(hum_reading);
-            // Keep _temperature and _humidity as their previous values (or NAN if first read)
         }
     }
 
@@ -81,42 +87,32 @@ bool SensorManager::readSensors() {
     if (_lightSimulationMode) {
         _lightIntensity = getRandomLightIntensity();
         _lightValid = true;
+#if DEBUG_SENSOR_MANAGER
         Serial.println("[SensorManager] Simulated light intensity: " + String(_lightIntensity) + " lux");
+#endif
     } else {
-        // Read lux directly from sensor
         float luxReading = _lightSensor.readLightLevel();
-
-        // BH1750 library usually returns < 0 on error. A reading of 0.0 lux is possible (total darkness).
         if (luxReading < 0) {
-            // Reading failed. Do not update member variable.
-            // Flag _lightValid remains false (as set at the start).
+            // Critical/important warning
             Serial.println("[SensorManager] ERROR: Failed to read from BH1750 sensor! Code: " + String(luxReading));
-
-            // --- Attempt to re-initialize the sensor ---
+#if DEBUG_SENSOR_MANAGER
             Serial.println("[SensorManager] Attempting to re-initialize BH1750...");
-            // Ensure Wire is begun (might be redundant but safe)
-            // Wire.begin(); // Usually called once in setup, might not be needed here unless I2C bus crashed hard.
+#endif
             if (_lightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+#if DEBUG_SENSOR_MANAGER
                  Serial.println("[SensorManager] BH1750 re-initialized successfully.");
+#endif
             } else {
-                 Serial.println("[SensorManager] ERROR: Failed to re-initialize BH1750!");
-                 // Consider if further action is needed, e.g., resetting I2C bus completely.
+                 Serial.println("[SensorManager] ERROR: Failed to re-initialize BH1750!"); // Critical
             }
-            // --- End re-initialization attempt ---
-
-            // Keep _lightIntensity as its previous value (or NAN if first read)
-            // _lightValid remains false for this cycle.
-
         } else {
-            // Reading successful (including 0.0), update member variable and flag.
-            _lightIntensity = luxReading; // Use raw lux value
-            _lightValid = true; // Set flag to true
+            _lightIntensity = luxReading;
+            _lightValid = true;
+#if DEBUG_SENSOR_MANAGER
             Serial.println("[SensorManager] Light intensity: " + String(_lightIntensity) + " lux");
+#endif
         }
     }
-
-    // Return true if all sensors have valid readings (as per original logic)
-    // Note: This return value might not be as critical if individual validity flags are checked downstream.
     return _temperatureValid && _humidityValid && _lightValid;
 }
 

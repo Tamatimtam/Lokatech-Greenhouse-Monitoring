@@ -10,7 +10,7 @@
 // #include "ESPNowManager.h" // Removed
 #include "MQTTManager.h"
 #include "FuzzyController.h" // Include the new Fuzzy Controller
-#include "NodeConfig.h" // Include common configuration
+#include "../lib/Common/NodeConfig.h" // Include common configuration
 #include "SensorData.h" // Added (needed for data structs)
 
 // Pin Definitions (Moved to NodeConfig.h)
@@ -95,97 +95,64 @@ void runFuzzyControl(); // Function to handle fuzzy logic execution
 void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool &averagesValid, int &tempCount, int &humidityCount, int &lightCount); // Updated prototype
 
 void setup() {
-  // Initialize serial communication
   Serial.begin(115200);
-  delay(1000); // Give serial monitor time to start
+  delay(1000); 
 
+#if DEBUG_DEWASA_MAIN
   Serial.println("\n\n[DeWasaNode_Master] Starting Dewasa Node (Master) - Serial Gateway Mode...");
+#endif
 
-  // Initialize Serial2 to receive data from Gateway ESP32
-  // Baud rate MUST match Gateway's Serial2 setting
-  Serial2.begin(115200, SERIAL_8N1, 16, 17); // RX2=16, TX2=17
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
+#if DEBUG_DEWASA_SERIAL_GATEWAY
   Serial.println("[DeWasaNode_Master] Serial2 initialized for Gateway communication.");
+#endif
 
-  // Initialize Gateway data storage
   initializeGatewayData();
 
-  // Initialize managers
   sensorManager = new SensorManager(DHT_PIN, TEMP_HUMID_SIMULATION_MODE, LIGHT_SIMULATION_MODE);
-  // espNowManager = new ESPNowManager(); // Removed
-  // Pass both PUBLISH and CONTROL topics to the manager constructor
-  // Initialize the MQTT Manager with username and password
   mqttManager = new MQTTManager(ssid, password, mqtt_server, mqtt_port, mqtt_publish_topic, mqtt_control_topic, mqtt_username, mqtt_password);
-  fuzzyController = new FuzzyController(); // Initialize Fuzzy Controller
+  fuzzyController = new FuzzyController();
 
-  // Initialize LED pins
   pinMode(FAN_LED_PIN, OUTPUT);
   pinMode(LIGHT_LED_PIN, OUTPUT);
-  digitalWrite(FAN_LED_PIN, LOW); // Start with LEDs OFF
+  digitalWrite(FAN_LED_PIN, LOW); 
   digitalWrite(LIGHT_LED_PIN, LOW);
 
-  // Initialize sensor manager
   sensorManager->begin();
+  WiFi.mode(WIFI_STA); 
 
-  // Set WiFi Station mode (needed before setting channel) - Keep if MQTT needs it
-  WiFi.mode(WIFI_STA); // Ensure STA mode is set
-
-  // Set WiFi channel BEFORE connecting to WiFi/MQTT and initializing ESP-NOW (REMOVED)
-  // Serial.printf("[DeWasaNode_Master] Setting WiFi channel to %d...\n", WIFI_CHANNEL); // Removed
-  // if (esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE) != ESP_OK) { // Removed
-  //     Serial.printf("[DeWasaNode_Master] ERROR: Failed to set WiFi channel %d!\n", WIFI_CHANNEL); // Removed
-  // } else { // Removed
-  //     Serial.printf("[DeWasaNode_Master] WiFi channel set to %d successfully.\n", WIFI_CHANNEL); // Removed
-  // } // Removed
-
-  // ***** MODIFICATION START *****
-  // Set the callback BEFORE calling begin() or connect() on mqttManager
+#if DEBUG_DEWASA_MAIN
   Serial.println("[DeWasaNode_Master] Setting MQTT callback on MQTTManager...");
+#endif
   mqttManager->setCallback(mqttCallback);
+#if DEBUG_DEWASA_MAIN
   Serial.printf("[DeWasaNode_Master] MQTTManager's internal callback pointer set using function at %p\n", (void*)mqttCallback);
-  // ***** MODIFICATION END *****
+#endif
 
-  // Initialize MQTT (this will now connect to WiFi on the pre-set channel)
-  // mqttManager->begin() will call mqttManager->connect() internally, which will use the callback set above.
   if (!mqttManager->begin()) { 
-    Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT (and WiFi)");
-    // Consider halting or retrying if WiFi/MQTT is critical
+    Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize MQTT (and WiFi)"); // Critical
   } else {
-      // mqttManager->begin() already attempted connection.
-      // The callback is set.
-      // mqttManager->connect() was called inside begin(). If it succeeded, we are connected.
-      // If it failed, the loop() will handle reconnection.
-      
       if (mqttManager->isConnected()) {
+#if DEBUG_DEWASA_MAIN
         Serial.println("[DeWasaNode_Master] Connected to MQTT broker (from begin call)");
-        // Subscription to mqtt_control_topic is handled within MQTTManager::connect()
-        // The subscription to mqtt_subscribe_topic = "#" below is additional.
         Serial.printf("[DeWasaNode_Master] Verifying subscription to general topic: %s\n", mqtt_subscribe_topic);
-        bool generalSubscribeSuccess = mqttManager->getClient().subscribe(mqtt_subscribe_topic, 1); // QoS 1
+#endif
+        bool generalSubscribeSuccess = mqttManager->getClient().subscribe(mqtt_subscribe_topic, 1);
+#if DEBUG_DEWASA_MAIN
         Serial.printf("[DeWasaNode_Master] Subscription to %s: %s\n", 
                      mqtt_subscribe_topic, generalSubscribeSuccess ? "SUCCESS" : "FAILED");
+#endif
       } else {
+#if DEBUG_DEWASA_MAIN
          Serial.println("[DeWasaNode_Master] WARNING: Failed to connect to MQTT broker initially (during begin). Will retry in loop.");
+#endif
       }
   }
 
-  // Now initialize ESP-NOW, passing the MAC of the node sending CombinedData (Peremajaan) (REMOVED)
-  // if (!espNowManager->begin(peremajaanMac)) { // Removed
-  //   Serial.println("[DeWasaNode_Master] ERROR: Failed to initialize ESP-NOW Manager"); // Removed
-  // } else { // Removed
-  //   Serial.println("[DeWasaNode_Master] ESP-NOW Manager initialized."); // Removed
-  // } // Removed
-
-  // Add Peremajaan as a peer (optional but good practice for receiving) (REMOVED)
-  // if (espNowManager->addPeer(peremajaanMac)) { // Removed
-  //   Serial.println("[DeWasaNode_Master] Peremajaan node added as ESP-NOW peer."); // Removed
-  // } else { // Removed
-  //    Serial.println("[DeWasaNode_Master] WARNING: Failed to add Peremajaan as ESP-NOW peer."); // Removed
-  // } // Removed
-
-  // Initialize the Fuzzy Controller logic (defines sets, rules etc.)
   fuzzyController->begin();
-
+#if DEBUG_DEWASA_MAIN
   Serial.println("[DeWasaNode_Master] Setup completed (Serial Gateway Mode)");
+#endif
 }
 
 // Timer for fuzzy debug printing
@@ -198,149 +165,104 @@ void loop() {
   // --- Process Incoming Data from Gateway via Serial2 ---
   if (Serial2.available() > 0) {
       String line = Serial2.readStringUntil('\n');
-      line.trim(); // Remove potential whitespace/newlines
+      line.trim(); 
 
       if (line.length() > 0) {
-          // Attempt to parse JSON
-          StaticJsonDocument<512> doc; // Adjust size if needed based on Gateway JSON
+          StaticJsonDocument<512> doc; 
           DeserializationError error = deserializeJson(doc, line);
 
           if (!error) {
-              // Basic validation
               if (doc.containsKey("peremajaan") && doc.containsKey("penyemaian") && doc.containsKey("isPenyemaianValid")) {
-                  JsonObject peremajaanJson = doc["peremajaan"];
-                  JsonObject penyemaianJson = doc["penyemaian"];
+                  gatewayPeremajaanData.temperature = doc["peremajaan"]["temp"] | -999.0f;
+                  gatewayPeremajaanData.humidity = doc["peremajaan"]["hum"] | -999.0f;
+                  gatewayPeremajaanData.lightIntensity = doc["peremajaan"]["light"] | -999.0f;
+                  gatewayPeremajaanData.temperatureValid = !doc["peremajaan"]["temp"].isNull();
+                  gatewayPeremajaanData.humidityValid = !doc["peremajaan"]["hum"].isNull();
+                  gatewayPeremajaanData.lightValid = !doc["peremajaan"]["light"].isNull();
+                  gatewayPeremajaanData.timestamp = doc["timestamp_ms"] | 0;
 
-                  // Extract Peremajaan Data
-                  gatewayPeremajaanData.temperature = peremajaanJson["temp"] | -999.0f;
-                  gatewayPeremajaanData.humidity = peremajaanJson["hum"] | -999.0f;
-                  gatewayPeremajaanData.lightIntensity = peremajaanJson["light"] | -999.0f;
-                  gatewayPeremajaanData.temperatureValid = !peremajaanJson["temp"].isNull();
-                  gatewayPeremajaanData.humidityValid = !peremajaanJson["hum"].isNull();
-                  gatewayPeremajaanData.lightValid = !peremajaanJson["light"].isNull();
-                  gatewayPeremajaanData.timestamp = doc["timestamp_ms"] | 0; // Store original timestamp if needed
-
-                  // Extract Penyemaian Data
-                  gatewayPenyemaianData.temperature = penyemaianJson["temp"] | -999.0f;
-                  gatewayPenyemaianData.humidity = penyemaianJson["hum"] | -999.0f;
-                  gatewayPenyemaianData.lightIntensity = penyemaianJson["light"] | -999.0f;
-                  gatewayPenyemaianData.temperatureValid = !penyemaianJson["temp"].isNull();
-                  gatewayPenyemaianData.humidityValid = !penyemaianJson["hum"].isNull();
-                  gatewayPenyemaianData.lightValid = !penyemaianJson["light"].isNull();
-                  // Timestamp is likely same as peremajaan's packet time
+                  gatewayPenyemaianData.temperature = doc["penyemaian"]["temp"] | -999.0f;
+                  gatewayPenyemaianData.humidity = doc["penyemaian"]["hum"] | -999.0f;
+                  gatewayPenyemaianData.lightIntensity = doc["penyemaian"]["light"] | -999.0f;
+                  gatewayPenyemaianData.temperatureValid = !doc["penyemaian"]["temp"].isNull();
+                  gatewayPenyemaianData.humidityValid = !doc["penyemaian"]["hum"].isNull();
+                  gatewayPenyemaianData.lightValid = !doc["penyemaian"]["light"].isNull();
                   gatewayPenyemaianData.timestamp = doc["timestamp_ms"] | 0;
-
-                  // Extract Penyemaian Validity Flag
                   gatewayPenyemaianValid = doc["isPenyemaianValid"] | false;
-
-                  lastGatewayDataTime = millis(); // Update time of successful reception
+                  lastGatewayDataTime = millis();
+#if DEBUG_DEWASA_SERIAL_GATEWAY
                   Serial.println("[DewasaNode] Parsed valid JSON from Gateway via Serial2.");
-
-                  // Optional: Print extracted data for debug
-                  // Serial.printf("  GW Prmj T:%.1f H:%.1f L:%.1f\n", gatewayPeremajaanData.temperature, gatewayPeremajaanData.humidity, gatewayPeremajaanData.lightIntensity);
-                  // Serial.printf("  GW Pnym T:%.1f H:%.1f L:%.1f (Valid Flag:%d)\n", gatewayPenyemaianData.temperature, gatewayPenyemaianData.humidity, gatewayPenyemaianData.lightIntensity, gatewayPenyemaianValid);
-
+#endif
               } else {
+#if DEBUG_DEWASA_SERIAL_GATEWAY
                   Serial.println("[DewasaNode] ERROR: Received JSON from Gateway missing required keys.");
                   Serial.print("  Raw line: "); Serial.println(line);
+#endif
               }
           } else {
-              Serial.print("[DewasaNode] ERROR: Failed to parse JSON from Gateway: ");
-              Serial.println(error.c_str());
+#if DEBUG_DEWASA_SERIAL_GATEWAY
+              Serial.print("[DewasaNode] ERROR: Failed to parse JSON from Gateway: "); Serial.println(error.c_str());
               Serial.print("  Raw line: "); Serial.println(line);
+#endif
           }
-      } // end if line length > 0
-  } // end if Serial2.available()
-  // --- End Serial Processing ---
+      } 
+  } 
 
 
-  // Read sensors at regular intervals using interval from NodeConfig.h
-  if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { // Corrected from 1000UL to SENSOR_READ_INTERVAL
+  if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
     lastSensorReadTime = currentTime;
-
+#if DEBUG_DEWASA_MAIN
     Serial.println("\n[DeWasaNode_Master] Reading sensors...");
+#endif
     bool success = sensorManager->readSensors();
-
-    if (success) {
-      Serial.println("[DeWasaNode_Master] All sensors read successfully");
-    } else {
-      Serial.println("[DeWasaNode_Master] WARNING: Some sensors failed to read");
-    }
+#if DEBUG_DEWASA_MAIN
+    if (success) Serial.println("[DeWasaNode_Master] All sensors read successfully");
+    else Serial.println("[DeWasaNode_Master] WARNING: Some sensors failed to read");
+#endif
   }
 
-  // Publish to MQTT at regular intervals using interval from NodeConfig.h
   if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
     lastMqttPublishTime = currentTime;
-
+#if DEBUG_DEWASA_MAIN
     Serial.println("\n[DeWasaNode_Master] Preparing MQTT payload...");
-
-    // Store current values for next trend calculation (REMOVED - Trend logic not implemented in payload generation)
-    // prevTemperature = sensorManager->getTemperature();
-    // prevHumidity = sensorManager->getHumidity();
-    // prevLightIntensity = sensorManager->getLightIntensity();
-
-    // Generate JSON payload
+#endif
     String payload;
-    mqttManager->generateJsonPayload(
-      payload,
-      sensorManager->getTemperature(),
-      sensorManager->getHumidity(),
-      sensorManager->getLightIntensity(),
-      sensorManager->isTemperatureValid(),
-      sensorManager->isHumidityValid(),
-      sensorManager->isLightValid(),
-      gatewayPenyemaianData, // Pass stored data
-      (millis() - lastGatewayDataTime < GATEWAY_DATA_TIMEOUT && gatewayPenyemaianValid), // Combined validity check
-      gatewayPeremajaanData, // Pass stored data
-      (millis() - lastGatewayDataTime < GATEWAY_DATA_TIMEOUT), // Combined validity check
-      // Pass current actuator state and mode (existing logic)
-      digitalRead(FAN_LED_PIN) == HIGH,
-      fanManual ? "manual" : "auto",
-      digitalRead(LIGHT_LED_PIN) == HIGH,
-      lightManual ? "manual" : "auto"
+    mqttManager->generateJsonPayload( payload, sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
+      sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
+      gatewayPenyemaianData, (millis() - lastGatewayDataTime < GATEWAY_DATA_TIMEOUT && gatewayPenyemaianValid),
+      gatewayPeremajaanData, (millis() - lastGatewayDataTime < GATEWAY_DATA_TIMEOUT),
+      digitalRead(FAN_LED_PIN) == HIGH, fanManual ? "manual" : "auto",
+      digitalRead(LIGHT_LED_PIN) == HIGH, lightManual ? "manual" : "auto"
     );
 
-    // Publish data to MQTT
     if (mqttManager->publish(payload)) {
+#if DEBUG_DEWASA_MAIN
       Serial.println("[DeWasaNode_Master] Data published to MQTT successfully");
+#endif
     } else {
-      Serial.println("[DeWasaNode_Master] ERROR: Failed to publish data to MQTT");
+      Serial.println("[DeWasaNode_Master] ERROR: Failed to publish data to MQTT"); // Critical
     }
   }
 
-  // Handle MQTT connection and message processing
   mqttManager->loop();
   
-  // Ensure we're subscribed to the control topic if MQTT is connected
+#if DEBUG_DEWASA_MQTT_SELF_TEST
   static unsigned long lastSubscriptionCheckTime = 0;
-  if (currentTime - lastSubscriptionCheckTime >= 10000) { // Check every 10 seconds (was 30)
+  if (currentTime - lastSubscriptionCheckTime >= 10000) { 
     lastSubscriptionCheckTime = currentTime;
     if (mqttManager->isConnected()) {
-      // Test sending a message to ourselves (loopback) to verify MQTT reception
       char testMsg[100];
-      // Construct a valid JSON command payload for testing
       sprintf(testMsg, "{\"device\":\"fan\",\"state\":true,\"mode\":\"manual\"}");
-      
-      // The MQTTManager should already be subscribed to mqtt_control_topic upon successful connection.
-      // The subscription to mqtt_subscribe_topic = "#" is an additional general subscription.
-      // We can log the subscription status for mqtt_control_topic if desired, but it's managed by MQTTManager.
-      // For this self-test, we publish to mqtt_control_topic.
-      
       bool publishResult = mqttManager->getClient().publish(mqtt_control_topic, testMsg);
       Serial.printf("[DeWasaNode_Master] Self-test message sent to %s: %s\n", 
                    mqtt_control_topic, publishResult ? "SUCCESS" : "FAILED");
-      if(publishResult) {
-        Serial.printf("  Test Payload: %s\n", testMsg);
-      }
+      if(publishResult) Serial.printf("  Test Payload: %s\n", testMsg);
     }
   }
+#endif
 
-  // Run Fuzzy Logic Control periodically (could be tied to MQTT interval or separate)
-  // Let's run it right after potentially publishing MQTT data
   runFuzzyControl();
-
-  // Small delay removed as per plan
-  yield(); // Keep the yield/delay
+  yield(); 
 }
 
 // Updated function to also return counts for debugging
@@ -458,207 +380,189 @@ void runFuzzyControl() {
     digitalWrite(LIGHT_LED_PIN, lightState ? HIGH : LOW);
 
 
-    // --- Debug Printing (with delay) ---
-    unsigned long currentTime = millis();
-    if (currentTime - lastFuzzyDebugPrintTime >= FUZZY_DEBUG_PRINT_INTERVAL) {
-        lastFuzzyDebugPrintTime = currentTime;
+//     // --- Debug Printing (with delay) ---
+//     unsigned long currentTime = millis();
+//     if (currentTime - lastFuzzyDebugPrintTime >= FUZZY_DEBUG_PRINT_INTERVAL) {
+//         lastFuzzyDebugPrintTime = currentTime;
 
-        Serial.println("\n--- Fuzzy Control Debug ---");
-        if (runLogic) {
-             Serial.printf("  Status: Running Logic\n");
-             Serial.printf("  Inputs (Avg of %d T, %d H, %d L sensors):\n", tempCount, humidityCount, lightCount);
-             Serial.printf("    Temp: %.1f C\n", avgTemp);
-             Serial.printf("    Humidity: %.1f %%\n", avgHumidity);
-             Serial.printf("    Light: %.1f lux\n", avgLight);
-             Serial.printf("  Membership Degrees:\n");
-             Serial.printf("    Temp -> Cold:%.2f Optimal:%.2f Hot:%.2f\n",
-                           fuzzyController->getMembershipTempCold(),
-                           fuzzyController->getMembershipTempOptimal(),
-                           fuzzyController->getMembershipTempHot());
-             Serial.printf("    Hum  -> Dry:%.2f Optimal:%.2f Humid:%.2f\n",
-                           fuzzyController->getMembershipHumidityDry(),
-                           fuzzyController->getMembershipHumidityOptimal(),
-                           fuzzyController->getMembershipHumidityHumid());
-             Serial.printf("    Light-> Dark:%.2f Adequate:%.2f\n",
-                           fuzzyController->getMembershipLightDark(),
-                           fuzzyController->getMembershipLightAdequate());
-             Serial.printf("  Raw Outputs (Defuzzified):\n");
-             Serial.printf("    Fan Raw: %.2f\n", fuzzyController->getRawFanOutput());
-             Serial.printf("    Light Raw: %.2f\n", fuzzyController->getRawLightOutput());
-             Serial.printf("  Final Outputs (Threshold > 0.5):\n");
-             Serial.printf("    Fan State: %s (Mode: %s)\n", fanState ? "ON" : "OFF", fanManual ? "Manual" : "Auto");
-             Serial.printf("    Light State: %s (Mode: %s)\n", lightState ? "ON" : "OFF", lightManual ? "Manual" : "Auto");
-        } else {
-             Serial.printf("  Status: Skipped (Averages Invalid - Need Temp:%s, Hum:%s, Light:%s)\n",
-                           tempCount > 0 ? "OK" : "FAIL",
-                           humidityCount > 0 ? "OK" : "FAIL",
-                           lightCount > 0 ? "OK" : "FAIL");
-             Serial.printf("  Outputs: Defaulting to OFF (unless manually overridden)\n");
-             Serial.printf("    Fan State: %s (Mode: %s)\n", digitalRead(FAN_LED_PIN) == HIGH ? "ON" : "OFF", fanManual ? "Manual" : "Auto");
-             Serial.printf("    Light State: %s (Mode: %s)\n", digitalRead(LIGHT_LED_PIN) == HIGH ? "ON" : "OFF", lightManual ? "Manual" : "Auto");
-        }
-         Serial.println("---------------------------");
-    }
+//         Serial.println("\n--- Fuzzy Control Debug ---");
+//         if (runLogic) {
+//              Serial.printf("  Status: Running Logic\n");
+//              Serial.printf("  Inputs (Avg of %d T, %d H, %d L sensors):\n", tempCount, humidityCount, lightCount);
+//              Serial.printf("    Temp: %.1f C\n", avgTemp);
+//              Serial.printf("    Humidity: %.1f %%\n", avgHumidity);
+//              Serial.printf("    Light: %.1f lux\n", avgLight);
+//              Serial.printf("  Membership Degrees:\n");
+//              Serial.printf("    Temp -> Cold:%.2f Optimal:%.2f Hot:%.2f\n",
+//                            fuzzyController->getMembershipTempCold(),
+//                            fuzzyController->getMembershipTempOptimal(),
+//                            fuzzyController->getMembershipTempHot());
+//              Serial.printf("    Hum  -> Dry:%.2f Optimal:%.2f Humid:%.2f\n",
+//                            fuzzyController->getMembershipHumidityDry(),
+//                            fuzzyController->getMembershipHumidityOptimal(),
+//                            fuzzyController->getMembershipHumidityHumid());
+//              Serial.printf("    Light-> Dark:%.2f Adequate:%.2f\n",
+//                            fuzzyController->getMembershipLightDark(),
+//                            fuzzyController->getMembershipLightAdequate());
+//              Serial.printf("  Raw Outputs (Defuzzified):\n");
+//              Serial.printf("    Fan Raw: %.2f\n", fuzzyController->getRawFanOutput());
+//              Serial.printf("    Light Raw: %.2f\n", fuzzyController->getRawLightOutput());
+//              Serial.printf("  Final Outputs (Threshold > 0.5):\n");
+//              Serial.printf("    Fan State: %s (Mode: %s)\n", fanState ? "ON" : "OFF", fanManual ? "Manual" : "Auto");
+//              Serial.printf("    Light State: %s (Mode: %s)\n", lightState ? "ON" : "OFF", lightManual ? "Manual" : "Auto");
+//         } else {
+//              Serial.printf("  Status: Skipped (Averages Invalid - Need Temp:%s, Hum:%s, Light:%s)\n",
+//                            tempCount > 0 ? "OK" : "FAIL",
+//                            humidityCount > 0 ? "OK" : "FAIL",
+//                            lightCount > 0 ? "OK" : "FAIL");
+//              Serial.printf("  Outputs: Defaulting to OFF (unless manually overridden)\n");
+//              Serial.printf("    Fan State: %s (Mode: %s)\n", digitalRead(FAN_LED_PIN) == HIGH ? "ON" : "OFF", fanManual ? "Manual" : "Auto");
+//              Serial.printf("    Light State: %s (Mode: %s)\n", digitalRead(LIGHT_LED_PIN) == HIGH ? "ON" : "OFF", lightManual ? "Manual" : "Auto");
+//         }
+//          Serial.println("---------------------------");
+//     }
 }
 
 // --- MQTT Callback Function ---
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
+#if DEBUG_DEWASA_MQTT_CALLBACK
   Serial.printf("\n*** [MQTT Callback] Message arrived! ***\n");
-  Serial.printf("  Topic: %s (expected: %s)\n", topic, mqtt_control_topic);
-  Serial.printf("  Topics match: %s\n", (strcmp(topic, mqtt_control_topic) == 0) ? "YES" : "NO");
+  Serial.printf("  Topic: %s (expected control topic: %s)\n", topic, mqtt_control_topic);
+  Serial.printf("  Topics match control topic: %s\n", (strcmp(topic, mqtt_control_topic) == 0) ? "YES" : "NO");
   Serial.printf("  Message length: %d bytes\n", length);
+#endif
 
-  // Null-terminate the payload to treat it as a C-string
   char* payloadCopy = (char*)malloc(length + 1);
   if (!payloadCopy) {
-    Serial.println("[MQTT Callback] ERROR: Out of memory for payload copy");
+    Serial.println("[MQTT Callback] ERROR: Out of memory for payload copy"); // Critical
     return;
   }
-  
   memcpy(payloadCopy, payload, length);
   payloadCopy[length] = '\0';
-  String message = String(payloadCopy);
   
+#if DEBUG_DEWASA_MQTT_CALLBACK
+  String message = String(payloadCopy);
   Serial.printf("  Payload: %s\n", message.c_str());
-
-  // Debug: Print the raw bytes of the payload for detailed inspection
   Serial.print("  Raw bytes: ");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.printf("%02X ", payload[i]);
-  }
+  for (unsigned int i = 0; i < length; i++) Serial.printf("%02X ", payload[i]);
   Serial.println();
+#endif
 
-  // Check if the topic matches the control topic
   if (strcmp(topic, mqtt_control_topic) == 0) {
-    StaticJsonDocument<128> doc; // Small doc for command parsing
+    StaticJsonDocument<128> doc; 
     DeserializationError error = deserializeJson(doc, payloadCopy);
-    free(payloadCopy); // Free the memory after use
-
+    
     if (error) {
+#if DEBUG_DEWASA_MQTT_CALLBACK
       Serial.printf("  ERROR: JSON parsing failed: %s\n", error.c_str());
+#endif
+      free(payloadCopy);
       return;
     }
+    free(payloadCopy); // Free here after successful or failed parsing of payloadCopy
 
-    // Debug: Dump the entire JSON document to see what it actually contains
+#if DEBUG_DEWASA_MQTT_CALLBACK
     Serial.println("  JSON contents:");
     serializeJsonPretty(doc, Serial);
     Serial.println();
+#endif
 
-    // Extract command details
-    const char* device = doc["device"]; // "fan" or "light"
-    const char* mode = doc["mode"];     // "manual" or "auto"
+    const char* device = doc["device"]; 
+    const char* mode = doc["mode"];     
     
-    // Debug: Print individual extracted values with their types
-    Serial.printf("  device=%s (exists: %s)\n", 
-                 device ? device : "NULL", doc.containsKey("device") ? "YES" : "NO");
-    Serial.printf("  mode=%s (exists: %s)\n", 
+#if DEBUG_DEWASA_MQTT_CALLBACK
+    Serial.printf("  Extracted: device=%s (exists: %s), mode=%s (exists: %s)\n", 
+                 device ? device : "NULL", doc.containsKey("device") ? "YES" : "NO",
                  mode ? mode : "NULL", doc.containsKey("mode") ? "YES" : "NO");
-    
     if (doc.containsKey("state")) {
-      bool state = doc["state"];
-      Serial.printf("  state=%s (type: %s)\n", 
-                   state ? "true" : "false", 
-                   doc["state"].is<bool>() ? "bool" : 
-                   (doc["state"].is<int>() ? "int" : "other"));
+      Serial.printf("  Extracted: state=%s (type: %s)\n", 
+                   doc["state"].as<bool>() ? "true" : "false", 
+                   doc["state"].is<bool>() ? "bool" : (doc["state"].is<int>() ? "int" : "other"));
     } else {
-      Serial.println("  state key does not exist");
+      Serial.println("  state key does not exist in JSON");
     }
+#endif
 
     if (!device) {
+#if DEBUG_DEWASA_MQTT_CALLBACK
         Serial.println("[MQTT Callback] ERROR: Missing 'device' in command payload.");
+#endif
         return;
     }
 
-    // Handle mode switching
     if (mode) {
-        Serial.printf("[MQTT Callback] DEBUG: Mode present, processing mode='%s'\n", mode);
+#if DEBUG_DEWASA_MQTT_CALLBACK
+        Serial.printf("[MQTT Callback] Processing mode switch: device='%s', mode='%s'\n", device, mode);
+#endif
         if (strcmp(device, "fan") == 0) {
             if (strcmp(mode, "manual") == 0) {
-                // Set manual mode and apply requested state
                 fanManual = true;
-                Serial.println("[MQTT Callback] DEBUG: Setting fanManual=true (Mode: manual)");
                 if (doc.containsKey("state")) {
                     bool state = doc["state"];
                     digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
+#if DEBUG_DEWASA_MQTT_CALLBACK
                     Serial.printf("[Control] Fan set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+#endif
                 }
-            } 
-            else if (strcmp(mode, "auto") == 0) {
-                // Switch back to automatic control
+            } else if (strcmp(mode, "auto") == 0) {
                 fanManual = false;
-                Serial.println("[MQTT Callback] DEBUG: Setting fanManual=false (Mode: auto)");
+#if DEBUG_DEWASA_MQTT_CALLBACK
                 Serial.println("[Control] Fan switched to Automatic Mode");
+#endif
             }
-            else {
-                Serial.printf("[MQTT Callback] DEBUG: Unknown mode value '%s' for fan\n", mode);
-            }
-        } 
-        else if (strcmp(device, "light") == 0) {
+        } else if (strcmp(device, "light") == 0) {
             if (strcmp(mode, "manual") == 0) {
-                // Set manual mode and apply requested state
                 lightManual = true;
-                Serial.println("[MQTT Callback] DEBUG: Setting lightManual=true (Mode: manual)");
                 if (doc.containsKey("state")) {
                     bool state = doc["state"];
                     digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
+#if DEBUG_DEWASA_MQTT_CALLBACK
                     Serial.printf("[Control] Light set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+#endif
                 }
-            } 
-            else if (strcmp(mode, "auto") == 0) {
-                // Switch back to automatic control
+            } else if (strcmp(mode, "auto") == 0) {
                 lightManual = false;
-                Serial.println("[MQTT Callback] DEBUG: Setting lightManual=false (Mode: auto)");
+#if DEBUG_DEWASA_MQTT_CALLBACK
                 Serial.println("[Control] Light switched to Automatic Mode");
+#endif
             }
-            else {
-                Serial.printf("[MQTT Callback] DEBUG: Unknown mode value '%s' for light\n", mode);
-            }
-        } 
-        else {
-            Serial.printf("[MQTT Callback] WARNING: Unknown device '%s' in command.\n", device);
         }
-    }
-    // Handle state changes in manual mode (without explicit mode in message)
-    else if (doc.containsKey("state")) {
-        Serial.println("[MQTT Callback] DEBUG: No mode specified but state is present");
+    } else if (doc.containsKey("state")) {
         bool state = doc["state"];
-        
+#if DEBUG_DEWASA_MQTT_CALLBACK
+        Serial.printf("[MQTT Callback] Processing state change (no mode specified): device='%s', state=%s\n", device, state ? "ON" : "OFF");
+#endif
         if (strcmp(device, "fan") == 0) {
-            // Only change state if already in manual mode
-            if (fanManual) {
-                Serial.println("[MQTT Callback] DEBUG: Fan already in manual mode, just changing state");
-                digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
-                Serial.printf("[Control] Fan set to %s (Manual Mode)\n", state ? "ON" : "OFF");
-            } else {
-                // Auto-switch to manual if a state change is requested
-                Serial.println("[MQTT Callback] DEBUG: Fan in auto mode, auto-switching to manual");
+            if (!fanManual) { // If in auto, switch to manual upon direct state command
                 fanManual = true;
-                digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
-                Serial.printf("[Control] Fan switched to Manual Mode and set to %s\n", state ? "ON" : "OFF");
+#if DEBUG_DEWASA_MQTT_CALLBACK
+                Serial.println("[Control] Fan auto-switched to Manual Mode due to state command.");
+#endif
             }
-        } 
-        else if (strcmp(device, "light") == 0) {
-            // Only change state if already in manual mode
-            if (lightManual) {
-                Serial.println("[MQTT Callback] DEBUG: Light already in manual mode, just changing state");
-                digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
-                Serial.printf("[Control] Light set to %s (Manual Mode)\n", state ? "ON" : "OFF");
-            } else {
-                // Auto-switch to manual if a state change is requested
-                Serial.println("[MQTT Callback] DEBUG: Light in auto mode, auto-switching to manual");
+            digitalWrite(FAN_LED_PIN, state ? HIGH : LOW);
+#if DEBUG_DEWASA_MQTT_CALLBACK
+            Serial.printf("[Control] Fan set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+#endif
+        } else if (strcmp(device, "light") == 0) {
+             if (!lightManual) { // If in auto, switch to manual
                 lightManual = true;
-                digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
-                Serial.printf("[Control] Light switched to Manual Mode and set to %s\n", state ? "ON" : "OFF");
+#if DEBUG_DEWASA_MQTT_CALLBACK
+                Serial.println("[Control] Light auto-switched to Manual Mode due to state command.");
+#endif
             }
-        } 
-        else {
-            Serial.printf("[MQTT Callback] WARNING: Unknown device '%s' in command.\n", device);
+            digitalWrite(LIGHT_LED_PIN, state ? HIGH : LOW);
+#if DEBUG_DEWASA_MQTT_CALLBACK
+            Serial.printf("[Control] Light set to %s (Manual Mode)\n", state ? "ON" : "OFF");
+#endif
         }
-    }
-    else {
-        Serial.println("[MQTT Callback] DEBUG: Neither mode nor state is present in the message");
+    } else {
+#if DEBUG_DEWASA_MQTT_CALLBACK
+        Serial.println("[MQTT Callback] Command payload missing 'mode' and 'state'. No action taken.");
+#endif
     }
   } else {
+#if DEBUG_DEWASA_MQTT_CALLBACK
       Serial.printf("[MQTT Callback] Message on unhandled topic: %s\n", topic);
+#endif
   }
 }

@@ -60,13 +60,17 @@ FuzzyController::~FuzzyController() {
 }
 
 void FuzzyController::begin() {
+#if DEBUG_FUZZY_CONTROLLER_INTERNAL
     Serial.println("[FuzzyController] Initializing...");
+#endif
     _fuzzy = new Fuzzy();
 
     defineInputs();
     defineOutputs();
     defineRules();
+#if DEBUG_FUZZY_CONTROLLER_INTERNAL
     Serial.println("[FuzzyController] Initialization complete.");
+#endif
 }
 
 void FuzzyController::defineInputs() {
@@ -201,74 +205,58 @@ void FuzzyController::run() {
     _crispFanOutput = _fuzzy->defuzzify(1);
     _crispLightOutput = _fuzzy->defuzzify(2);
 
-    // Debug output for critical temperature threshold monitoring
-    // Store the current temperature during setInputs for access here
-    if (_currentTemp >= 28.0 && _currentTemp <= 31.0) {
-        Serial.printf("[FuzzyController] TEMP THRESHOLD: Temp=%.1f, Optimal=%.2f, Hot=%.2f, Fan Output=%.2f\n", 
-                     _currentTemp, _tempMembership[1], _tempMembership[2], _crispFanOutput);
-    }
-    
-    // Debug output for light intensity control - focus on critical regions
-    if (_currentLight >= 100.0 && _currentLight <= 400.0) {
-        Serial.printf("[FuzzyController] LIGHT: %.1f lux, Dark=%.2f, Adequate=%.2f | ON at >%.1f, OFF at <%.1f\n", 
-                     _currentLight, _lightMembership[0], _lightMembership[1], 0.7f, 0.3f);
-    }
+#if DEBUG_FUZZY_CONTROLLER_INTERNAL && DEBUG_DEWASA_FUZZY_CONTROL // Only if both are enabled
+    // This detailed print is now part of the main fuzzy debug block in DeWasaNode_Master
+    // if (_currentTemp >= 28.0 && _currentTemp <= 31.0) {
+    //     Serial.printf("[FuzzyController] TEMP THRESHOLD: Temp=%.1f, Optimal=%.2f, Hot=%.2f, Fan Output=%.2f\n", 
+    //                  _currentTemp, _tempMembership[1], _tempMembership[2], _crispFanOutput);
+    // }
+    // if (_currentLight >= 100.0 && _currentLight <= 400.0) {
+    //     Serial.printf("[FuzzyController] LIGHT: %.1f lux, Dark=%.2f, Adequate=%.2f | ON at >%.1f, OFF at <%.1f\n", 
+    //                  _currentLight, _lightMembership[0], _lightMembership[1], 0.7f, 0.3f);
+    // }
     // Serial.printf("[FuzzyController] Outputs: Fan=%.2f, Light=%.2f\n", _crispFanOutput, _crispLightOutput);
+#endif
 }
 
 bool FuzzyController::getFanOutput() const {
-    // Precise fan control based on temperature thresholds
-    // The membership functions ensure crisp output is:
-    // - Higher when temperature is >= 30°C (tempHot is active)
-    // - Lower when temperature is <= 29°C (tempOptimal is active)
-    const float ON_THRESHOLD = 0.9f; // Adjusted for precise control at 30°C boundary
-    const float OFF_THRESHOLD = 0.1f; // Adjusted to make sure fan turns off at 29°C
+    const float ON_THRESHOLD = 0.9f; 
+    const float OFF_THRESHOLD = 0.1f; 
 
-    // Using temperature membership values directly
     if (_isFanOn) {
-        // If fan is currently ON, turn OFF only if hot membership drops below threshold
         if (_crispFanOutput <= OFF_THRESHOLD) {
             _isFanOn = false;
         }
     } else {
-        // If fan is currently OFF, turn ON only if hot membership exceeds threshold
         if (_crispFanOutput > ON_THRESHOLD) {
             _isFanOn = true;
         }
     }
-
     return _isFanOn;
 }
 
 bool FuzzyController::getLightOutput() const {
-    // Direct control based on membership in "DARK" fuzzy set
-    // This ensures light turns on when dark membership is high (low light conditions)
-    // and turns off when dark membership is low (adequate light conditions)
-    static bool isLightOn = false;
-    
-    // Set thresholds for hysteresis (different thresholds for ON and OFF to prevent oscillation)
-    // These thresholds correspond to approximately:
-    // - Turn ON at ~150 lux (darkness membership ~0.8)
-    // - Turn OFF at ~350 lux (darkness membership ~0.2)  
-    const float ON_THRESHOLD = 0.9f;   // Turn light ON when darkness membership > 70%
-    const float OFF_THRESHOLD = 0.1f;  // Turn light OFF when darkness membership < 30%
-    
-    // Directly use the dark membership value instead of defuzzified output
+    static bool isLightOn = false; // Keep static for hysteresis within this function
+    const float ON_THRESHOLD = 0.9f;   
+    const float OFF_THRESHOLD = 0.1f;  
     float darkMembership = _lightMembership[0];
     
     if (isLightOn) {
-        // Light is currently ON, only turn OFF if darkness drops below threshold
         if (darkMembership < OFF_THRESHOLD) {
             isLightOn = false;
+#if DEBUG_FUZZY_CONTROLLER_INTERNAL && DEBUG_DEWASA_FUZZY_CONTROL
             Serial.printf("[Light Control] OFF at %.1f lux (dark=%.2f < %.2f)\n", 
                          _currentLight, darkMembership, OFF_THRESHOLD);
+#endif
         }
     } else {
         // Light is currently OFF, only turn ON if darkness exceeds threshold
         if (darkMembership > ON_THRESHOLD) {
             isLightOn = true;
+#if DEBUG_FUZZY_CONTROLLER_INTERNAL && DEBUG_DEWASA_FUZZY_CONTROL
             Serial.printf("[Light Control] ON at %.1f lux (dark=%.2f > %.2f)\n", 
                          _currentLight, darkMembership, ON_THRESHOLD);
+#endif
         }
     }
     
