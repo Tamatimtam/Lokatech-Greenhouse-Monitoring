@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "macros/card.html" as card %}
+{% import "macros/navigation.html" as navigation %}
+
+{% block title %}System Logs - Lokatani.id{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="header">
+    <div class="header__content">
+      <h1>System Logs</h1>
+      <p>View system activity and event history</p>
+    </div>
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
+  </header>
+  
+  {% call card.card('LOG ENTRIES') %}
+    <!-- Placeholder for log entries table/list -->
+    <div id="log-entries-container">
+      <p>Log entries will be loaded here.</p>
+      
+      <!-- WIP Indicator styled as a message similar to warnings in profile page -->
+      <div class="message message--info">
+        <i class="fas fa-info-circle"></i>
+        <div>
+          <p class="message__title">Work In Progress</p>
+          <p class="message__text">This feature is currently under development.</p>
+        </div>
+      </div>
+    </div>
+  {% endcall %}
+</div>
+
+{{ navigation.bottom_nav(active_page="logs") }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+{% endblock %}
