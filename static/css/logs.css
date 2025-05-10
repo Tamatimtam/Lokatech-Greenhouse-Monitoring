@@ -1,0 +1,114 @@
+/* Logs page specific styling */
+
+/* Message component styling for the WIP notice */
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid;
+}
+
+.message--info {
+  background-color: #eaf2f8;
+  border-color: #a9cce3;
+}
+
+.message--info i {
+  color: #3498db;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.message__title {
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  color: #2874a6;
+}
+
+.message__text {
+  margin: 0;
+  color: #2874a6;
+}
+
+/* Log entry table styling that will be used when implemented */
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--spacing-md);
+}
+
+.log-table th {
+  text-align: left;
+  padding: var(--spacing-sm);
+  border-bottom: 2px solid #eee;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.log-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid #eee;
+}
+
+.log-table tr:hover {
+  background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+/* Different log levels will have different colors */
+.log-level--info {
+  color: #3498db;
+}
+
+.log-level--warning {
+  color: #f39c12;
+}
+
+.log-level--error {
+  color: #e74c3c;
+}
+
+.log-level--success {
+  color: var(--primary);
+}
+
+/* Filter controls will be positioned at the top of the log entries */
+.log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.log-filter-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid #eee;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.log-filter-btn:hover {
+  border-color: var(--primary);
+}
+
+.log-filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+@media (max-width: 768px) {
+  .log-table {
+    font-size: 0.9rem;
+  }
+  
+  .log-table th,
+  .log-table td {
+    padding: var(--spacing-xs);
+  }
+}
