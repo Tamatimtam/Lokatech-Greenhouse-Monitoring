@@ -2,14 +2,16 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-xl, 2rem);
   width: 100%;
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 
 .grid {
   display: grid;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-xl, 2rem);
+  margin: var(--spacing-lg, 1.5rem) 0;
 }
 
 .grid--2col {

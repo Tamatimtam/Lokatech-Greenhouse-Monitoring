@@ -17,23 +17,41 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl, 2rem);
+    padding: var(--spacing-md, 1rem) 0;
+    animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .header__content h1 {
-    font-size: 1.5rem;
-    margin-bottom: var(--spacing-xs);
+    font-size: 1.8rem;
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    font-weight: 600;
+    letter-spacing: -0.5px;
 }
 
 .header__content p {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    line-height: 1.4;
 }
 
 /* Update logo size to match layout.css for consistency */
 .logo {
-    width: 90px;
+    width: 100px;
     height: auto;
+    opacity: 0.9;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.logo:hover {
+    opacity: 1;
+    transform: scale(1.05);
 }
 
 
@@ -132,12 +150,17 @@
 /* New styles for environmental variable rows */
 .env-variable-row {
   display: flex;
-  flex-direction: row; /* Keep row layout for gauge and sections */
+  flex-direction: row;
   align-items: center;
-  margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-md);
-  border-bottom: 1px solid #eee;
-  width: 100%; /* Ensure it takes full width */
+  margin-bottom: var(--spacing-xl, 2rem);
+  padding-bottom: var(--spacing-lg, 1.5rem);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  width: 100%;
+  transition: transform 0.2s ease;
+}
+
+.env-variable-row:hover {
+  transform: translateY(-2px);
 }
 
 .env-variable-row:last-child {
@@ -148,7 +171,8 @@
 
 .env-variable-gauge {
   flex: 0 0 auto;
-  margin-right: var(--spacing-lg);
+  margin-right: var(--spacing-xl, 2rem);
+  padding: var(--spacing-sm, 0.5rem);
 }
 
 .env-variable-sections {
@@ -163,35 +187,51 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  background-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  padding: var(--spacing-md, 1rem) var(--spacing-sm, 0.5rem);
+  border-radius: var(--radius-md, 0.5rem);
+  background-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  margin: 0 var(--spacing-xs, 0.25rem);
 }
 
 .section-reading:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
 .section-name {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm, 0.5rem);
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .section-value {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: bold;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm, 0.5rem);
+  line-height: 1;
 }
 
 .section-indicator {
-  font-size: 1rem;
+  font-size: 1.1rem;
+  margin-top: var(--spacing-xs, 0.25rem);
+}
+
+/* Mode indicator for control switches */
+.mode-indicator {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: var(--spacing-xs, 0.25rem) var(--spacing-sm, 0.5rem);
+  border-radius: var(--radius-lg, 1rem);
+  margin-left: var(--spacing-sm, 0.5rem);
+  font-weight: normal;
+  transition: all 0.2s ease;
 }
 
 /* Make gauge container more compact for this layout */
@@ -210,10 +250,12 @@
 }
 
 /* Ensure the card content stacks the rows properly */
+/* Override grid layout in card.css with flex layout for environmental data */
 .card--env .card__content {
-  display: flex;
+  display: flex !important; /* Use !important to override the grid display */
   flex-direction: column; /* Stack the rows vertically */
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg, 1.5rem);
+  padding: var(--spacing-md, 1rem) var(--spacing-sm, 0.5rem);
 }
 
 /* Responsive adjustments */
@@ -253,12 +295,31 @@
 .error-message {
   color: #e74c3c;
   text-align: center;
-  padding: var(--spacing-md);
-  margin: var(--spacing-sm) 0;
-  border: 1px solid #e74c3c;
-  border-radius: var(--radius-sm);
-  background-color: rgba(231, 76, 60, 0.1);
+  padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+  margin: var(--spacing-md, 1rem) 0;
+  border-left: 4px solid #e74c3c;
+  border-radius: var(--radius-md, 0.5rem);
+  background-color: rgba(231, 76, 60, 0.08);
   display: none;  /* Hide by default */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.error-message i {
+  margin-right: var(--spacing-sm, 0.5rem);
+  font-size: 1.1rem;
+}
+
+.error-message.visible {
+  display: block;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Sensor status indicators */
@@ -290,25 +351,35 @@
 .connection-status {
   display: flex;
   align-items: center;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-lg);
-  font-size: 0.8rem;
-  margin-bottom: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm, 0.5rem) var(--spacing-md, 1rem);
+  border-radius: var(--radius-lg, 1rem);
+  font-size: 0.9rem;
+  margin-top: var(--spacing-md, 1rem);
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  max-width: fit-content;
 }
 
 .connection-status.online {
-  background-color: rgba(39, 174, 96, 0.2);
+  background-color: rgba(39, 174, 96, 0.15);
   color: #27ae60;
+  border-left: 3px solid #27ae60;
 }
 
 .connection-status.offline {
-  background-color: rgba(231, 76, 60, 0.2);
+  background-color: rgba(231, 76, 60, 0.15);
   color: #e74c3c;
+  border-left: 3px solid #e74c3c;
+}
+
+.connection-status:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .connection-status i {
-  margin-right: var(--spacing-xs);
+  margin-right: var(--spacing-sm, 0.5rem);
 }
 
 /* Animation */
