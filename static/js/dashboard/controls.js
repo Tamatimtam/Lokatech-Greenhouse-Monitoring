@@ -35,7 +35,7 @@ const ControlsManager = {
             console.log('DEBUG: Raw JSON being sent:', body);
             console.log('DEBUG: Parsed back for verification:', JSON.parse(body));
             
-            const response = await fetch('/controls/api/set_state', {
+            const response = await fetch('/dashboard/controls/api/set_state', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
