@@ -70,6 +70,7 @@ from blueprints.sensor import bp as sensor_bp
 from blueprints.plants import bp as plants_bp
 from blueprints.profile import bp as profile_bp
 from blueprints.history.routes import history as history_bp
+from blueprints.logs import logs_bp
 
 app.register_blueprint(auth_bp, url_prefix='/auth') # MODIFIED: Added url_prefix
 app.register_blueprint(dashboard_bp)
@@ -77,6 +78,7 @@ app.register_blueprint(sensor_bp)
 app.register_blueprint(plants_bp)
 app.register_blueprint(profile_bp)
 app.register_blueprint(history_bp)
+app.register_blueprint(logs_bp, url_prefix='/logs')
 
 # Root route for login page
 @app.route("/")
