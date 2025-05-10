@@ -253,6 +253,9 @@ const ControlsManager = {
                     const indicator = document.getElementById(`${deviceName}-mode-indicator`);
                     if (indicator) {
                         indicator.textContent = `(${newMode === 'auto' ? 'Auto' : 'Manual'})`;
+                        // Apply appropriate class based on new mode
+                        indicator.classList.remove('mode-auto', 'mode-manual');
+                        indicator.classList.add(newMode === 'auto' ? 'mode-auto' : 'mode-manual');
                     }
                     
                     // Apply cooldown
@@ -277,6 +280,9 @@ const ControlsManager = {
                         
                         if (indicator) {
                             indicator.textContent = `(${currentMode})`;
+                            // Revert classes too
+                            indicator.classList.remove('mode-auto', 'mode-manual');
+                            indicator.classList.add(currentMode === 'auto' ? 'mode-auto' : 'mode-manual');
                         }
                     }
                 });

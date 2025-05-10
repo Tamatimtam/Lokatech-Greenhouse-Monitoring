@@ -25,6 +25,9 @@ export const UI = {
             statusSummaryLine: document.getElementById('status-summary-line')
         };
         
+        // Initialize the mode indicator classes
+        this.initializeModeIndicators();
+        
         // Initialize status details container with proper styles to prevent flickering on updates
         const detailsContainer = document.getElementById('status-details');
         if (detailsContainer) {
@@ -53,6 +56,51 @@ export const UI = {
 
     hideError() {
         if (this.elements.systemError) this.elements.systemError.style.display = 'none';
+    },
+    
+    initializeModeIndicators() {
+        // Apply appropriate classes to mode indicators based on text content
+        ['fanModeIndicator', 'lightModeIndicator'].forEach(indicator => {
+            const element = this.elements[indicator];
+            if (element) {
+                const mode = element.textContent.includes('Auto') ? 'auto' : 'manual';
+                element.classList.remove('mode-auto', 'mode-manual');
+                element.classList.add(mode === 'auto' ? 'mode-auto' : 'mode-manual');
+            }
+        });
+
+        // Initialize mode toggle buttons with improved styling
+        this.updateModeToggleButtons('fan');
+        this.updateModeToggleButtons('light');
+    },
+
+    // New helper function to update mode toggle buttons with better styling
+    updateModeToggleButtons(type) {
+        const modeToggle = document.getElementById(`${type}-mode-toggle`);
+        if (!modeToggle) return;
+
+        const mode = SystemMonitor.status.actuators[type]?.mode || 'auto';
+        
+        // Update data attribute
+        modeToggle.dataset.mode = mode;
+        
+        // Update text content with more concise labels
+        modeToggle.textContent = mode === 'auto' ? 'Ke Mode Manual' : 'Ke Mode Auto';
+        
+        // Apply improved styling
+        modeToggle.classList.remove('mode-auto', 'mode-manual');
+        modeToggle.classList.add(`mode-${mode}`);
+        
+        // Ensure proper padding and margins
+        modeToggle.style.padding = '6px 12px';
+        modeToggle.style.margin = '5px auto';
+        modeToggle.style.borderRadius = '4px';
+        modeToggle.style.textAlign = 'center';
+        
+        // Improve visual appearance
+        modeToggle.style.fontWeight = '500';
+        modeToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+        modeToggle.style.transition = 'all 0.2s ease-in-out';
     },
 
     // Helper function to animate numeric values
@@ -458,14 +506,8 @@ export const UI = {
             this.elements.fanModeIndicator.textContent = `(${fanState.mode === 'manual' ? 'Manual' : 'Auto'})`;
             this.elements.fanSwitch?.closest('.control')?.classList.toggle('control--manual', fanState.mode === 'manual');
             
-            // Update mode toggle appearance
-            const fanModeToggle = document.getElementById('fan-mode-toggle');
-            if (fanModeToggle) {
-                fanModeToggle.dataset.mode = fanState.mode;
-                fanModeToggle.textContent = fanState.mode === 'auto' 
-                    ? 'Alihkan ke Mode Manual' 
-                    : 'Alihkan ke Mode Auto';
-            }
+            // Update mode toggle using the improved helper function
+            this.updateModeToggleButtons('fan');
         }
 
         if (this.elements.lightSwitch) {
@@ -475,14 +517,8 @@ export const UI = {
             this.elements.lightModeIndicator.textContent = `(${lightState.mode === 'manual' ? 'Manual' : 'Auto'})`;
             this.elements.lightSwitch?.closest('.control')?.classList.toggle('control--manual', lightState.mode === 'manual');
             
-            // Update mode toggle appearance
-            const lightModeToggle = document.getElementById('light-mode-toggle');
-            if (lightModeToggle) {
-                lightModeToggle.dataset.mode = lightState.mode;
-                lightModeToggle.textContent = lightState.mode === 'auto' 
-                    ? 'Alihkan ke Mode Manual' 
-                    : 'Alihkan ke Mode Auto';
-            }
+            // Update mode toggle using the improved helper function
+            this.updateModeToggleButtons('light');
         }
     }
 };

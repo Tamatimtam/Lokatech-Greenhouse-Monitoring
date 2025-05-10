@@ -3,12 +3,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-md) 0;
-  border-bottom: 1px solid #eee;
+  padding: var(--spacing-lg, 1.5rem) var(--spacing-md, 1rem);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease;
+  border-radius: var(--radius-md, 0.5rem);
+  margin-bottom: var(--spacing-sm, 0.5rem);
+}
+
+.control:hover {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .control:last-child {
   border-bottom: none;
+  margin-bottom: 0;
 }
 
 .control__label {
@@ -16,14 +24,20 @@
   align-items: center;
   gap: var(--spacing-md);
   font-weight: 500;
+  font-size: 1.05rem;
+}
+
+.control__label i {
+  color: var(--primary, #286247);
+  font-size: 1.2rem;
 }
 
 /* Switch Component */
 .switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 24px;
+  width: 60px;
+  height: 30px;
 }
 
 .switch input {
@@ -39,27 +53,38 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
+  background-color: #e0e0e0;
+  transition: .4s ease;
   border-radius: 34px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .switch__slider:before {
   position: absolute;
   content: "";
-  height: 16px;
-  width: 16px;
+  height: 22px;
+  width: 22px;
   left: 4px;
   bottom: 4px;
   background-color: white;
-  transition: .4s;
+  transition: .4s ease;
   border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked + .switch__slider {
   background-color: var(--primary);
 }
 
+input:focus + .switch__slider {
+  box-shadow: 0 0 1px var(--primary);
+}
+
 input:checked + .switch__slider:before {
-  transform: translateX(26px);
+  transform: translateX(30px);
+}
+
+/* Optional: Add a subtle glow effect when checked */
+input:checked + .switch__slider {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(40, 98, 71, 0.2);
 }

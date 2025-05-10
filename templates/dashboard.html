@@ -90,10 +90,10 @@
 
   <div class="grid grid--2col">
     {% call card.card('KONTROL CEPAT') %}
-      {# Add spans for mode indicators next to the labels and apply |safe filter #}
-      {{ controls.control_switch('Kipas Exhaust <span id="fan-mode-indicator" class="mode-indicator">(Auto)</span>'|safe, 'fan', 'fan-switch', false) }}
+      {# Add spans for mode indicators next to the labels with aria-label for accessibility #}
+      {{ controls.control_switch('Kipas Exhaust <span id="fan-mode-indicator" class="mode-indicator" aria-label="Mode Auto">(Auto)</span>'|safe, 'fan', 'fan-switch', false) }}
       {# Changed ID from lights-switch to light-switch #}
-      {{ controls.control_switch('Lampu <span id="light-mode-indicator" class="mode-indicator">(Auto)</span>'|safe, 'lightbulb', 'light-switch', false) }}
+      {{ controls.control_switch('Lampu <span id="light-mode-indicator" class="mode-indicator" aria-label="Mode Auto">(Auto)</span>'|safe, 'lightbulb', 'light-switch', false) }}
     {% endcall %}
 
     {% call card.card('RINGKASAN STATUS') %}
@@ -113,36 +113,50 @@
           <style>
             /* Enhanced styling for status elements using brand colors */
             #status-summary-line {
-              padding: 12px 16px;
+              padding: 16px 20px;
               border-radius: var(--radius-md);
-              margin-bottom: 12px;
+              margin-bottom: 18px;
               display: flex;
               align-items: center;
-              font-weight: 500;
+              font-weight: 600;
               background-color: var(--primary-light);
               color: white;
+              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+              transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+            
+            #status-summary-line:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 6px 12px rgba(0,0,0,0.15);
             }
             
             #status-summary-line i {
-              font-size: 1.2rem;
-              margin-right: 10px;
+              font-size: 1.3rem;
+              margin-right: 12px;
             }
             
             #status-details {
               display: grid;
-              grid-gap: 8px;
+              grid-gap: 12px;
+              margin-top: 8px;
             }
             
             .status-item--detail {
               display: grid;
               grid-template-columns: auto 1fr;
-              grid-gap: 12px;
+              grid-gap: 16px;
               align-items: center;
-              padding: 10px 12px;
-              border-radius: var(--radius-sm);
+              padding: 14px 16px;
+              border-radius: var(--radius-md);
               background-color: white;
-              border-left: 4px solid transparent;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+              border-left: 5px solid transparent;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+              transition: all 0.2s ease;
+            }
+            
+            .status-item--detail:hover {
+              transform: translateX(3px);
+              box-shadow: 0 3px 8px rgba(0,0,0,0.12);
             }
             
             /* Status type styling */

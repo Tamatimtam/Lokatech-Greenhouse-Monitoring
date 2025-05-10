@@ -7,33 +7,71 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 10px;
+  margin-right: 6px;
 }
 
 .control-mode-toggle {
-  margin: 6px 0;
+  margin: 10px 0;
   cursor: pointer;
-  color: #2196F3;
-  font-size: 0.85rem;
-  background-color: #e3f2fd;
-  padding: 4px 10px;
-  border-radius: 3px;
+  color: var(--primary, #286247);
+  font-size: 0.9rem;
+  background-color: rgba(40, 98, 71, 0.1);
+  padding: 8px 18px; /* Further increased padding for better spacing */
+  border-radius: var(--radius-sm, 0.25rem);
   user-select: none;
   display: inline-block;
   text-align: center;
   transition: all 0.2s ease;
-  border: 1px solid #bbdefb;
+  border: 1px solid rgba(40, 98, 71, 0.15);
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  white-space: nowrap; /* Prevent text wrapping */
+  letter-spacing: 0.3px; /* Slightly improve readability */
+  position: relative; /* For potential decorative elements */
+  min-width: 160px; /* Ensure consistent width */
 }
 
 .control-mode-toggle:hover {
-  background-color: #bbdefb;
+  background-color: rgba(40, 98, 71, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.control-mode-toggle:active {
+  transform: translateY(0px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: rgba(40, 98, 71, 0.25);
+}
+
+/* Add a subtle icon indicator before the text */
+.control-mode-toggle::before {
+  content: "•"; /* Simple dot indicator */
+  margin-right: 6px;
+  font-size: 14px;
+  display: inline-block;
+  vertical-align: middle;
+  transition: color 0.2s ease;
+}
+
+/* Different colors based on mode */
+.control-mode-toggle[data-mode="auto"]::before {
+  color: #27ae60; /* Green for auto mode */
+}
+
+.control-mode-toggle[data-mode="manual"]::before {
+  color: #3498db; /* Blue for manual mode */
 }
 
 .mode-indicator {
-  margin-left: 5px;
-  font-size: 0.8rem;
+  margin-left: 8px;
+  font-size: 0.85rem;
   color: #666;
   font-weight: normal;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: var(--spacing-xs, 0.25rem) var(--spacing-sm, 0.5rem);
+  border-radius: var(--radius-lg, 1rem);
+  transition: all 0.2s ease;
 }
 
 .cooling-down {
@@ -46,4 +84,17 @@
   margin-left: 10px;
   color: #f57c00;
   font-size: 0.8rem;
+}
+
+/* Style for Auto/Manual modes - using classes instead of :contains */
+.mode-auto {
+  background-color: rgba(39, 174, 96, 0.1);
+  color: #27ae60;
+  border: 1px solid rgba(39, 174, 96, 0.2);
+}
+
+.mode-manual {
+  background-color: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  border: 1px solid rgba(52, 152, 219, 0.2);
 }
