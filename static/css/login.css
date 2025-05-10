@@ -12,6 +12,12 @@
     justify-content: center;
     align-items: center;
     background: var(--surface);
+    animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .image-section {
@@ -20,8 +26,13 @@
     background-size: cover;
     background-position: center;
     border-radius: 30px;
+    animation: slideInRight 1s ease-out;
 }
 
+@keyframes slideInRight {
+    from { transform: translateX(50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
 
 .login-form {
     width: 100%;
@@ -31,6 +42,12 @@
 .welcome-text {
     text-align: left;
     margin-bottom: var(--spacing-xl);
+    animation: slideUp 0.8s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 .welcome-text h1 {
@@ -45,13 +62,20 @@
 
 .form-group {
     margin-bottom: var(--spacing-md);
+    animation: slideUp 0.8s ease-out;
+    animation-fill-mode: both;
 }
+
+.form-group:nth-child(1) { animation-delay: 0.2s; }
+.form-group:nth-child(2) { animation-delay: 0.4s; }
 
 .form-group label {
     display: block;
     margin-bottom: var(--spacing-sm);
     color: var(--text-primary);
     font-size: 0.9rem;
+    transform: translateY(0);
+    transition: all 0.3s ease;
 }
 
 .form-group input {
@@ -60,6 +84,39 @@
     border: 1px solid #ddd;
     border-radius: var(--radius-md);
     font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(40, 98, 71, 0.2);
+    outline: none;
+}
+
+.form-group input:focus + label {
+    transform: translateY(-5px);
+    color: var(--primary);
+}
+
+.form-group.error input {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
+}
+
+.form-group.success input {
+    border-color: #2ecc71;
+    box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.2);
+}
+
+.input-feedback {
+    margin-top: 5px;
+    font-size: 0.75rem;
+    display: none;
+}
+
+.input-feedback.error {
+    color: #e74c3c;
+    display: block;
 }
 
 .forgot-password {
@@ -69,6 +126,15 @@
     text-decoration: underline;
     font-size: 0.9rem;
     margin-bottom: var(--spacing-md);
+    animation: fadeIn 1s ease;
+    animation-fill-mode: both;
+    animation-delay: 0.6s;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.forgot-password:hover {
+    color: var(--primary-dark);
+    transform: translateX(3px);
 }
 
 .login-button {
@@ -82,17 +148,105 @@
     font-size: 1rem;
     cursor: pointer;
     margin-bottom: var(--spacing-md);
-    transition: 400ms ease;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 1s ease;
+    animation-fill-mode: both;
+    animation-delay: 0.7s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .login-button:hover {
     background: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 98, 71, 0.2);
+}
+
+.login-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(40, 98, 71, 0.2);
+}
+
+.login-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%);
+    transform-origin: 50% 50%;
+}
+
+.login-button:focus:not(:active)::after {
+    animation: ripple 1s ease-out;
+}
+
+@keyframes ripple {
+    0% {
+        transform: scale(0, 0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(20, 20);
+        opacity: 0;
+    }
+}
+
+.login-button .spinner {
+    display: none;
+    margin-right: 8px;
+}
+
+.login-button.loading {
+    background: var(--primary-light);
+    cursor: wait;
+    opacity: 0.8;
+}
+
+.login-button.loading .spinner {
+    display: inline-block;
+    margin-right: 8px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .divider {
     text-align: center;
     margin: var(--spacing-md) 0;
     color: var(--text-secondary);
+    animation: fadeIn 1s ease;
+    animation-fill-mode: both;
+    animation-delay: 0.8s;
+    position: relative;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 30%;
+    height: 1px;
+    background-color: #ddd;
+}
+
+.divider::before {
+    left: 0;
+}
+
+.divider::after {
+    right: 0;
 }
 
 .info-message {
@@ -105,12 +259,26 @@
     color: var(--text-secondary);
     font-size: 0.9rem;
     line-height: 1.5;
+    animation: fadeIn 1s ease;
+    animation-fill-mode: both;
+    animation-delay: 0.9s;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.info-message:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 .register-link {
     color: var(--primary);
     text-decoration: underline;
     cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.register-link:hover {
+    color: var(--primary-dark);
 }
 
 /* Modal Styles */
@@ -123,6 +291,12 @@
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.show {
+    opacity: 1;
 }
 
 .modal-content {
@@ -133,12 +307,14 @@
     max-width: 500px;
     border-radius: var(--radius-lg);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    animation: modalFadeIn 0.3s;
+    transform: translateY(-30px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes modalFadeIn {
-    from {opacity: 0; transform: translateY(-20px);}
-    to {opacity: 1; transform: translateY(0);}
+.modal.show .modal-content {
+    transform: translateY(0);
+    opacity: 1;
 }
 
 .modal-header {
@@ -171,29 +347,38 @@
     font-size: 1.5rem;
     font-weight: bold;
     cursor: pointer;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .close-modal:hover {
     color: var(--text-primary);
+    transform: rotate(90deg);
 }
 
 .secondary-button {
-    height: 50px; /* Explicitly set height to match login-button */
-    padding: 0 var(--spacing-md); /* Adjust padding for horizontal spacing */
+    height: 50px;
+    padding: 0 var(--spacing-md);
     background: #f1f1f1;
     color: var(--text-primary);
     border: none;
     border-radius: var(--radius-md);
-    font-size: 1rem; /* Ensure font size matches for consistency */
+    font-size: 1rem;
     cursor: pointer;
-    transition: 400ms ease;
-    display: inline-flex; /* Added for better text alignment */
-    align-items: center; /* Added for better text alignment */
-    justify-content: center; /* Added for better text alignment */
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .secondary-button:hover {
     background: #e0e0e0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.secondary-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .info-message--info {
@@ -210,6 +395,65 @@
     color: #3498db;
     font-size: 1.2rem;
     margin-top: 2px;
+}
+
+/* Shake animation for error state */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Logo animation */
+.logo-animation {
+    animation: scaleIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Animation for error messages */
+#error-message, #register-error-message {
+    transition: all 0.3s ease;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+}
+
+#error-message.show, #register-error-message.show {
+    height: auto;
+    opacity: 1;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+#error-message.show {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+/* Error feedback styling */
+.error-feedback {
+    color: #e74c3c;
+    padding: 8px;
+    margin-top: 12px;
+    border-radius: var(--radius-sm);
+    transition: all 0.3s ease;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.error-feedback.show {
+    height: auto;
+    opacity: 1;
+    background-color: rgba(231, 76, 60, 0.1);
 }
 
 @media (max-width: 768px) {

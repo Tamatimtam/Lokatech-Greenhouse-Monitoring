@@ -9,6 +9,12 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const password = document.getElementById('password').value;
     // Get the element where we'll show error messages
     const errorElement = document.getElementById('error-message');
+    
+    // Show loading state
+    const loginButton = document.getElementById('loginButton');
+    loginButton.classList.add('loading');
+    errorElement.textContent = '';
+    errorElement.classList.remove('show');
 
     try {
         // Try to log in with Firebase using the email and password
@@ -38,87 +44,112 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         } else {
             // If login failed, show the error message from the server
             errorElement.textContent = data.message || 'Login failed. Please try again.';
+            errorElement.classList.add('show');
         }
     } catch (error) {
         // If something goes wrong with Firebase, log the error and show a message
         console.error('Firebase Error:', error);
         errorElement.textContent = error.message || 'Login failed. Please try again.';
-    }
-});
-
-// Handle password reset
-document.getElementById('resetPassword').addEventListener('click', async function(e) {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const errorElement = document.getElementById('error-message');
-
-    if (!email) {
-        errorElement.textContent = 'Please enter your email address to reset password';
-        return;
-    }
-
-    try {
-        await firebase.auth().sendPasswordResetEmail(email);
-        errorElement.textContent = 'Password reset email sent. Check your inbox.';
-        errorElement.style.color = 'green';
-    } catch (error) {
-        errorElement.textContent = error.message;
+        errorElement.classList.add('show');
+    } finally {
+        // Remove loading state
+        loginButton.classList.remove('loading');
     }
 });
 
 // Registration Modal Functionality
 const registerModal = document.getElementById('registerModal');
+const resetPasswordModal = document.getElementById('resetPasswordModal');
 const openRegisterModalBtn = document.getElementById('openRegisterModal');
+const openResetPasswordBtn = document.getElementById('resetPassword');
 const closeModalBtns = document.querySelectorAll('.close-modal, .close-modal-btn');
 const submitRegisterBtn = document.getElementById('submitRegister');
+const submitResetBtn = document.getElementById('submitReset');
 const registerEmailInput = document.getElementById('registerEmail');
+const resetEmailInput = document.getElementById('resetEmail');
 const registerErrorMessage = document.getElementById('register-error-message');
+const resetErrorMessage = document.getElementById('reset-error-message');
 
 // Open Registration Modal
 if (openRegisterModalBtn) {
     openRegisterModalBtn.addEventListener('click', function(e) {
         e.preventDefault();
         registerModal.style.display = 'block';
+        setTimeout(() => {
+            registerModal.classList.add('show');
+        }, 10);
         registerEmailInput.focus();
     });
 }
 
+// Open Reset Password Modal
+if (openResetPasswordBtn) {
+    openResetPasswordBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        resetPasswordModal.style.display = 'block';
+        setTimeout(() => {
+            resetPasswordModal.classList.add('show');
+        }, 10);
+        
+        // Pre-fill with login email if available
+        const loginEmail = document.getElementById('email').value;
+        if (loginEmail) {
+            resetEmailInput.value = loginEmail;
+        }
+        
+        resetEmailInput.focus();
+    });
+}
+
 // Close Modal Function
-function closeModal() {
-    registerModal.style.display = 'none';
-    registerEmailInput.value = '';
-    registerErrorMessage.textContent = '';
+function closeModal(modal) {
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300); // Match transition duration
+}
+
+// Close All Modals
+function closeAllModals() {
+    if (registerModal) closeModal(registerModal);
+    if (resetPasswordModal) closeModal(resetPasswordModal);
 }
 
 // Close Modal with Buttons
 closeModalBtns.forEach(btn => {
-    btn.addEventListener('click', closeModal);
+    btn.addEventListener('click', function() {
+        const modal = this.closest('.modal');
+        if (modal) {
+            closeModal(modal);
+        }
+    });
 });
 
 // Close Modal When Clicking Outside
 window.addEventListener('click', function(event) {
-    if (event.target === registerModal) {
-        closeModal();
+    if (event.target.classList.contains('modal')) {
+        closeModal(event.target);
     }
 });
 
 // Close Modal with Escape Key
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape' && registerModal.style.display === 'block') {
-        closeModal();
+    if (event.key === 'Escape') {
+        closeAllModals();
     }
 });
 
 // Handle Registration Submit
 if (submitRegisterBtn) {
-    submitRegisterBtn.addEventListener('click', async function() { // Made function async
+    submitRegisterBtn.addEventListener('click', async function() {
         const email = registerEmailInput.value.trim();
         registerErrorMessage.textContent = ''; // Clear previous messages
-        registerErrorMessage.style.color = 'red'; // Default to error color
+        registerErrorMessage.classList.remove('show');
         
         // Basic email validation (client-side)
         if (!email) {
             registerErrorMessage.textContent = 'Silakan masukkan alamat email Anda.';
+            registerErrorMessage.classList.add('show');
             return;
         }
         
@@ -128,13 +159,13 @@ if (submitRegisterBtn) {
 
         if (!isLokataniDomain && !isPnjDomain) {
             registerErrorMessage.textContent = 'Pendaftaran hanya tersedia untuk email dengan domain @lokatani.id atau @mhsw.pnj.ac.id.';
+            registerErrorMessage.classList.add('show');
             return;
         }
         
         // If client-side validation passes, proceed with backend registration
-        const originalButtonText = submitRegisterBtn.textContent;
         submitRegisterBtn.disabled = true;
-        submitRegisterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mendaftar...'; // Added spinner icon
+        submitRegisterBtn.classList.add('loading');
 
         try {
             // Step 1: Call backend to create the user account
@@ -143,7 +174,6 @@ if (submitRegisterBtn) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
-                    // TODO: Add CSRF token if implemented
                 },
                 body: JSON.stringify({ email: email })
             });
@@ -153,35 +183,75 @@ if (submitRegisterBtn) {
             if (backendResponse.ok && backendData.status === 'success') {
                 // Step 2: Backend successfully created the user. Now trigger password setup email from client-side.
                 try {
-                    // The actionCodeSettings are optional here. If not provided, Firebase uses defaults
-                    // from your project settings (e.g., the action URL in the email template).
-                    // You can specify them if you need to override the default continue URL.
-                    // const actionCodeSettings = {
-                    // url: window.location.origin + '/', // Redirect to login page after password set
-                    // handleCodeInApp: false
-                    // };
-                    // await firebase.auth().sendPasswordResetEmail(email, actionCodeSettings);
-                    
                     await firebase.auth().sendPasswordResetEmail(email); // Using default settings
 
                     registerErrorMessage.textContent = 'Pendaftaran berhasil! Silakan periksa email Anda untuk mengatur kata sandi.';
                     registerErrorMessage.style.color = 'green';
+                    registerErrorMessage.classList.add('show');
                     registerEmailInput.value = ''; 
+                    
+                    // Close modal after successful registration after 3 seconds
+                    setTimeout(() => {
+                        closeModal(registerModal);
+                    }, 3000);
+                    
                 } catch (firebaseError) {
                     console.error('Firebase sendPasswordResetEmail Error:', firebaseError);
                     registerErrorMessage.textContent = firebaseError.message || 'Gagal mengirim email pengaturan kata sandi. Akun telah dibuat, coba "Lupa Kata Sandi".';
-                    // Keep color red for this error, as the primary action (email) failed.
+                    registerErrorMessage.classList.add('show');
                 }
             } else {
                 // Error from backend (e.g., email exists, validation error)
                 registerErrorMessage.textContent = backendData.message || 'Pendaftaran gagal. Silakan coba lagi.';
+                registerErrorMessage.classList.add('show');
             }
         } catch (networkError) {
             console.error('Registration Fetch Network Error:', networkError);
             registerErrorMessage.textContent = 'Terjadi kesalahan jaringan. Silakan coba lagi nanti.';
+            registerErrorMessage.classList.add('show');
         } finally {
             submitRegisterBtn.disabled = false;
-            submitRegisterBtn.textContent = originalButtonText;
+            submitRegisterBtn.classList.remove('loading');
+        }
+    });
+}
+
+// Handle Password Reset Submit
+if (submitResetBtn) {
+    submitResetBtn.addEventListener('click', async function() {
+        const email = resetEmailInput.value.trim();
+        resetErrorMessage.textContent = ''; // Clear previous messages
+        resetErrorMessage.classList.remove('show');
+        
+        // Basic validation
+        if (!email) {
+            resetErrorMessage.textContent = 'Silakan masukkan alamat email Anda.';
+            resetErrorMessage.classList.add('show');
+            return;
+        }
+        
+        // Disable button and show loading state
+        submitResetBtn.disabled = true;
+        submitResetBtn.classList.add('loading');
+
+        try {
+            await firebase.auth().sendPasswordResetEmail(email);
+            resetErrorMessage.textContent = 'Email untuk mengatur ulang kata sandi telah dikirim. Silakan periksa kotak masuk Anda.';
+            resetErrorMessage.style.color = 'green';
+            resetErrorMessage.classList.add('show');
+            
+            // Close modal after successful password reset email after 3 seconds
+            setTimeout(() => {
+                closeModal(resetPasswordModal);
+            }, 3000);
+            
+        } catch (error) {
+            console.error('Password Reset Error:', error);
+            resetErrorMessage.textContent = error.message || 'Gagal mengirim email pengaturan ulang kata sandi. Silakan coba lagi.';
+            resetErrorMessage.classList.add('show');
+        } finally {
+            submitResetBtn.disabled = false;
+            submitResetBtn.classList.remove('loading');
         }
     });
 }
