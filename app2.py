@@ -30,7 +30,8 @@ app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
 
 # Initialize SocketIO - async_mode='threading' is often easiest to start with
-socketio = SocketIO(app, async_mode='threading', cors_allowed_origins="*") # Allow all origins for simplicity, refine later if needed
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins=["https://codename-amber-341209055572.asia-southeast1.run.app", "http://localhost:4443", "http://127.0.0.1:4443"])
+
 
 # Provide the socketio instance to the sensor manager
 sensor_manager.set_socketio(socketio)
