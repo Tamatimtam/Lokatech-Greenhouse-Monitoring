@@ -69,7 +69,7 @@
   {% endcall %}
 
   <div class="grid grid--2col">
-    {% call card.card('KONTROL CEPAT (REMAJA)') %} {# Clarified controls are for Remaja #}
+    {% call card.card('KONTROL CEPAT') %} {# Clarified controls are for Remaja #}
       {{ controls.control_switch('Kipas Exhaust <span id="fan-mode-indicator" class="mode-indicator" aria-label="Mode Auto">(Auto)</span>'|safe, 'fan', 'fan-switch', false) }}
       {{ controls.control_switch('Lampu <span id="light-mode-indicator" class="mode-indicator" aria-label="Mode Auto">(Auto)</span>'|safe, 'lightbulb', 'light-switch', false) }}
     {% endcall %}
