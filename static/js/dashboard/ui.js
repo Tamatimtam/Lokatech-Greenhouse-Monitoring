@@ -1,12 +1,12 @@
 // Manages all UI updates and interactions for the dashboard
 
-import { SECTIONS, SENSOR_TYPES, ANIMATION_DURATION, THRESHOLDS } from './config.js'; // Import THRESHOLDS
-import { SystemMonitor } from './state.js'; // Import state for status summary
-import { DataManager } from './data.js'; // Import DataManager to access latest data
+import { SECTIONS, SENSOR_TYPES, ANIMATION_DURATION, THRESHOLDS } from './config.js'; 
+import { SystemMonitor } from './state.js'; 
+import { DataManager } from './data.js'; 
 
 export const UI = {
-    elements: {}, // Populated in initialize
-    animationStates: new Map(), // Store animation state for elements
+    elements: {}, 
+    animationStates: new Map(), 
 
     initialize() {
         this.elements = {
@@ -16,106 +16,89 @@ export const UI = {
             systemError: document.getElementById('system-error'),
             errorMessage: document.getElementById('error-message'),
             statusContainer: document.getElementById('status-container'),
-            // Add elements for switches and mode indicators
             fanSwitch: document.getElementById('fan-switch'),
-            lightSwitch: document.getElementById('light-switch'),
+            lightSwitch: document.getElementById('light-switch'), // Corrected ID if it was 'lights-switch'
             fanModeIndicator: document.getElementById('fan-mode-indicator'),
             lightModeIndicator: document.getElementById('light-mode-indicator'),
-            // Status summary elements
             statusSummaryLine: document.getElementById('status-summary-line')
         };
         
-        // Initialize the mode indicator classes
         this.initializeModeIndicators();
         
-        // Initialize status details container with proper styles to prevent flickering on updates
         const detailsContainer = document.getElementById('status-details');
         if (detailsContainer) {
-            // Remove any transition-related styles to prevent flickering
             detailsContainer.style.transition = 'none';
         }
-        
-        // Control initialization is handled in controls.js now
     },
 
     updateConnectionStatusUI(connected) {
         if (!this.elements.connectionStatus) return;
         this.elements.connectionStatus.className = connected ? 'connection-status online' : 'connection-status offline';
         if (this.elements.connectionIcon) {
-            this.elements.connectionIcon.className = connected ? 'fas fa-check-circle' : 'fas fa-circle-exclamation';
+            this.elements.connectionIcon.className = connected ? 'fas fa-check-circle' : 'fas fa-wifi'; // Wifi icon for connected
         }
         if (this.elements.connectionText) {
-            this.elements.connectionText.textContent = connected ? 'Terhubung ke Server' : 'Koneksi Server Terputus';
+            this.elements.connectionText.textContent = connected ? 'Terhubung ke Server (Remaja Master)' : 'Koneksi Server Terputus';
         }
     },
 
     showError(message) {
         if (this.elements.errorMessage) this.elements.errorMessage.textContent = message;
-        if (this.elements.systemError) this.elements.systemError.style.display = 'block';
+        if (this.elements.systemError) {
+             this.elements.systemError.style.display = 'block';
+             this.elements.systemError.classList.add('visible'); // For CSS animation
+        }
     },
 
     hideError() {
-        if (this.elements.systemError) this.elements.systemError.style.display = 'none';
+        if (this.elements.systemError) {
+            this.elements.systemError.style.display = 'none';
+            this.elements.systemError.classList.remove('visible');
+        }
     },
     
     initializeModeIndicators() {
-        // Apply appropriate classes to mode indicators based on text content
-        ['fanModeIndicator', 'lightModeIndicator'].forEach(indicator => {
-            const element = this.elements[indicator];
-            if (element) {
-                const mode = element.textContent.includes('Auto') ? 'auto' : 'manual';
-                element.classList.remove('mode-auto', 'mode-manual');
-                element.classList.add(mode === 'auto' ? 'mode-auto' : 'mode-manual');
+        ['fan', 'light'].forEach(type => {
+            const indicator = this.elements[`${type}ModeIndicator`];
+            if (indicator) {
+                const mode = SystemMonitor.status.actuators[type]?.mode || 'auto';
+                indicator.textContent = `(${mode === 'manual' ? 'Manual' : 'Auto'})`;
+                indicator.classList.remove('mode-auto', 'mode-manual');
+                indicator.classList.add(mode === 'auto' ? 'mode-auto' : 'mode-manual');
             }
+            this.updateModeToggleButtons(type);
         });
-
-        // Initialize mode toggle buttons with improved styling
-        this.updateModeToggleButtons('fan');
-        this.updateModeToggleButtons('light');
     },
 
-    // New helper function to update mode toggle buttons with better styling
     updateModeToggleButtons(type) {
         const modeToggle = document.getElementById(`${type}-mode-toggle`);
         if (!modeToggle) return;
 
         const mode = SystemMonitor.status.actuators[type]?.mode || 'auto';
         
-        // Update data attribute
         modeToggle.dataset.mode = mode;
-        
-        // Update text content with more concise labels
         modeToggle.textContent = mode === 'auto' ? 'Ke Mode Manual' : 'Ke Mode Auto';
         
-        // Apply improved styling
-        modeToggle.classList.remove('mode-auto', 'mode-manual');
-        modeToggle.classList.add(`mode-${mode}`);
+        modeToggle.classList.remove('mode-auto', 'mode-manual'); // Ensure old classes are removed
+        modeToggle.classList.add(mode === 'auto' ? 'mode-auto' : 'mode-manual'); // Add current mode class
         
-        // Ensure proper padding and margins
+        // Ensure consistent styling (can be moved to CSS if preferred)
         modeToggle.style.padding = '6px 12px';
-        modeToggle.style.margin = '5px auto';
-        modeToggle.style.borderRadius = '4px';
+        modeToggle.style.margin = '5px auto'; // Or adjust as needed
+        modeToggle.style.borderRadius = 'var(--radius-sm)';
         modeToggle.style.textAlign = 'center';
-        
-        // Improve visual appearance
         modeToggle.style.fontWeight = '500';
-        modeToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+        modeToggle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
         modeToggle.style.transition = 'all 0.2s ease-in-out';
     },
 
-    // Helper function to animate numeric values
     animateValue(element, targetValue, options = {}) {
         if (!element) return;
-
         const { duration = ANIMATION_DURATION, format = (val) => val.toLocaleString() } = options;
         const defaultValue = '--';
 
-        // Clear existing animation for this element
         const existingAnimationId = this.animationStates.get(element);
-        if (existingAnimationId) {
-            cancelAnimationFrame(existingAnimationId);
-            this.animationStates.delete(element);
-        }
+        if (existingAnimationId) cancelAnimationFrame(existingAnimationId);
 
         if (targetValue === null || targetValue === undefined) {
             element.textContent = defaultValue;
@@ -123,22 +106,13 @@ export const UI = {
         }
 
         const startValueText = element.textContent;
-        let startValue = parseFloat(startValueText.replace(/,/g, ''));
-        if (isNaN(startValue) || startValueText === defaultValue) {
-            startValue = 0;
-        }
-
+        let startValue = parseFloat(String(startValueText).replace(/,/g, ''));
+        if (isNaN(startValue) || startValueText === defaultValue) startValue = 0;
+        
         const formattedTarget = format(targetValue);
-        if (element.textContent === formattedTarget) {
-             return;
-        }
-        if (Math.abs(startValue - targetValue) < 0.01 && startValue !== 0) {
-             element.textContent = formattedTarget;
-             return;
-        }
+        if (element.textContent === formattedTarget && startValueText !== defaultValue) return; // Avoid re-animating if already at target
 
         const startTime = performance.now();
-
         const step = (currentTime) => {
             const elapsedTime = currentTime - startTime;
             const progress = Math.min(1, elapsedTime / duration);
@@ -149,27 +123,26 @@ export const UI = {
                 const animationId = requestAnimationFrame(step);
                 this.animationStates.set(element, animationId);
             } else {
-                element.textContent = format(targetValue); // Ensure final value is exact
+                element.textContent = format(targetValue);
                 this.animationStates.delete(element);
             }
         };
-
         const animationId = requestAnimationFrame(step);
         this.animationStates.set(element, animationId);
     },
 
     resetDisplay() {
-        this.updateGauge('temperature-gauge', null, 100, '#ccc');
+        this.updateGauge('temperature-gauge', null, 50, '#ccc'); // Max 50 for temp
         this.updateGauge('humidity-gauge', null, 100, '#ccc');
-        this.updateGauge('light-gauge', null, 10000, '#ccc');
+        this.updateGauge('light-gauge', null, 20000, '#ccc'); // Max 20000 for light
 
         SECTIONS.forEach(section => {
             SENSOR_TYPES.forEach(type => {
                 this.updateSectionDisplay(section, type, null, 'minus');
             });
         });
-
         this.updateStatusSummary();
+        this.updateControlsUI(); // Reset controls UI as well
     },
 
     updateGauge(id, value, max, color) {
@@ -177,25 +150,27 @@ export const UI = {
         if (!gaugeElement) return;
 
         const circle = gaugeElement.querySelector('.svg-circle');
-        const valueDisplay = gaugeElement.querySelector('.value');
+        const valueDisplay = gaugeElement.querySelector('.value'); // Ensure this class exists in your gauge HTML
 
         const formatOptions = (id === 'light-gauge')
-            ? { format: (val) => Math.round(val).toLocaleString() }
-            : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' }; // Ensure format handles null
+            ? { format: (val) => (val !== null && val !== undefined) ? Math.round(val).toLocaleString() : '--' }
+            : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' };
         this.animateValue(valueDisplay, value, formatOptions);
 
-        if (value !== null && value !== undefined) {
+        if (value !== null && value !== undefined && circle) {
             circle.style.stroke = color;
-            const circumference = 2 * Math.PI * 54;
-            const clampedValue = Math.max(0, Math.min(value, max));
+            const radius = parseFloat(circle.getAttribute('r'));
+            const circumference = 2 * Math.PI * radius;
+            const clampedValue = Math.max(0, Math.min(value, max)); // Clamp value to be within 0-max
             const offset = circumference - ((clampedValue / max) * circumference);
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
             circle.style.strokeDashoffset = offset;
-        } else {
-            circle.style.stroke = '#ccc';
-            const circumference = 2 * Math.PI * 54;
+        } else if (circle) {
+            circle.style.stroke = '#ccc'; // Default color for null value
+            const radius = parseFloat(circle.getAttribute('r'));
+            const circumference = 2 * Math.PI * radius;
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
-            circle.style.strokeDashoffset = circumference;
+            circle.style.strokeDashoffset = circumference; // Empty gauge
         }
     },
 
@@ -206,42 +181,40 @@ export const UI = {
             const indicatorElement = el.querySelector('.section-indicator i');
 
             const formatOptions = (type === 'light')
-                ? { format: (val) => Math.round(val).toLocaleString() }
+                ? { format: (val) => (val !== null && val !== undefined) ? Math.round(val).toLocaleString() : '--' }
                 : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' };
             this.animateValue(valueElement, value, formatOptions);
 
-            if (value !== null && value !== undefined && trend) {
+            if (value !== null && value !== undefined && trend && indicatorElement) {
                 indicatorElement.className = `fas fa-${trend || 'minus'}`;
                 el.classList.remove('sensor-error', 'sensor-offline');
-            } else {
-                indicatorElement.className = 'fas fa-circle-exclamation';
-                el.classList.add('sensor-error');
-                el.classList.remove('sensor-offline');
+            } else if (indicatorElement) {
+                indicatorElement.className = 'fas fa-circle-exclamation'; // Or 'fa-power-off' for offline
+                el.classList.add('sensor-error'); // Or 'sensor-offline' if that's more appropriate
+                el.classList.remove('sensor-offline'); // Ensure only one state class
             }
         });
     },
-
-    // --- Completely redesigned updateStatusSummary ---
+    
     updateStatusSummary() {
         const summaryLine = this.elements.statusSummaryLine;
         const detailsContainer = document.getElementById('status-details');
-        const fallbackContainer = this.elements.statusContainer;
+        const fallbackContainer = this.elements.statusContainer; // Fallback if new elements not present
 
         if (!summaryLine || !detailsContainer) {
+            // Fallback to simpler status if new elements aren't there
             if (fallbackContainer) {
-                console.warn("Using fallback statusContainer. Add status-summary-line and status-details elements to HTML for improved summary.");
                 const status = SystemMonitor.status;
                 let fallbackHtml = '';
                 if (!status.connected) {
-                    fallbackHtml = `<div class="status-item"><i class="fas fa-triangle-exclamation"></i><span>Tidak terhubung ke jaringan ESP</span></div>`;
-                } else {
-                    fallbackHtml = `<div class="status-item"><i class="fas fa-check-circle"></i><span>Terhubung</span></div>`;
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-wifi-slash status-error"></i><span>Tidak terhubung ke Remaja Master</span></div>`;
+                } else if (!status.masterNode) { // Check if Remaja master itself is reporting offline
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-server status-error"></i><span>Remaja Master offline</span></div>`;
                 }
-                if (fallbackContainer.innerHTML !== fallbackHtml) {
-                    fallbackContainer.innerHTML = fallbackHtml;
+                 else {
+                    fallbackHtml = `<div class="status-item"><i class="fas fa-check-circle status-success"></i><span>Terhubung & Semua Sistem Normal</span></div>`;
                 }
-            } else {
-                console.error("Status summary elements not found.");
+                if (fallbackContainer.innerHTML !== fallbackHtml) fallbackContainer.innerHTML = fallbackHtml;
             }
             return;
         }
@@ -253,29 +226,27 @@ export const UI = {
         const detailMessages = [];
         let allOkOverall = true;
         
-        // Store current details container HTML to check for changes
         const oldDetailsHtml = detailsContainer.innerHTML;
 
         if (!status.connected) {
-            summaryText = 'Tidak terhubung ke jaringan ESP';
+            summaryText = 'Tidak terhubung ke server';
             summaryIcon = 'fa-wifi-slash';
             summaryClass = 'status-error';
             allOkOverall = false;
         } else {
             const latestData = DataManager.getLatestData();
             
-            // Check if we have any data at all
-            if (!latestData || !latestData.sections) {
-                summaryText = 'Menunggu data dari sensor';
+            if (!latestData || !latestData.sections || latestData.timestamp === null) { // Check timestamp for actual data
+                summaryText = 'Menunggu data dari sensor...';
                 summaryIcon = 'fa-spinner fa-spin';
-                summaryClass = '';
+                summaryClass = ''; // Neutral class
                 allOkOverall = false;
             } else {
                 const offlineNodes = SECTIONS.filter(section => !status.nodes[section]?.online);
                 if (offlineNodes.length > 0) {
                     detailMessages.push({ 
                         type: 'connection', 
-                        text: `Node ${offlineNodes.map(this.translateSection).join(', ')} offline`,
+                        text: `Node ${offlineNodes.map(s => this.translateSection(s)).join(', ')} offline`,
                         icon: 'fa-server'
                     });
                     allOkOverall = false;
@@ -287,28 +258,28 @@ export const UI = {
                         const sectionValues = latestData.sections[section];
                         const sectionName = this.translateSection(section);
 
-                        if (!sectionValues) {
+                        if (!sectionValues || Object.keys(sectionValues).length === 0) { // Check if sectionValues is empty
                             detailMessages.push({ 
                                 type: 'connection', 
                                 text: `Data untuk ${sectionName} tidak diterima`,
                                 icon: 'fa-triangle-exclamation' 
                             });
                             allOkOverall = false;
-                            return;
+                            return; // Skip to next section
                         }
 
                         const failedSensors = SENSOR_TYPES.filter(type => !nodeStatus.sensors[type]);
                         if (failedSensors.length > 0) {
                             detailMessages.push({ 
                                 type: 'connection', 
-                                text: `Sensor ${failedSensors.map(this.translateSensor).join(', ')} di ${sectionName} bermasalah`,
+                                text: `Sensor ${failedSensors.map(s => this.translateSensor(s)).join(', ')} di ${sectionName} bermasalah`,
                                 icon: 'fa-microchip'
                             });
                             allOkOverall = false;
                         }
 
                         SENSOR_TYPES.forEach(type => {
-                            if (nodeStatus.sensors[type] && sectionValues[type] !== null) {
+                            if (nodeStatus.sensors[type] && sectionValues[type] !== null && sectionValues[type] !== undefined) {
                                 const value = sectionValues[type];
                                 const threshold = THRESHOLDS[type];
                                 const sensorName = threshold.name;
@@ -317,66 +288,22 @@ export const UI = {
                                 if (type === 'humidity') unit = '%';
                                 if (type === 'light') unit = ' lux';
 
-                                let issueFound = false;
-                                let messageText = '';
-
-                                // Format the value to 1 decimal place
-                                const formattedValue = type === 'light' ? Math.round(value) : value.toFixed(1);
+                                const formattedValue = type === 'light' ? Math.round(value) : parseFloat(value).toFixed(1);
                                 
                                 if (type === 'temp' && threshold.low !== undefined && value < threshold.low) {
-                                    messageText = `${sensorName} ${sectionName} terlalu dingin (${formattedValue}${unit})`;
-                                    detailMessages.push({ 
-                                        type: 'temp', 
-                                        text: messageText,
-                                        icon: 'fa-temperature-low',
-                                        value: formattedValue,
-                                        unit: unit,
-                                        section: sectionName
-                                    });
+                                    detailMessages.push({ type: 'temp', text: `${sensorName} ${sectionName} terlalu dingin (${formattedValue}${unit})`, icon: 'fa-temperature-low'});
                                     allOkOverall = false;
                                 } else if (type === 'temp' && threshold.high !== undefined && value > threshold.high) {
-                                    messageText = `${sensorName} ${sectionName} terlalu panas (${formattedValue}${unit})`;
-                                    detailMessages.push({ 
-                                        type: 'temp', 
-                                        text: messageText,
-                                        icon: 'fa-temperature-high',
-                                        value: formattedValue,
-                                        unit: unit,
-                                        section: sectionName
-                                    });
+                                    detailMessages.push({ type: 'temp', text: `${sensorName} ${sectionName} terlalu panas (${formattedValue}${unit})`, icon: 'fa-temperature-high'});
                                     allOkOverall = false;
                                 } else if (type === 'humidity' && threshold.low !== undefined && value < threshold.low) {
-                                    messageText = `${sensorName} ${sectionName} terlalu kering (${formattedValue}${unit})`;
-                                    detailMessages.push({ 
-                                        type: 'humidity', 
-                                        text: messageText,
-                                        icon: 'fa-droplet-slash',
-                                        value: formattedValue,
-                                        unit: unit,
-                                        section: sectionName
-                                    });
+                                    detailMessages.push({ type: 'humidity', text: `${sensorName} ${sectionName} terlalu kering (${formattedValue}${unit})`, icon: 'fa-droplet-slash'});
                                     allOkOverall = false;
                                 } else if (type === 'humidity' && threshold.high !== undefined && value > threshold.high) {
-                                    messageText = `${sensorName} ${sectionName} terlalu lembap (${formattedValue}${unit})`;
-                                    detailMessages.push({ 
-                                        type: 'humidity', 
-                                        text: messageText,
-                                        icon: 'fa-droplet',
-                                        value: formattedValue,
-                                        unit: unit,
-                                        section: sectionName
-                                    });
+                                    detailMessages.push({ type: 'humidity', text: `${sensorName} ${sectionName} terlalu lembap (${formattedValue}${unit})`, icon: 'fa-droplet'});
                                     allOkOverall = false;
                                 } else if (type === 'light' && threshold.dark !== undefined && value < threshold.dark) {
-                                    messageText = `${sensorName} ${sectionName} terlalu gelap (${formattedValue}${unit})`;
-                                    detailMessages.push({ 
-                                        type: 'light', 
-                                        text: messageText,
-                                        icon: 'fa-moon',
-                                        value: formattedValue,
-                                        unit: unit,
-                                        section: sectionName
-                                    });
+                                    detailMessages.push({ type: 'light', text: `${sensorName} ${sectionName} terlalu gelap (${formattedValue}${unit})`, icon: 'fa-moon'});
                                     allOkOverall = false;
                                 }
                             }
@@ -388,105 +315,49 @@ export const UI = {
                     summaryText = 'Semua kondisi optimal';
                     summaryIcon = 'fa-check-circle';
                     summaryClass = 'status-success';
-                    
-                    // Add one success message when all is well
-                    detailMessages.push({ 
-                        type: 'success', 
-                        text: 'Semua sensor berfungsi normal',
-                        icon: 'fa-check-circle'
-                    });
+                    detailMessages.push({ type: 'success', text: 'Semua sensor berfungsi normal', icon: 'fa-check-circle'});
                 } else {
                     const hasConnectionErrors = detailMessages.some(msg => msg.type === 'connection');
                     if (hasConnectionErrors) {
-                        summaryText = 'Masalah koneksi terdeteksi';
+                        summaryText = 'Masalah koneksi atau sensor terdeteksi';
                         summaryIcon = 'fa-triangle-exclamation';
-                        summaryClass = 'status-error';
-                    } else {
+                        summaryClass = 'status-error'; // More severe for connection issues
+                    } else { // Environmental warnings only
                         summaryText = 'Peringatan kondisi lingkungan';
-                        summaryIcon = 'fa-circle-exclamation';
-                        summaryClass = '';
+                        summaryIcon = 'fa-circle-exclamation'; // Standard warning icon
+                        summaryClass = 'status-warning'; // A specific class for warnings
                     }
                 }
             }
         }
 
-        // Update summary line
         summaryLine.className = `status-item ${summaryClass}`;
         summaryLine.innerHTML = `<i class="fas ${summaryIcon}"></i><span>${summaryText}</span>`;
 
-        // Generate details HTML with specific icons and styles for each issue type
         const detailsHtml = detailMessages.map(msg => {
             let iconClass, statusClass;
-            
             switch(msg.type) {
-                case 'temp':
-                    iconClass = 'icon-temp';
-                    statusClass = 'status-temp';
-                    break;
-                case 'humidity':
-                    iconClass = 'icon-humidity';
-                    statusClass = 'status-humidity';
-                    break;
-                case 'light':
-                    iconClass = 'icon-light';
-                    statusClass = 'status-light';
-                    break;
-                case 'connection':
-                    iconClass = 'icon-connection';
-                    statusClass = 'status-connection';
-                    break;
-                case 'error':
-                    iconClass = 'icon-error';
-                    statusClass = 'status-error';
-                    break;
-                case 'success':
-                    iconClass = 'icon-success';
-                    statusClass = 'status-success';
-                    break;
-                default:
-                    iconClass = 'icon-error';
-                    statusClass = '';
+                case 'temp': iconClass = 'icon-temp'; statusClass = 'status-temp'; break;
+                case 'humidity': iconClass = 'icon-humidity'; statusClass = 'status-humidity'; break;
+                case 'light': iconClass = 'icon-light'; statusClass = 'status-light'; break;
+                case 'connection': iconClass = 'icon-connection'; statusClass = 'status-connection'; break;
+                case 'success': iconClass = 'icon-success'; statusClass = 'status-success'; break;
+                default: iconClass = 'icon-error'; statusClass = 'status-error'; // Default to error for unknown types
             }
-            
-            // Create HTML for each status item
             return `
-                <div class="status-item--detail ${statusClass}" data-id="${msg.type}-${msg.section || ''}">
-                    <div class="status-icon ${iconClass}">
-                        <i class="fas ${msg.icon}"></i>
-                    </div>
+                <div class="status-item--detail ${statusClass}" data-id="${msg.type}-${msg.section || ''}-${Date.now()}">
+                    <div class="status-icon ${iconClass}"><i class="fas ${msg.icon}"></i></div>
                     <span class="status-text">${msg.text}</span>
-                </div>
-            `;
+                </div>`;
         }).join('');
 
-        // Only update DOM if the content has changed to prevent flickering
         if (detailsContainer.innerHTML !== detailsHtml) {
-            // Use a data attribute to track which elements are already displayed
-            const existingElements = {};
-            detailsContainer.querySelectorAll('.status-item--detail').forEach(el => {
-                const id = el.getAttribute('data-id');
-                if (id) existingElements[id] = el;
-            });
-            
-            // Parse the new HTML into a document fragment
-            const template = document.createElement('template');
-            template.innerHTML = detailsHtml;
-            const newElements = template.content;
-            
-            // Clear container while preserving existing elements that will be reused
-            detailsContainer.innerHTML = '';
-            
-            // Add the new elements, potentially reusing existing ones to prevent flicker
-            newElements.querySelectorAll('.status-item--detail').forEach(el => {
-                const id = el.getAttribute('data-id');
-                detailsContainer.appendChild(el);
-            });
+            detailsContainer.innerHTML = detailsHtml;
         }
     },
-    // --- END NEW updateStatusSummary ---
 
     translateSection(section) {
-        const translations = { penyemaian: 'Penyemaian', peremajaan: 'Peremajaan', dewasa: 'Dewasa' };
+        const translations = { penyemaian: 'Penyemaian', remaja: 'Remaja', dewasa: 'Dewasa' }; // Updated
         return translations[section] || section;
     },
 
@@ -497,27 +368,29 @@ export const UI = {
 
     updateControlsUI() {
         const fanState = SystemMonitor.status.actuators.fan;
-        const lightState = SystemMonitor.status.actuators.light;
+        const lightState = SystemMonitor.status.actuators.light; // Corrected from lightsState
 
         if (this.elements.fanSwitch) {
             this.elements.fanSwitch.checked = fanState.state === true;
         }
         if (this.elements.fanModeIndicator) {
-            this.elements.fanModeIndicator.textContent = `(${fanState.mode === 'manual' ? 'Manual' : 'Auto'})`;
-            this.elements.fanSwitch?.closest('.control')?.classList.toggle('control--manual', fanState.mode === 'manual');
-            
-            // Update mode toggle using the improved helper function
+            const fanMode = fanState.mode || 'auto';
+            this.elements.fanModeIndicator.textContent = `(${fanMode === 'manual' ? 'Manual' : 'Auto'})`;
+            this.elements.fanModeIndicator.classList.remove('mode-auto', 'mode-manual');
+            this.elements.fanModeIndicator.classList.add(fanMode === 'auto' ? 'mode-auto' : 'mode-manual');
+            this.elements.fanSwitch?.closest('.control')?.classList.toggle('control--manual', fanMode === 'manual');
             this.updateModeToggleButtons('fan');
         }
 
-        if (this.elements.lightSwitch) {
+        if (this.elements.lightSwitch) { // Corrected from lightSwitch
             this.elements.lightSwitch.checked = lightState.state === true;
         }
-        if (this.elements.lightModeIndicator) {
-            this.elements.lightModeIndicator.textContent = `(${lightState.mode === 'manual' ? 'Manual' : 'Auto'})`;
-            this.elements.lightSwitch?.closest('.control')?.classList.toggle('control--manual', lightState.mode === 'manual');
-            
-            // Update mode toggle using the improved helper function
+        if (this.elements.lightModeIndicator) { // Corrected from lightModeIndicator
+            const lightActuatorMode = lightState.mode || 'auto';
+            this.elements.lightModeIndicator.textContent = `(${lightActuatorMode === 'manual' ? 'Manual' : 'Auto'})`;
+            this.elements.lightModeIndicator.classList.remove('mode-auto', 'mode-manual');
+            this.elements.lightModeIndicator.classList.add(lightActuatorMode === 'auto' ? 'mode-auto' : 'mode-manual');
+            this.elements.lightSwitch?.closest('.control')?.classList.toggle('control--manual', lightActuatorMode === 'manual');
             this.updateModeToggleButtons('light');
         }
     }
