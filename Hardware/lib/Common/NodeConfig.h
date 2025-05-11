@@ -1,79 +1,75 @@
-#ifndef NODECONFIG_H
-#define NODECONFIG_H
+// File: Hardware/lib/Common/NodeConfig.h
+#ifndef NODE_CONFIG_H
+#define NODE_CONFIG_H
 
-// --- Communication & Timing Configuration ---
-#define WIFI_CHANNEL 1           // Define the operating channel (1-11 recommended)
-#define SENSOR_READ_INTERVAL 2000UL // Read sensors every 2 seconds (was 3 seconds)
-#define SEND_INTERVAL 2000UL        // Send data every 2 seconds (Penyemaian, Peremajaan)
-#define MQTT_PUBLISH_INTERVAL 2000UL // Publish MQTT every 2 seconds (Dewasa)
+#include <Arduino.h> // For uint8_t
 
-// --- Data Validity Timeouts (Considered stale after this duration) ---
-#define PENYEMAIAN_DATA_TIMEOUT 5000UL // Timeout for data from Penyemaian (on Peremajaan)
-#define COMBINED_DATA_TIMEOUT 7000UL   // Timeout for data from Peremajaan (on Dewasa/Gateway)
-#define GATEWAY_DATA_TIMEOUT 9000UL    // Timeout for data from Gateway (on Dewasa)
+// --- Common Hardware Pins ---
+#define DHT_PIN 4 // DHT22 data pin for all nodes that have it
 
-// --- Hardware Pins ---
-#define DHT_PIN 4              // DHT22 data pin
+// --- ESP-NOW Configuration ---
+#define WIFI_CHANNEL 1 // IMPORTANT: All ESP-NOW nodes must be on the same channel (1-11 recommended)
 
-// --- MAC ADDRESS CONFIGURATION ---
-// *** UPDATE THESE WITH YOUR ACTUAL MAC ADDRESSES ***
-// Find using GetMacAddress sketch or Serial Monitor output at boot
+// --- MAC Addresses of Nodes ---
+// Note: Comments updated to reflect NEW LOGICAL ROLES.
+// The physical boards and their MACs don't change, but their roles in the system do.
 
-// MAC Address of the Penyemaian Node
-const uint8_t MAC_ADDR_PENYEMAIAN[] = {0x4C, 0x11, 0xAE, 0x64, 0xD0, 0x74};  // Replace with actual
+// MAC Address of the Penyemaian Node (sends to Gateway)
+const uint8_t MAC_ADDR_PENYEMAIAN[] = {0x4C, 0x11, 0xAE, 0x64, 0xD0, 0x74}; // Replace with actual Penyemaian MAC 
 
-// MAC Address of the Peremajaan Node
-const uint8_t MAC_ADDR_PEREMAJAAN[] = {0xA8, 0x42, 0xE3, 0x5A, 0x78, 0xD4}; // Replace with actual
+// MAC Address of the (Old Peremajaan) Node, WHICH IS NOW THE NEW "DEWASA NODE" (sends to Gateway)
+const uint8_t MAC_ADDR_DEWASA[]     = {0xA8, 0x42, 0xE3, 0x5A, 0x78, 0xD4}; // Replace with actual (Old Peremajaan) MAC  
 
-// MAC Address of the NEW Gateway Node
-const uint8_t MAC_ADDR_GATEWAY[]    = {0x20, 0x43, 0xA8, 0x64, 0xE4, 0xA8}; // Replace with actual
+// MAC Address of the Gateway Node (receives from Penyemaian & Dewasa, sends Serial to Remaja/Master)
+const uint8_t MAC_ADDR_GATEWAY[]    = {0x20, 0x43, 0xA8, 0x64, 0xE4, 0xA8}; // Replace with actual Gateway MAC
 
-// MAC Address of the Dewasa/Master Node (even if not used for ESP-NOW)
-const uint8_t MAC_ADDR_DEWASA[]     = {0xE4, 0x65, 0xB8, 0x83, 0xD1, 0x40}; // Replace with actual
+// MAC Address of the (Old Dewasa) Node, WHICH IS NOW THE NEW "REMAJA NODE (MASTER)" (receives Serial from Gateway, does MQTT)
+const uint8_t MAC_ADDR_REMAJA_MASTER[] = {0xE4, 0x65, 0xB8, 0x83, 0xD1, 0x40}; // Replace with actual (Old Dewasa) MAC
 
 
-// --- DEBUGGING FLAGS ---
-// Master switch for all debug serial prints. Set to false to disable all below.
-#define DEBUG_SERIAL_OUTPUT_ENABLED true 
+// --- Data Validity Timeouts (in milliseconds) ---
+// How long to consider data from a preceding node as "fresh"
 
-#if DEBUG_SERIAL_OUTPUT_ENABLED
-    // DewasaNode_Master.cpp specific debugs
-    #define DEBUG_DEWASA_MAIN               true  // General setup and loop prints
-    #define DEBUG_DEWASA_SERIAL_GATEWAY     false  // Serial2 communication with Gateway
-    #define DEBUG_DEWASA_MQTT_CALLBACK      true  // Detailed MQTT callback processing
-    #define DEBUG_DEWASA_FUZZY_CONTROL      false  // Periodic fuzzy logic debug summary
-    #define DEBUG_DEWASA_AVERAGES           false // Detailed average calculation prints (can be verbose)
-    #define DEBUG_DEWASA_MQTT_SELF_TEST     false // MQTT self-test message in loop
+// For data received by Gateway from Penyemaian Node via ESP-NOW
+const unsigned long PENYEMAIAN_ESP_NOW_TIMEOUT = 7000UL; // e.g., 7 seconds
 
-    // SensorManager.cpp specific debugs
-    #define DEBUG_SENSOR_MANAGER            false  // Sensor readings and simulation status
+// For data received by Gateway from Dewasa Node via ESP-NOW
+const unsigned long DEWASA_ESP_NOW_TIMEOUT = 7000UL;     // e.g., 7 seconds
 
-    // FuzzyController.cpp specific debugs
-    #define DEBUG_FUZZY_CONTROLLER_INTERNAL false  // Initialization and internal fuzzy steps
+// For data received by Remaja (Master) from Gateway via Serial
+const unsigned long GATEWAY_SERIAL_TIMEOUT = 9000UL;     // e.g., 9 seconds
 
-    // MQTTManager.cpp specific debugs
-    #define DEBUG_MQTT_MANAGER              true  // WiFi connection, MQTT connection, publish attempts
+// **NEWLY ADDED for ESPNowManager.cpp compilation**
+// This timeout was for the old ESPNowManager that received CombinedData.
+// It's added here to allow ESPNowManager.cpp to compile, even if not actively used
+// by the new Remaja Master node.
+const unsigned long COMBINED_DATA_TIMEOUT = 7000UL;      // e.g., 7 seconds
 
-    // Other Nodes (add as needed)
-    #define DEBUG_PENYEMAIAN                true
-    #define DEBUG_PEREMAJAAN                true
-    #define DEBUG_GATEWAY                   true
-#else
-    // If master switch is off, all debug flags are turned off
-    #define DEBUG_DEWASA_MAIN               false
-    #define DEBUG_DEWASA_SERIAL_GATEWAY     false
-    #define DEBUG_DEWASA_MQTT_CALLBACK      false
-    #define DEBUG_DEWASA_FUZZY_CONTROL      false
-    #define DEBUG_DEWASA_AVERAGES           false
-    #define DEBUG_DEWASA_MQTT_SELF_TEST     false
-    #define DEBUG_SENSOR_MANAGER            false
-    #define DEBUG_FUZZY_CONTROLLER_INTERNAL false
-    #define DEBUG_MQTT_MANAGER              false
-    #define DEBUG_PENYEMAIAN                false
-    #define DEBUG_PEREMAJAAN                false
-    #define DEBUG_GATEWAY                   false
-#endif
 
-// Add other common configuration constants here as needed
+// --- Node-Specific Operation Intervals (in milliseconds) ---
+const unsigned long SENSOR_READ_INTERVAL = 2000UL;  // How often nodes read their local sensors (2 seconds)
+const unsigned long SEND_INTERVAL = 2000;         // How often nodes send data (5 seconds)
+const unsigned long MQTT_PUBLISH_INTERVAL = 2000; // How often Remaja (Master) publishes to MQTT (5 seconds)
 
-#endif // NODECONFIG_H
+
+// --- Serial Communication (Gateway <-> Remaja/Master) ---
+const long SERIAL_BAUD_RATE = 115200;
+
+
+// --- Actuator Pins (for Remaja Node (Master) - Old Dewasa Hardware) ---
+const int REMAJA_FAN_LED_PIN = 18;
+const int REMAJA_LIGHT_LED_PIN = 19;
+
+
+// --- Debug Flags (Optional) ---
+// #define DEBUG_PENYEMAIAN
+// #define DEBUG_DEWASA_NODE // For the new Dewasa Node (old Peremajaan)
+ #define DEBUG_GATEWAY 1
+// #define DEBUG_REMAJA_MASTER // For the new Remaja Master (old Dewasa)
+ #define DEBUG_MQTT_MANAGER 1
+// #define DEBUG_SENSOR_MANAGER
+ #define DEBUG_FUZZY_CONTROLLER_INTERNAL  1
+ #define DEBUG_REMAJA_FUZZY_CONTROL 1
+
+
+#endif // NODE_CONFIG_H

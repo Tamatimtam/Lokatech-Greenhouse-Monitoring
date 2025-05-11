@@ -4,133 +4,90 @@ MQTTManager::MQTTManager(const char* ssid, const char* password, const char* mqt
                          int mqttPort, const char* mqttPublishTopic, const char* mqttControlTopic,
                          const char* mqttUser, const char* mqttPassword)
     : _ssid(ssid), _password(password), _mqttServer(mqttServer), 
-      _mqttPublishTopic(mqttPublishTopic), _mqttControlTopic(mqttControlTopic), // Store both topics
-      _mqttUser(mqttUser), _mqttPassword(mqttPassword), // Store MQTT credentials
+      _mqttPublishTopic(mqttPublishTopic), _mqttControlTopic(mqttControlTopic), 
+      _mqttUser(mqttUser), _mqttPassword(mqttPassword), 
       _mqttPort(mqttPort), _mqttClient(_wifiClientSecure),
       _lastReconnectAttempt(0), _callback(nullptr) {
 }
 
 bool MQTTManager::begin() {
-    // Connect to WiFi
     if (!connectWiFi()) {
         return false;
     }
-    
-    // Skip SSL certificate validation (less secure, but works for testing)
-    _wifiClientSecure.setInsecure();
-    
-    // Configure MQTT server
+    _wifiClientSecure.setInsecure(); // For HiveMQ Cloud, typically no specific root CA needed for ESP32
     _mqttClient.setServer(_mqttServer, _mqttPort);
-    
-    // Set larger buffer size for MQTT messages (default is 256 bytes)
-    _mqttClient.setBufferSize(1024);
-    
-    // Initialize reconnect timer
+    _mqttClient.setBufferSize(1024); // Increased buffer for larger JSON
     _lastReconnectAttempt = 0;
-    
-    // Try to connect to MQTT broker
     return connect();
 }
 
 bool MQTTManager::connectWiFi() {
-#if DEBUG_MQTT_MANAGER
+    #if DEBUG_MQTT_MANAGER
     Serial.println("[MQTTManager] Connecting to WiFi...");
-#endif
-    
-    // Disconnect from any previous connection
-    WiFi.disconnect();
+    #endif
+    WiFi.disconnect(); // Ensure clean state
     delay(100);
-    
-    // Begin connection with SSID and password
     WiFi.begin(_ssid, _password);
-    
-    // Initiate connection and return immediately
-#if DEBUG_MQTT_MANAGER
-    Serial.println("[MQTTManager] WiFi connection attempt initiated.");
-#endif
-    // We don't wait here, the loop() function will check status and retry
-
-    // Return true for now, loop() will handle actual connection status
+    // Don't wait here, loop() will handle connection status
     return true;
 }
 
 bool MQTTManager::connect() {
     if (WiFi.status() != WL_CONNECTED) {
-        // #if DEBUG_MQTT_MANAGER // This might be too frequent if WiFi is down
-        // Serial.println("[MQTTManager] WiFi not connected, cannot connect to MQTT.");
-        // #endif
         return false;
     }
 
     if (!_mqttClient.connected()) {
-#if DEBUG_MQTT_MANAGER
-        Serial.println("[MQTTManager] Connecting to MQTT broker...");
-        Serial.print("[MQTTManager] Server: "); Serial.print(_mqttServer);
-        Serial.print(" Port: "); Serial.println(_mqttPort);
-#endif
+        #if DEBUG_MQTT_MANAGER
+        Serial.println("[MQTTManager] Attempting MQTT connection...");
+        #endif
         
         if (_callback) {
             _mqttClient.setCallback(_callback);
-#if DEBUG_MQTT_MANAGER
-            Serial.println("[MQTTManager] Callback set");
-#endif
         } else {
-            // Important warning, always print
-            Serial.println("[MQTTManager] WARNING: MQTT callback not set. No messages will be received.");
+            Serial.println("[MQTTManager] WARNING: MQTT callback not set.");
         }
         
-        String clientId = "ESP32Dewasa-";
+        String clientId = "ESP32RemajaMaster-"; // Updated Client ID
         clientId += String(WiFi.macAddress());
+        clientId.replace(":", ""); // Remove colons from MAC for client ID
         clientId += "-";
         clientId += String(millis() % 1000); 
         
-#if DEBUG_MQTT_MANAGER
+        #if DEBUG_MQTT_MANAGER
         Serial.print("[MQTTManager] Client ID: "); Serial.println(clientId);
-        if (_mqttUser && _mqttPassword) {
-            Serial.println("[MQTTManager] Using MQTT authentication");
-        } else {
-            Serial.println("[MQTTManager] No MQTT credentials provided, connecting without authentication");
-        }
-#endif
+        #endif
         
-        bool connected = false;
-        if (_mqttUser && _mqttPassword) {
-            connected = _mqttClient.connect(clientId.c_str(), _mqttUser, _mqttPassword);
+        bool connectedStatus = false;
+        if (_mqttUser && strlen(_mqttUser) > 0) {
+            #if DEBUG_MQTT_MANAGER
+            Serial.println("[MQTTManager] Connecting with MQTT username/password.");
+            #endif
+            connectedStatus = _mqttClient.connect(clientId.c_str(), _mqttUser, _mqttPassword);
         } else {
-            connected = _mqttClient.connect(clientId.c_str());
+            #if DEBUG_MQTT_MANAGER
+            Serial.println("[MQTTManager] Connecting without MQTT username/password.");
+            #endif
+            connectedStatus = _mqttClient.connect(clientId.c_str());
         }
         
-        if (connected) {
-#if DEBUG_MQTT_MANAGER
-            Serial.println("[MQTTManager] MQTT connected successfully");
-#endif
-            bool subscribeSuccess = _mqttClient.subscribe(_mqttControlTopic, 1); 
-            if (subscribeSuccess) {
-#if DEBUG_MQTT_MANAGER
-                 Serial.printf("[MQTTManager] Subscribed to control topic: %s\n", _mqttControlTopic);
-#endif
+        if (connectedStatus) {
+            #if DEBUG_MQTT_MANAGER
+            Serial.println("[MQTTManager] MQTT connected successfully.");
+            #endif
+            // Subscribe to the control topic
+            if (_mqttClient.subscribe(_mqttControlTopic, 1)) { // QoS 1
+                #if DEBUG_MQTT_MANAGER
+                Serial.printf("[MQTTManager] Subscribed to control topic: %s\n", _mqttControlTopic);
+                #endif
             } else {
-                 // Critical error, always print
-                 Serial.printf("[MQTTManager] ERROR: Failed to subscribe to control topic %s! PubSubClient state: %d\n", _mqttControlTopic, _mqttClient.state());
+                Serial.printf("[MQTTManager] ERROR: Failed to subscribe to control topic %s. State: %d\n", _mqttControlTopic, _mqttClient.state());
             }
             return true;
         } else {
-            // Critical error, always print
-            int state = _mqttClient.state();
             Serial.print("[MQTTManager] ERROR: MQTT connection failed, rc=");
-            Serial.print(state); Serial.print(" (");
-            switch(state) {
-                case -4: Serial.println("MQTT_CONNECTION_TIMEOUT)"); break;
-                case -3: Serial.println("MQTT_CONNECTION_LOST)"); break;
-                case -2: Serial.println("MQTT_CONNECT_FAILED)"); break;
-                case -1: Serial.println("MQTT_DISCONNECTED)"); break;
-                case 1: Serial.println("MQTT_CONNECT_BAD_PROTOCOL)"); break;
-                case 2: Serial.println("MQTT_CONNECT_BAD_CLIENT_ID)"); break;
-                case 3: Serial.println("MQTT_CONNECT_UNAVAILABLE)"); break;
-                case 4: Serial.println("MQTT_CONNECT_BAD_CREDENTIALS)"); break;
-                case 5: Serial.println("MQTT_CONNECT_UNAUTHORIZED)"); break;
-                default: Serial.println("Unknown error)"); break;
-            }
+            Serial.print(_mqttClient.state()); Serial.println();
+            // Detailed error printing can be added here based on _mqttClient.state()
             return false;
         }
     }
@@ -138,297 +95,162 @@ bool MQTTManager::connect() {
 }
 
 bool MQTTManager::publish(const String& payload) {
-    if (WiFi.status() != WL_CONNECTED) {
-        // #if DEBUG_MQTT_MANAGER // Potentially too verbose if WiFi is down
-        // Serial.println("[MQTTManager] WiFi not connected, cannot publish MQTT message.");
-        // #endif
+    if (WiFi.status() != WL_CONNECTED || !_mqttClient.connected()) {
+        #if DEBUG_MQTT_MANAGER
+        if(WiFi.status() != WL_CONNECTED) Serial.println("[MQTTManager] WiFi not connected, cannot publish.");
+        if(!_mqttClient.connected()) Serial.println("[MQTTManager] MQTT not connected, cannot publish.");
+        #endif
+        // Attempt to reconnect if necessary, or rely on loop() to do it
+        // connect(); // Optionally try immediate reconnect
         return false;
     }
-
-    if (!_mqttClient.connected()) {
-#if DEBUG_MQTT_MANAGER
-        Serial.println("[MQTTManager] MQTT not connected, attempting to reconnect...");
-#endif
-        if (!connect()) {
-            Serial.println("[MQTTManager] ERROR: Cannot publish. MQTT reconnect failed."); // Critical
-            return false;
-        }
-    }
     
-#if DEBUG_MQTT_MANAGER
-    Serial.println("[MQTTManager] Publishing data to MQTT:");
+    #if DEBUG_MQTT_MANAGER
+    Serial.println("[MQTTManager] Publishing to MQTT:");
     Serial.println(payload);
     Serial.print("[MQTTManager] Topic: "); Serial.println(_mqttPublishTopic);
-    Serial.print("[MQTTManager] Payload size: "); Serial.println(payload.length());
-#endif
+    #endif
     
-    bool result = _mqttClient.publish(_mqttPublishTopic, payload.c_str(), false); 
+    bool result = _mqttClient.publish(_mqttPublishTopic, payload.c_str(), false); // Retain = false
     
-#if DEBUG_MQTT_MANAGER
-    if (result) {
-        Serial.println("[MQTTManager] MQTT publish successful");
+    #if DEBUG_MQTT_MANAGER
+    if (!result) {
+        Serial.print("[MQTTManager] ERROR: MQTT publish failed. State: "); Serial.println(_mqttClient.state());
     } else {
-        Serial.println("[MQTTManager] ERROR: MQTT publish failed"); // Also an error, but keep under debug for now
-        Serial.print("[MQTTManager] MQTT state: "); Serial.println(_mqttClient.state());
+        Serial.println("[MQTTManager] MQTT publish successful.");
     }
-#endif
+    #endif
     return result;
 }
 
 bool MQTTManager::isConnected() {
-    return _mqttClient.connected();
+    return _mqttClient.connected() && (WiFi.status() == WL_CONNECTED);
 }
 
-// Implementation for the new getter method
 PubSubClient& MQTTManager::getClient() {
     return _mqttClient;
 }
 
-// Implementation for the new setCallback method
 void MQTTManager::setCallback(MQTT_CALLBACK_SIGNATURE) {
     _callback = callback;
-    // Note: The callback is actually set on the PubSubClient instance
-    // within the connect() method after a successful connection.
+    if (_mqttClient.connected()) { // If already connected, set it immediately
+        _mqttClient.setCallback(_callback);
+    }
 }
 
-
 void MQTTManager::loop() {
-    if (WiFi.status() == WL_CONNECTED && _mqttClient.connected()) {
-        _mqttClient.loop();
-    }
-    
     if (WiFi.status() != WL_CONNECTED) {
         unsigned long now = millis();
         if (now - _lastReconnectAttempt > RECONNECT_INTERVAL) { 
             _lastReconnectAttempt = now; 
-#if DEBUG_MQTT_MANAGER
-            Serial.println("[MQTTManager] WiFi disconnected. Attempting reconnection...");
-#endif
+            #if DEBUG_MQTT_MANAGER
+            Serial.println("[MQTTManager] WiFi disconnected. Attempting WiFi reconnection...");
+            #endif
             connectWiFi(); 
         }
-    } else {
+    } else { // WiFi is connected
         if (!_mqttClient.connected()) {
              unsigned long now = millis();
              if (now - _lastReconnectAttempt > RECONNECT_INTERVAL) {
                  _lastReconnectAttempt = now; 
-#if DEBUG_MQTT_MANAGER
-                 Serial.println("[MQTTManager] MQTT disconnected. Attempting reconnection...");
-#endif
-                 if (connect()) {
-#if DEBUG_MQTT_MANAGER
-                     Serial.println("[MQTTManager] MQTT reconnection successful");
-#endif
-                 } else {
-#if DEBUG_MQTT_MANAGER
-                     Serial.println("[MQTTManager] MQTT reconnection failed");
-#endif
-                 }
+                 #if DEBUG_MQTT_MANAGER
+                 Serial.println("[MQTTManager] MQTT disconnected. Attempting MQTT reconnection...");
+                 #endif
+                 connect(); // Attempt to reconnect MQTT
              }
+        } else { // WiFi and MQTT are connected
+            _mqttClient.loop(); // Process MQTT messages
         }
     }
 }
 
-String MQTTManager::determineTrend(float current, float previous) {
-    // Determine trend based on current and previous values
-    // This is a placeholder - you might want to implement more sophisticated trend detection
-    const float THRESHOLD = 0.5; // Threshold for considering a value changed
+// Modified generateJsonPayload
+void MQTTManager::generateJsonPayload(String& output, 
+                                   float remajaTemp, float remajaHumidity, float remajaLight,
+                                   bool remajaTempValid, bool remajaHumidityValid, bool remajaLightValid,
+                                   const SensorData& penyemaianData, bool penyemaianOverallValid,
+                                   const SensorData& dewasaData, bool dewasaOverallValid,
+                                   bool remajaFanState, const char* remajaFanMode, 
+                                   bool remajaLightState, const char* remajaLightMode) {
+    StaticJsonDocument<1024> doc; 
     
-    if (abs(current - previous) < THRESHOLD) {
-        return "equals";
-    } else if (current > previous) {
-        return "up";
-    } else {
-        return "down";
-    }
-}
-
-void MQTTManager::generateJsonPayload(String& output, float dewasaTemp, float dewasaHumidity, float dewasaLight,
-                                   bool dewasaTempValid, bool dewasaHumidityValid, bool dewasaLightValid,
-                                   const SensorData& penyemaianData, bool penyemaianValid,
-                                   const SensorData& peremajaanData, bool peremajaanValid,
-                                   // Add parameters for actuator state and mode
-                                   bool fanState, const char* fanMode, 
-                                   bool lightState, const char* lightMode) {
-    StaticJsonDocument<1024> doc; // Increased size slightly just in case, adjust if needed
+    doc["timestamp"] = millis() / 1000; // Or use NTP time if available
     
-    // Add timestamp (seconds since epoch)
-    doc["timestamp"] = millis() / 1000;
-    
-    // Prepare sections object
     JsonObject sections = doc.createNestedObject("sections");
     
-    // Add Dewasa (Master) section
-    JsonObject dewasa = sections.createNestedObject("dewasa");
-    if (dewasaTempValid) {
-        dewasa["temp"] = dewasaTemp;
-    } else {
-        dewasa["temp"] = nullptr;
-    }
-
-    if (dewasaHumidityValid) {
-        dewasa["humidity"] = dewasaHumidity;
-    } else {
-        dewasa["humidity"] = nullptr;
-    }
-
-    if (dewasaLightValid) {
-        // Use raw lux values for light without converting to percentage
-        dewasa["light"] = dewasaLight;
-    } else {
-        dewasa["light"] = nullptr;
-    }
+    // Remaja (Local) Section
+    JsonObject remaja = sections.createNestedObject("remaja");
+    remaja["temp"] = remajaTempValid ? remajaTemp : JsonVariant();
+    remaja["humidity"] = remajaHumidityValid ? remajaHumidity : JsonVariant();
+    remaja["light"] = remajaLightValid ? remajaLight : JsonVariant();
+    // Trends for remaja can be calculated if previous values are stored, or set to "equals"
+    JsonObject remajaTrends = remaja.createNestedObject("trends");
+    remajaTrends["temp"] = "equals"; 
+    remajaTrends["humidity"] = "equals";
+    remajaTrends["light"] = "equals";
     
-    // Add trends (using placeholder values since we don't have previous values here)
-    JsonObject dewasaTrends = dewasa.createNestedObject("trends");
+    // Penyemaian Section (from Gateway)
+    JsonObject penyemaian = sections.createNestedObject("penyemaian");
+    if (penyemaianOverallValid) {
+        penyemaian["temp"] = penyemaianData.temperatureValid ? penyemaianData.temperature : JsonVariant();
+        penyemaian["humidity"] = penyemaianData.humidityValid ? penyemaianData.humidity : JsonVariant();
+        penyemaian["light"] = penyemaianData.lightValid ? penyemaianData.lightIntensity : JsonVariant();
+    } else {
+        penyemaian["temp"] = JsonVariant();
+        penyemaian["humidity"] = JsonVariant();
+        penyemaian["light"] = JsonVariant();
+    }
+    JsonObject penyemaianTrends = penyemaian.createNestedObject("trends"); // Placeholder trends
+    penyemaianTrends["temp"] = "equals";
+    penyemaianTrends["humidity"] = "equals";
+    penyemaianTrends["light"] = "equals";
+
+    // Dewasa Section (from Gateway)
+    JsonObject dewasa = sections.createNestedObject("dewasa");
+    if (dewasaOverallValid) {
+        dewasa["temp"] = dewasaData.temperatureValid ? dewasaData.temperature : JsonVariant();
+        dewasa["humidity"] = dewasaData.humidityValid ? dewasaData.humidity : JsonVariant();
+        dewasa["light"] = dewasaData.lightValid ? dewasaData.lightIntensity : JsonVariant();
+    } else {
+        dewasa["temp"] = JsonVariant();
+        dewasa["humidity"] = JsonVariant();
+        dewasa["light"] = JsonVariant();
+    }
+    JsonObject dewasaTrends = dewasa.createNestedObject("trends"); // Placeholder trends
     dewasaTrends["temp"] = "equals";
     dewasaTrends["humidity"] = "equals";
     dewasaTrends["light"] = "equals";
     
-    // Add Penyemaian section if data is valid
-    if (penyemaianValid) {
-        JsonObject penyemaian = sections.createNestedObject("penyemaian");
-        if (penyemaianData.temperatureValid) {
-            penyemaian["temp"] = penyemaianData.temperature;
-        } else {
-            penyemaian["temp"] = nullptr;
-        }
-
-        if (penyemaianData.humidityValid) {
-            penyemaian["humidity"] = penyemaianData.humidity;
-        } else {
-            penyemaian["humidity"] = nullptr;
-        }
-
-        if (penyemaianData.lightValid) {
-            // Use raw lux values for light
-            penyemaian["light"] = penyemaianData.lightIntensity;
-        } else {
-            penyemaian["light"] = nullptr;
-        }
-        
-        // Add trends (placeholder values)
-        JsonObject penyemaianTrends = penyemaian.createNestedObject("trends");
-        penyemaianTrends["temp"] = "equals";
-        penyemaianTrends["humidity"] = "equals";
-        penyemaianTrends["light"] = "equals";
-    }
-    
-    // Add Peremajaan section if data is valid
-    if (peremajaanValid) {
-        JsonObject peremajaan = sections.createNestedObject("peremajaan");
-        if (peremajaanData.temperatureValid) {
-            peremajaan["temp"] = peremajaanData.temperature;
-        } else {
-            peremajaan["temp"] = nullptr;
-        }
-
-        if (peremajaanData.humidityValid) {
-            peremajaan["humidity"] = peremajaanData.humidity;
-        } else {
-            peremajaan["humidity"] = nullptr;
-        }
-
-        if (peremajaanData.lightValid) {
-            // Use raw lux values for light
-            peremajaan["light"] = peremajaanData.lightIntensity;
-        } else {
-            peremajaan["light"] = nullptr;
-        }
-        
-        // Add trends (placeholder values)
-        JsonObject peremajaanTrends = peremajaan.createNestedObject("trends");
-        peremajaanTrends["temp"] = "equals";
-        peremajaanTrends["humidity"] = "equals";
-        peremajaanTrends["light"] = "equals";
-    }
-    
-    // Calculate averages from valid data
+    // Calculate Averages
     JsonObject averages = doc.createNestedObject("averages");
-    
-    // Temperature average
-    float tempSum = 0;
-    int tempCount = 0;
-    
-    if (dewasaTempValid) {
-        tempSum += dewasaTemp;
-        tempCount++;
-    }
-    
-    if (penyemaianValid && penyemaianData.temperatureValid) {
-        tempSum += penyemaianData.temperature;
-        tempCount++;
-    }
-    
-    if (peremajaanValid && peremajaanData.temperatureValid) {
-        tempSum += peremajaanData.temperature;
-        tempCount++;
-    }
-    
-    if (tempCount > 0) {
-        averages["temp"] = tempSum / tempCount;
-    } else {
-        averages["temp"] = nullptr;
-    }
+    float tempSum = 0; int tempCount = 0;
+    float humiditySum = 0; int humidityCount = 0;
+    float lightSum = 0; int lightCount = 0;
 
-    // Humidity average
-    float humiditySum = 0;
-    int humidityCount = 0;
-    
-    if (dewasaHumidityValid) {
-        humiditySum += dewasaHumidity;
-        humidityCount++;
-    }
-    
-    if (penyemaianValid && penyemaianData.humidityValid) {
-        humiditySum += penyemaianData.humidity;
-        humidityCount++;
-    }
-    
-    if (peremajaanValid && peremajaanData.humidityValid) {
-        humiditySum += peremajaanData.humidity;
-        humidityCount++;
-    }
-    
-    if (humidityCount > 0) {
-        averages["humidity"] = humiditySum / humidityCount;
-    } else {
-        averages["humidity"] = nullptr;
-    }
+    if (remajaTempValid) { tempSum += remajaTemp; tempCount++; }
+    if (remajaHumidityValid) { humiditySum += remajaHumidity; humidityCount++; }
+    if (remajaLightValid) { lightSum += remajaLight; lightCount++; }
 
-    // Light average
-    float lightSum = 0;
-    int lightCount = 0;
-    
-    if (dewasaLightValid) {
-        lightSum += dewasaLight;
-        lightCount++;
-    }
-    
-    if (penyemaianValid && penyemaianData.lightValid) {
-        lightSum += penyemaianData.lightIntensity;
-        lightCount++;
-    }
-    
-    if (peremajaanValid && peremajaanData.lightValid) {
-        lightSum += peremajaanData.lightIntensity;
-        lightCount++;
-    }
-    
-    if (lightCount > 0) {
-        averages["light"] = lightSum / lightCount;
-    } else {
-        averages["light"] = nullptr;
-    }
+    if (penyemaianOverallValid && penyemaianData.temperatureValid) { tempSum += penyemaianData.temperature; tempCount++; }
+    if (penyemaianOverallValid && penyemaianData.humidityValid) { humiditySum += penyemaianData.humidity; humidityCount++; }
+    if (penyemaianOverallValid && penyemaianData.lightValid) { lightSum += penyemaianData.lightIntensity; lightCount++; }
 
-    // Add actuator states and modes
+    if (dewasaOverallValid && dewasaData.temperatureValid) { tempSum += dewasaData.temperature; tempCount++; }
+    if (dewasaOverallValid && dewasaData.humidityValid) { humiditySum += dewasaData.humidity; humidityCount++; }
+    if (dewasaOverallValid && dewasaData.lightValid) { lightSum += dewasaData.lightIntensity; lightCount++; }
+    
+    averages["temp"] = (tempCount > 0) ? round(tempSum / tempCount * 10.0) / 10.0 : JsonVariant();
+    averages["humidity"] = (humidityCount > 0) ? round(humiditySum / humidityCount) : JsonVariant();
+    averages["light"] = (lightCount > 0) ? round(lightSum / lightCount) : JsonVariant();
+
+    // Actuators (for Remaja node)
     JsonObject actuators = doc.createNestedObject("actuators");
-    JsonObject fan = actuators.createNestedObject("fan");
-    fan["state"] = fanState;
-    fan["mode"] = fanMode; // Expecting "auto" or "manual"
-    JsonObject light = actuators.createNestedObject("light");
-    light["state"] = lightState;
-    light["mode"] = lightMode; // Expecting "auto" or "manual"
+    JsonObject fan = actuators.createNestedObject("fan"); // Assuming fan is for Remaja
+    fan["state"] = remajaFanState;
+    fan["mode"] = remajaFanMode; 
+    JsonObject lightActuator = actuators.createNestedObject("light"); // Assuming light is for Remaja
+    lightActuator["state"] = remajaLightState;
+    lightActuator["mode"] = remajaLightMode; 
     
-    // Convert JSON document to string
     serializeJson(doc, output);
 }
