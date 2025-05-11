@@ -42,6 +42,7 @@ def set_control_state():
 
     # Prepare payload for MQTT
     mqtt_payload = json.dumps({
+        "node": "remaja",
         "device":device,
         "state":state,
         "mode":mode
