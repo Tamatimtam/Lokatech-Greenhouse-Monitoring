@@ -1,3 +1,4 @@
+<!-- File: simpleLogin/templates/dashboard.html -->
 {% extends "base.html" %}
 {% import "macros/gauges.html" as gauges %}
 {% import "macros/card.html" as card %}
@@ -27,187 +28,92 @@
     <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
   </header>
 
-  <div id="system-error" class="error-message">
+  <div id="system-error" class="error-message" style="display: none;"> {# Hide by default #}
     <i class="fas fa-triangle-exclamation"></i>
-    <span id="error-message">Tidak ada koneksi ke jaringan ESP</span>
+    <span id="error-message">Tidak ada koneksi ke hardware (Remaja Node)</span> {# Updated message #}
   </div>
 
   {% call card.card('KONDISI LINGKUNGAN', 'card--env') %}
     {% set env_variables = [
       {
-        'name': 'Suhu',
-        'icon': 'temperature-high',
-        'value': '--',
-        'unit': '°C',
-        'color': '#286247',
-        'gauge_id': 'temperature-gauge',
+        'name': 'Suhu', 'icon': 'temperature-high', 'value': '--', 'unit': '°C', 'color': '#286247', 'gauge_id': 'temperature-gauge',
         'sections': [
           {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
-          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
-          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
+          {'name': 'remaja', 'display': 'Remaja', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#f1c40f'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'}
         ]
       },
       {
-        'name': 'Kelembapan',
-        'icon': 'tint',
-        'value': '--',
-        'unit': '%',
-        'color': '#333333',
-        'gauge_id': 'humidity-gauge',
+        'name': 'Kelembapan', 'icon': 'tint', 'value': '--', 'unit': '%', 'color': '#333333', 'gauge_id': 'humidity-gauge',
         'sections': [
           {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
-          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
-          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
+          {'name': 'remaja', 'display': 'Remaja', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#f1c40f'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'}
         ]
       },
       {
-        'name': 'Cahaya',
-        'icon': 'sun',
-        'value': '--',
-        'unit': 'lux',
-        'color': '#F9D949',
-        'gauge_id': 'light-gauge',
+        'name': 'Cahaya', 'icon': 'sun', 'value': '--', 'unit': 'lux', 'color': '#F9D949', 'gauge_id': 'light-gauge',
         'sections': [
           {'name': 'penyemaian', 'display': 'Penyemaian', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#3498db'},
-          {'name': 'peremajaan', 'display': 'Peremajaan', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'},
-          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#e74c3c'}
+          {'name': 'remaja', 'display': 'Remaja', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#f1c40f'},
+          {'name': 'dewasa', 'display': 'Dewasa', 'value': '--', 'trend_icon': 'minus', 'trend_color': '#27ae60'}
         ]
       }
     ] %}
 
     {% for var in env_variables %}
       {{ environment.env_variable_row(
-        var.name,
-        var.icon,
-        var.value,
-        var.unit,
-        var.color,
-        var.gauge_id,
-        var.sections
+        var.name, var.icon, var.value, var.unit, var.color, var.gauge_id, var.sections
       ) }}
     {% endfor %}
   {% endcall %}
 
   <div class="grid grid--2col">
-    {% call card.card('KONTROL CEPAT') %}
-      {# Add spans for mode indicators next to the labels with aria-label for accessibility #}
+    {% call card.card('KONTROL CEPAT (REMAJA)') %} {# Clarified controls are for Remaja #}
       {{ controls.control_switch('Kipas Exhaust <span id="fan-mode-indicator" class="mode-indicator" aria-label="Mode Auto">(Auto)</span>'|safe, 'fan', 'fan-switch', false) }}
-      {# Changed ID from lights-switch to light-switch #}
       {{ controls.control_switch('Lampu <span id="light-mode-indicator" class="mode-indicator" aria-label="Mode Auto">(Auto)</span>'|safe, 'lightbulb', 'light-switch', false) }}
     {% endcall %}
 
     {% call card.card('RINGKASAN STATUS') %}
-      {# Enhanced status container with improved visibility #}
       <div id="status-container"> 
-          {# Summary status line #}
           <div id="status-summary-line" class="status-item">
               <i class="fas fa-spinner fa-spin"></i> 
               <span>Menunggu data sensor...</span>
           </div>
-          
-          {# Status details container - now always visible #}
-          <div id="status-details">
-              {## Status details will populate here ##}
+          <div id="status-details" style="margin-top: 10px;">
+              {# Status details will populate here #}
           </div>
-          
           <style>
-            /* Enhanced styling for status elements using brand colors */
             #status-summary-line {
-              padding: 16px 20px;
-              border-radius: var(--radius-md);
-              margin-bottom: 18px;
-              display: flex;
-              align-items: center;
-              font-weight: 600;
-              background-color: var(--primary-light);
-              color: white;
-              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-              transition: transform 0.2s ease, box-shadow 0.2s ease;
+              padding: 12px 15px; border-radius: var(--radius-md); margin-bottom: 12px;
+              display: flex; align-items: center; font-weight: 500; /* Adjusted font-weight */
+              background-color: rgba(0,0,0,0.03); color: var(--text-secondary);
+              border: 1px solid rgba(0,0,0,0.05);
+              transition: background-color 0.3s ease, color 0.3s ease;
             }
+            #status-summary-line.status-success { background-color: rgba(39, 174, 96, 0.1); color: #27ae60; border-left: 4px solid #27ae60;}
+            #status-summary-line.status-warning { background-color: rgba(243, 156, 18, 0.1); color: #f39c12; border-left: 4px solid #f39c12;}
+            #status-summary-line.status-error { background-color: rgba(231, 76, 60, 0.1); color: #e74c3c; border-left: 4px solid #e74c3c;}
+            #status-summary-line i { font-size: 1.1rem; margin-right: 10px; }
             
-            #status-summary-line:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-            }
-            
-            #status-summary-line i {
-              font-size: 1.3rem;
-              margin-right: 12px;
-            }
-            
-            #status-details {
-              display: grid;
-              grid-gap: 12px;
-              margin-top: 8px;
-            }
-            
+            #status-details { display: grid; grid-gap: 10px; }
             .status-item--detail {
-              display: grid;
-              grid-template-columns: auto 1fr;
-              grid-gap: 16px;
-              align-items: center;
-              padding: 14px 16px;
-              border-radius: var(--radius-md);
-              background-color: white;
-              border-left: 5px solid transparent;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-              transition: all 0.2s ease;
+              display: grid; grid-template-columns: auto 1fr; grid-gap: 12px; align-items: center;
+              padding: 10px 12px; border-radius: var(--radius-sm);
+              background-color: var(--surface); border: 1px solid rgba(0,0,0,0.05);
+              box-shadow: 0 1px 3px rgba(0,0,0,0.04);
             }
-            
-            .status-item--detail:hover {
-              transform: translateX(3px);
-              box-shadow: 0 3px 8px rgba(0,0,0,0.12);
-            }
-            
-            /* Status type styling */
-            .status-temp {
-              border-left-color: #E74C3C;
-            }
-            
-            .status-humidity {
-              border-left-color: #3498DB;
-            }
-            
-            .status-light {
-              border-left-color: #F9D949;
-            }
-            
-            .status-connection {
-              border-left-color: #9B59B6;
-            }
-            
-            .status-error {
-              border-left-color: #E74C3C;
-            }
-            
-            .status-success {
-              border-left-color: var(--primary);
-            }
-            
-            /* Icon container styling */
             .status-icon {
-              width: 32px;
-              height: 32px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              border-radius: 50%;
-              font-size: 1rem;
-              color: white;
+              width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+              border-radius: 50%; font-size: 0.9rem; color: white;
             }
-            
-            .status-text {
-              font-size: 0.95rem;
-              color: var(--text-primary);
-            }
-            
-            /* Icon background colors */
-            .icon-temp { background-color: #E74C3C; }
-            .icon-humidity { background-color: #3498DB; }
-            .icon-light { background-color: #F1C40F; }
-            .icon-connection { background-color: #9B59B6; }
-            .icon-error { background-color: #E74C3C; }
-            .icon-success { background-color: var(--primary); }
+            .status-text { font-size: 0.9rem; color: var(--text-primary); }
+            .icon-temp { background-color: #E74C3C; } .status-temp { border-left: 3px solid #E74C3C; }
+            .icon-humidity { background-color: #3498DB; } .status-humidity { border-left: 3px solid #3498DB; }
+            .icon-light { background-color: #F1C40F; } .status-light { border-left: 3px solid #F1C40F; }
+            .icon-connection { background-color: #9B59B6; } .status-connection { border-left: 3px solid #9B59B6; }
+            .icon-error { background-color: #E74C3C; } .status-error { border-left: 3px solid #E74C3C;} /* For summary line */
+            .icon-success { background-color: var(--primary); } .status-success { border-left: 3px solid var(--primary);} /* For summary line */
           </style>
       </div>
     {% endcall %}
@@ -219,6 +125,7 @@
 
 {% block scripts %}
 <script>
+    // Pass initial sensor data if available (though WebSocket will be primary)
     window.initialSensorData = {{ sensor_data|tojson|safe if sensor_data else 'null' }};
 </script>
 <script type="module" src="{{ url_for('static', filename='js/dashboard/main.js') }}"></script>
