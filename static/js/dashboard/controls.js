@@ -25,15 +25,15 @@ const ControlsManager = {
         console.log(`DEBUG: Command data types - device(${typeof device}), state(${typeof state}), mode(${typeof mode})`);
         
         try {
-            // Prepare the body with exact values to verify what's being sent
+            // Prepare the body. JSON.stringify by default creates a compact string.
             const body = JSON.stringify({ 
                 device, 
                 state, 
                 mode 
             });
             
-            console.log('DEBUG: Raw JSON being sent:', body);
-            console.log('DEBUG: Parsed back for verification:', JSON.parse(body));
+            // This log will show the actual compact string being prepared for the fetch body
+            console.log('DEBUG: Raw JSON being sent to API:', body); 
             
             const response = await fetch('/dashboard/controls/api/set_state', {
                 method: 'POST',
@@ -41,13 +41,15 @@ const ControlsManager = {
                     'Content-Type': 'application/json',
                     // Add CSRF token header if needed by Flask-WTF
                 },
-                body
+                body // The 'body' here is the compact JSON string
             });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty obj
                 console.error(`API Error (${response.status}):`, errorData.message || 'Unknown error');
-                alert(`Gagal mengirim perintah untuk ${device}: ${errorData.message || 'Error tidak diketahui'}`);
+                // Alerting for each failure might be too much if we send 3 times.
+                // Consider logging only for retry attempts.
+                // alert(`Gagal mengirim perintah untuk ${device}: ${errorData.message || 'Error tidak diketahui'}`);
                 return false; // Indicate failure
             }
 
@@ -59,9 +61,30 @@ const ControlsManager = {
 
         } catch (error) {
             console.error('Network or fetch error sending control command:', error);
-            alert(`Gagal mengirim perintah untuk ${device}. Periksa koneksi jaringan.`);
+            // Alerting for each failure might be too much.
+            // alert(`Gagal mengirim perintah untuk ${device}. Periksa koneksi jaringan.`);
             return false; // Indicate failure
         }
+    },
+
+    // Helper function to send command multiple times
+    async sendControlCommandWithRetries(device, state, mode = "manual", attempts = 8, delayMs = 300) {
+        let lastSuccess = false;
+        for (let i = 0; i < attempts; i++) {
+            console.log(`Attempt ${i + 1}/${attempts} for device ${device}, state ${state}, mode ${mode}`);
+            lastSuccess = await this.sendControlCommand(device, state, mode);
+            // Log success/failure of this specific attempt
+            if (lastSuccess) {
+                console.log(`Attempt ${i + 1} for ${device} SUCCEEDED.`);
+            } else {
+                console.warn(`Attempt ${i + 1} for ${device} FAILED.`);
+            }
+            // No early exit, send all attempts as requested
+            if (i < attempts - 1) {
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+        return lastSuccess; // Return the success status of the *last* attempt
     },
 
     activateCooldown(device) {
@@ -237,42 +260,45 @@ const ControlsManager = {
                 // Add event listener for mode toggle
                 toggleContainer.addEventListener('click', async (event) => {
                     if (this.isOnCooldown(deviceName)) {
-                        return; // Ignore clicks during cooldown
+                        // Optionally provide feedback that it's on cooldown
+                        console.log(`${deviceName} is on cooldown. Mode toggle ignored.`);
+                        const switchContainer = switchElement.closest('.switch-container') || switchElement.parentNode;
+                        if (switchContainer) {
+                            const tooltip = switchContainer.querySelector('.tooltip-text');
+                            if (tooltip) tooltip.textContent = 'Tunggu sebentar...';
+                        }
+                        return; 
                     }
                     
                     const currentMode = event.target.dataset.mode;
                     const newMode = currentMode === 'auto' ? 'manual' : 'auto';
                     
-                    // Update UI ahead of server response (optimistic)
+                    // Optimistic UI Update
                     event.target.dataset.mode = newMode;
                     event.target.textContent = newMode === 'auto' 
                         ? 'Alihkan ke Mode Manual' 
                         : 'Alihkan ke Mode Auto';
                         
-                    // Update indicator immediately
                     const indicator = document.getElementById(`${deviceName}-mode-indicator`);
                     if (indicator) {
                         indicator.textContent = `(${newMode === 'auto' ? 'Auto' : 'Manual'})`;
-                        // Apply appropriate class based on new mode
                         indicator.classList.remove('mode-auto', 'mode-manual');
                         indicator.classList.add(newMode === 'auto' ? 'mode-auto' : 'mode-manual');
                     }
                     
-                    // Apply cooldown
                     this.activateCooldown(deviceName);
                     
-                    // Send command to server
-                    const success = await this.sendControlCommand(
+                    // Send command to server (with retries)
+                    const success = await this.sendControlCommandWithRetries(
                         deviceName, 
                         switchElement.checked, // Current switch state 
                         newMode
                     );
                     
                     if (success) {
-                        // Update our state tracking
                         SystemMonitor.status.actuators[deviceName].mode = newMode;
                     } else {
-                        // Revert UI on failure
+                        // Revert UI on failure of all attempts
                         event.target.dataset.mode = currentMode;
                         event.target.textContent = currentMode === 'auto' 
                             ? 'Alihkan ke Mode Manual' 
@@ -280,10 +306,10 @@ const ControlsManager = {
                         
                         if (indicator) {
                             indicator.textContent = `(${currentMode})`;
-                            // Revert classes too
                             indicator.classList.remove('mode-auto', 'mode-manual');
                             indicator.classList.add(currentMode === 'auto' ? 'mode-auto' : 'mode-manual');
                         }
+                        alert(`Gagal mengubah mode ${deviceName} setelah beberapa percobaan.`);
                     }
                 });
 
@@ -292,43 +318,47 @@ const ControlsManager = {
                     const device = deviceName;
                     const newState = event.target.checked;
                     
-                    // Prevent action if not connected
                     if (!SystemMonitor.status.connected) {
                         alert(`Tidak dapat mengontrol ${device} - sistem tidak terhubung`);
-                        event.target.checked = !newState; // Revert the visual state
+                        event.target.checked = !newState; 
                         return;
                     }
                     
-                    // Check for cooldown
                     if (this.isOnCooldown(device)) {
-                        event.target.checked = !newState; // Revert the visual state
+                        console.log(`${device} is on cooldown. Switch change ignored.`);
+                        const switchContainer = switchElement.closest('.switch-container') || switchElement.parentNode;
+                        if (switchContainer) {
+                            const tooltip = switchContainer.querySelector('.tooltip-text');
+                            if (tooltip) tooltip.textContent = 'Tunggu sebentar...';
+                        }
+                        event.target.checked = !newState; 
                         return;
                     }
                     
-                    // Apply cooldown immediately
                     this.activateCooldown(device);
 
-                    // Send command with manual mode explicitly set
-                    const success = await this.sendControlCommand(device, newState, "manual");
+                    // Send command with manual mode explicitly set (with retries)
+                    const success = await this.sendControlCommandWithRetries(device, newState, "manual");
 
                     if (!success) {
-                        // Revert switch state if API call failed
+                        // Revert switch state if all API calls failed
                         event.target.checked = !newState; 
+                        alert(`Gagal mengubah status ${device} setelah beberapa percobaan.`);
                     } else {
-                        // API call succeeded. Update UI elements
+                        // API call (at least the last one) succeeded. Update UI elements
                         const indicator = document.getElementById(`${device}-mode-indicator`);
                         if (indicator) {
                             indicator.textContent = '(Manual)';
+                            indicator.classList.remove('mode-auto', 'mode-manual');
+                            indicator.classList.add('mode-manual');
                         }
                         
-                        // Update toggle button
                         const toggle = document.getElementById(`${device}-mode-toggle`);
                         if (toggle) {
                             toggle.dataset.mode = 'manual';
                             toggle.textContent = 'Alihkan ke Mode Auto';
                         }
                         
-                        // Update state tracker
                         SystemMonitor.status.actuators[device].mode = 'manual';
                         SystemMonitor.status.actuators[device].state = newState;
                     }
