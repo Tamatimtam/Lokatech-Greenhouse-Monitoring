@@ -42,9 +42,9 @@ def set_control_state():
 
     # Prepare payload for MQTT
     mqtt_payload = json.dumps({
-        "device": device,
-        "state": state,
-        "mode": mode
+        "device":device,
+        "state":state,
+        "mode":mode
     })
 
     # Publish the command to the MQTT broker
