@@ -7,64 +7,58 @@ logger = logging.getLogger(__name__)
 
 class SensorDataManager:
     def __init__(self):
-        # Initialize with the expected structure, including actuators
         self.latest_data = {
-            "sections": {},
-            "averages": {},
+            "sections": {
+                "penyemaian": {}, # Will store temp, humidity, light, trends
+                "remaja": {},     # New: for the master node's local sensors
+                "dewasa": {}      # Was peremajaan, now represents the other sensor node
+            },
+            "averages": {"temp": None, "humidity": None, "light": None},
             "timestamp": None,
-            "actuators": {
+            "actuators": { # Actuators controlled by Remaja (Master)
                 "fan": {"state": None, "mode": "auto"},
                 "light": {"state": None, "mode": "auto"}
             }
         }
         self.last_update = None
         self.mqtt_connected = False
-        self.socketio = None # Add socketio instance holder
+        self.socketio = None 
         
-        # Initialize MQTT client
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         
-        # Connect to MQTT broker
         try:
-            # Set username and password
             self.client.username_pw_set("LokataniAdmin", "LokataniAdmin123")
-            # Enable TLS for secure connection on port 8883
-            self.client.tls_set()  # Uses system CA certificates
-            # Connect using new HiveMQ Cloud broker
+            self.client.tls_set() 
             self.client.connect("d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud", 8883, 60)
             self.client.loop_start()
             logger.info("Connected to HiveMQ Cloud MQTT broker")
         except Exception as e:
             logger.error(f"Failed to connect to HiveMQ Cloud MQTT broker: {e}")
         
-        # Add debug flag
         self.debug = True
 
     def set_socketio(self, socketio_instance):
-        """Allows setting the SocketIO instance after initialization."""
         self.socketio = socketio_instance
         logger.info("SocketIO instance set for SensorDataManager")
     
     def on_connect(self, client, userdata, flags, rc):
-        """Callback when connection is established"""
         self.mqtt_connected = True
         logger.info(f"Connected to MQTT broker with result code {rc}")
-        client.subscribe("lokatech/greenhouse/sensors")
+        # Topic for sensor data from Remaja (Master)
+        client.subscribe("lokatech/greenhouse/sensors") 
         logger.info("Subscribed to greenhouse sensor topic")
     
     def on_disconnect(self, client, userdata, rc):
-        """Callback when connection is lost"""
         self.mqtt_connected = False
         logger.warning(f"Disconnected from MQTT broker with result code {rc}")
     
     def on_message(self, client, userdata, msg):
-        """Callback when message is received"""
         try:
             if self.debug:
-                logger.debug(f"Raw MQTT message received: {msg.payload.decode()}")
+                logger.debug(f"Raw MQTT message received on topic {msg.topic}: {msg.payload.decode()}")
             
             data = json.loads(msg.payload.decode())
             
@@ -79,82 +73,96 @@ class SensorDataManager:
             logger.error(f"Error processing MQTT message: {e}")
     
     def validate_and_store_data(self, data):
-        """Validate and store received sensor data"""
-        # Log the validation attempt
         if self.debug:
             logger.debug(f"Validating data structure: {json.dumps(data, indent=2)}")
-        # Include 'actuators' in required fields check (optional, but good practice)
-        required_fields = ['timestamp', 'sections', 'averages', 'actuators']
         
-        # Check required fields
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            logger.error(f"Missing required fields: {missing_fields}")
-            return False
-            
-        # Validate sections (allow empty sections)
-        if not isinstance(data['sections'], dict):
-            logger.error("'sections' must be an object")
+        # Expected top-level keys
+        required_top_level_keys = ['timestamp', 'sections', 'averages', 'actuators']
+        missing_top_level = [key for key in required_top_level_keys if key not in data]
+        if missing_top_level:
+            logger.error(f"MQTT data missing top-level keys: {missing_top_level}")
             return False
 
-        # Validate actuators structure (optional but recommended)
+        if not isinstance(data['sections'], dict):
+            logger.error("'sections' must be an object in MQTT data")
+            return False
+
+        # Expected sections (Penyemaian, Remaja, Dewasa)
+        expected_sections = ["penyemaian", "remaja", "dewasa"]
+        for section_name in expected_sections:
+            if section_name not in data['sections']:
+                logger.warning(f"Section '{section_name}' missing in MQTT data. Will be empty.")
+                # Ensure the section exists in our local store, even if empty
+                self.latest_data["sections"].setdefault(section_name, {}) 
+        
+        # Validate actuators structure (for Remaja node's actuators)
         if 'actuators' not in data or not isinstance(data['actuators'], dict) or \
            'fan' not in data['actuators'] or not isinstance(data['actuators']['fan'], dict) or \
            'light' not in data['actuators'] or not isinstance(data['actuators']['light'], dict) or \
            'state' not in data['actuators']['fan'] or 'mode' not in data['actuators']['fan'] or \
            'state' not in data['actuators']['light'] or 'mode' not in data['actuators']['light']:
              logger.error("Invalid or missing 'actuators' structure in MQTT data")
-             # Decide if you want to reject the whole message or just ignore actuators
-             # For now, let's store the rest but log the error
-             # return False # Uncomment to reject message if actuators are malformed
-
-        # Accept data even if some sections are empty
-        if self.debug:
-            logger.debug(f"Active sections: {list(filter(lambda x: x[1], data['sections'].items()))}")
-            if 'actuators' in data:
-                 logger.debug(f"Actuator data received: {json.dumps(data['actuators'], indent=2)}")
-            else:
-                 logger.warning("Actuator data missing from payload")
-
-        # Store the entire received data structure
-        self.latest_data = data 
-        # Ensure actuators field exists even if missing from payload (initialize if needed)
-        if 'actuators' not in self.latest_data:
-             self.latest_data['actuators'] = {
+             # Initialize actuators if malformed or missing to prevent errors downstream
+             data['actuators'] = {
                  "fan": {"state": None, "mode": "auto"},
                  "light": {"state": None, "mode": "auto"}
              }
 
+        # Store the received data, ensuring all expected sections are present
+        # even if they were missing from the payload (will be empty dicts)
+        self.latest_data["timestamp"] = data.get("timestamp")
+        self.latest_data["averages"] = data.get("averages", {"temp": None, "humidity": None, "light": None})
+        self.latest_data["actuators"] = data.get("actuators") # Already validated/initialized
+
+        for section_name in expected_sections:
+            self.latest_data["sections"][section_name] = data.get("sections", {}).get(section_name, {})
+
+
         self.last_update = datetime.now()
-        logger.info("Updated sensor data successfully (including actuators if present)")
+        logger.info("Updated sensor data successfully (Penyemaian, Remaja, Dewasa)")
         logger.debug(f"Stored data: {json.dumps(self.latest_data, indent=2)}")
 
-        # Emit data via WebSocket if socketio is configured
         if self.socketio:
             try:
-                # Emit to the default namespace '/'
                 self.socketio.emit('sensor_update', self.latest_data)
                 logger.info("Emitted 'sensor_update' via WebSocket")
             except Exception as emit_error:
                 logger.error(f"Failed to emit WebSocket update: {emit_error}")
-
         return True
     
     def get_data(self):
-        """Get the latest sensor data if available and recent"""
-        if not self.latest_data or not self.last_update:
+        if not self.latest_data or self.latest_data.get("timestamp") is None or not self.last_update:
             logger.warning("No data available or no updates received yet")
-            return None
+            # Return a structured None or default structure
+            return {
+                "sections": { "penyemaian": {}, "remaja": {}, "dewasa": {} },
+                "averages": {"temp": None, "humidity": None, "light": None},
+                "timestamp": None,
+                "actuators": {
+                    "fan": {"state": None, "mode": "auto"},
+                    "light": {"state": None, "mode": "auto"}
+                }
+            }
             
-        # Check if data is stale (older than 5 seconds)
-        if datetime.now() - self.last_update > timedelta(seconds=5):
+        # Check if data is stale (e.g., older than 10 seconds for MQTT)
+        # The Remaja Master sends every 5s, so 10-15s timeout is reasonable.
+        if datetime.now() - self.last_update > timedelta(seconds=15):
             logger.warning(f"Data is stale. Last update: {self.last_update}")
-            return None
+            # Return last known data but log staleness, or return default structure
+            # For UI, better to show last known good data with a warning
+            # For now, let's return the stale data. UI can indicate staleness.
+            # Or, return the default structure to force UI to show "offline"
+            return { # Return default on stale
+                "sections": { "penyemaian": {}, "remaja": {}, "dewasa": {} },
+                "averages": {"temp": None, "humidity": None, "light": None},
+                "timestamp": self.latest_data.get("timestamp"), # Keep last timestamp
+                "actuators": self.latest_data.get("actuators"), # Keep last actuators
+                "status_message": "Data is stale" 
+            }
         
         if self.debug:
             logger.debug(f"Returning data: {json.dumps(self.latest_data, indent=2)}")
             
         return self.latest_data
 
-# Create a global instance of the sensor data manager
 sensor_manager = SensorDataManager()
