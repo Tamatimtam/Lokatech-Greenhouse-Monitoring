@@ -4,7 +4,9 @@
 {% block title %}History - Lokatani.id{% endblock %}
 
 {% block styles %}
+<!-- Styles for dashboard.css are often foundational -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<!-- history.css is currently empty but kept for future styling -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
 {% endblock %}
 
@@ -12,61 +14,24 @@
 <div class="container">
     
     <main class="main-content">
-        <div class="header">
+        <!-- Standard Page Header -->
+        <header class="header">
             <div class="header__content">
                 <h1>History Data</h1>
-                <p>View historical sensor data from the greenhouse</p>
+                <p>View historical sensor data from the greenhouse.</p>
             </div>
-        </div>
+            <!-- Add logo for consistency with other pages -->
+            <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
+        </header>
 
+        <!-- Placeholder for new history page content -->
         <div class="card-container">
-            <!-- Time range selector -->
             <div class="card">
                 <div class="card__header">
-                    <h2 class="card__title">Time Range</h2>
+                    <h2 class="card__title">Historical Data</h2>
                 </div>
                 <div class="card__content">
-                    <div class="time-range-selector">
-                        <button class="time-range-btn active" data-days="1">24 Hours</button>
-                        <button class="time-range-btn" data-days="7">7 Days</button>
-                        <button class="time-range-btn" data-days="30">30 Days</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Temperature Chart -->
-            <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Temperature History</h2>
-                </div>
-                <div class="card__content">
-                    <div class="chart-container">
-                        <canvas id="temperatureChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Humidity Chart -->
-            <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Humidity History</h2>
-                </div>
-                <div class="card__content">
-                    <div class="chart-container">
-                        <canvas id="humidityChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Light Chart -->
-            <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Light Level History</h2>
-                </div>
-                <div class="card__content">
-                    <div class="chart-container">
-                        <canvas id="lightChart"></canvas>
-                    </div>
+                    <p>This section is currently under development. Historical charts will be available soon!</p>
                 </div>
             </div>
         </div>
@@ -77,8 +42,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Chart.js Library and Date Adapter -->
+<!-- Chart.js Library and Date Adapter - Kept for future use -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<!-- history.js is currently empty but kept for future script additions -->
 <script src="{{ url_for('static', filename='js/history.js') }}"></script>
 {% endblock %}
