@@ -3,7 +3,7 @@ import json
 import time
 import random
 
-# MQTT Configuration (from Hardware/new.md)
+# MQTT Configuration
 MQTT_SERVER = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"
 MQTT_PORT = 8883  # TLS port
 MQTT_USER = "LokataniAdmin"
@@ -11,18 +11,20 @@ MQTT_PASSWORD = "LokataniAdmin123"
 MQTT_PUBLISH_TOPIC = "lokatech/greenhouse/sensors"
 
 # Simulation Configuration
-PUBLISH_INTERVAL_SECONDS = 2 # Publish data every 15 seconds
+PUBLISH_INTERVAL_SECONDS = 2 # Publish data every 2 seconds
 
 # --- Data Simulation Functions ---
-# Simple random simulation within realistic ranges based on fuzzy logic definitions
+# Simple random simulation within realistic ranges
 def simulate_temperature():
-    return round(random.uniform(15.0, 35.0), 1) # Range 15-35 C
+    return round(random.uniform(18.0, 32.0), 1) # Range 18-32 C
 
 def simulate_humidity():
-    return random.randint(30, 90) # Range 30-90 %
+    return random.randint(40, 90) # Range 40-90 %
 
 def simulate_light():
-    return random.randint(100, 1000) # Range 100-1000 lux
+    # Simulate a wider range for light, as different sections might have different needs
+    # and the master node (Remaja) also has its own light sensor.
+    return random.randint(50, 15000) # Range 50-15000 lux
 
 # --- Data Processing Functions ---
 def calculate_averages(sections_data):
@@ -33,7 +35,8 @@ def calculate_averages(sections_data):
     total_light = 0
     light_count = 0
 
-    for section, data in sections_data.items():
+    for section_key in ["penyemaian", "remaja", "dewasa"]: # Iterate in defined order
+        data = sections_data.get(section_key, {}) # Get section data, or empty dict if not present
         if data.get("temp") is not None:
             total_temp += data["temp"]
             temp_count += 1
@@ -59,76 +62,82 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Connected to MQTT Broker!")
     else:
-        print("Failed to connect, return code %d\n", rc)
+        print(f"Failed to connect, return code {rc}")
 
-client = mqtt.Client()
+client = mqtt.Client(client_id="mqtt_simulator_client_py") # Added a client ID
 client.on_connect = on_connect
 
 # --- Main Simulation Loop ---
 def run_simulator():
     try:
-        # Set username and password
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-        
-        # Enable TLS for secure connection
-        client.tls_set() # Uses system CA certificates
-        
-        # Connect to HiveMQ Cloud
-        client.connect(MQTT_SERVER, MQTT_PORT)
-        client.loop_start() # Start the MQTT client loop in a non-blocking way
+        client.tls_set() 
+        client.connect(MQTT_SERVER, MQTT_PORT, 60) # Added keepalive
+        client.loop_start()
 
         print(f"MQTT Simulator started. Publishing to topic: {MQTT_PUBLISH_TOPIC}")
 
         while True:
-            # Simulate data for each section
+            # Simulate data for each section according to the new structure
             sections_data = {
-                "dewasa": {
+                "penyemaian": { # Data that would come from Penyemaian node via Gateway
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    "trends": {"temp": "equals", "humidity": "equals", "light": "equals"} # Placeholders
+                    "trends": {"temp": "equals", "humidity": "up", "light": "down"} # Example trends
                 },
-                "peremajaan": {
+                "remaja": { # Data from Remaja Master's local sensors
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    "trends": {"temp": "equals", "humidity": "equals", "light": "equals"} # Placeholders
+                    "trends": {"temp": "up", "humidity": "equals", "light": "equals"}
                 },
-                "penyemaian": {
+                "dewasa": { # Data that would come from the new Dewasa node (old Peremajaan) via Gateway
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    "trends": {"temp": "equals", "humidity": "equals", "light": "equals"} # Placeholders
+                    "trends": {"temp": "down", "humidity": "down", "light": "up"}
                 }
             }
 
-            # Calculate averages
             averages_data = calculate_averages(sections_data)
 
-            # Construct the full payload
+            # Simulate Remaja Master's actuator states
+            # These would be determined by its fuzzy logic or manual override
+            remaja_fan_state = random.choice([True, False])
+            remaja_fan_mode = random.choice(["auto", "manual"])
+            remaja_light_state = random.choice([True, False])
+            remaja_light_mode = random.choice(["auto", "manual"])
+
             payload = {
-                "timestamp": int(time.time()),
+                "timestamp": int(time.time()), # Unix timestamp in seconds
                 "sections": sections_data,
                 "averages": averages_data,
-                "actuators": { # Simple fixed actuator state for simulation
-                    "fan": {"state": False, "mode": "auto"},
-                    "light": {"state": False, "mode": "auto"}
+                "actuators": { # Actuators controlled by Remaja Master
+                    "fan": {"state": remaja_fan_state, "mode": remaja_fan_mode},
+                    "light": {"state": remaja_light_state, "mode": remaja_light_mode}
                 }
             }
 
-            # Publish the payload
             json_payload = json.dumps(payload)
-            client.publish(MQTT_PUBLISH_TOPIC, json_payload)
-            print(f"Published: {json_payload}")
+            publish_result = client.publish(MQTT_PUBLISH_TOPIC, json_payload)
+            
+            if publish_result.rc == mqtt.MQTT_ERR_SUCCESS:
+                print(f"Published: {json_payload}")
+            else:
+                print(f"Failed to publish message: {mqtt.error_string(publish_result.rc)}")
 
-            # Wait before publishing again
+
             time.sleep(PUBLISH_INTERVAL_SECONDS)
 
     except KeyboardInterrupt:
         print("Simulator stopped by user.")
+    except ConnectionRefusedError:
+        print(f"Connection refused. Is the MQTT broker at {MQTT_SERVER}:{MQTT_PORT} running and accessible?")
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
+        print("Stopping MQTT client loop and disconnecting...")
         client.loop_stop()
         client.disconnect()
         print("MQTT client disconnected.")
