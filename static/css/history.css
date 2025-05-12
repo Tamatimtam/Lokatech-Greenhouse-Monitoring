@@ -1,1 +1,187 @@
-/* History page specific styles - Under Development */
+/* History page specific styles */
+
+/* Enhanced Time Range Selector Styles */
+.time-range-selector-container {
+    background-color: var(--surface-light, #f8f9fa); /* A slightly off-white background */
+    padding: var(--spacing-md, 1rem);
+    border-radius: var(--radius-md, 8px);
+    margin-bottom: var(--spacing-lg, 1.5rem); /* Space below the selector */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column; /* Stack label and buttons vertically on small screens */
+    align-items: flex-start; /* Align items to the start */
+}
+
+.time-range-label {
+    font-weight: 500;
+    color: var(--text-secondary, #555);
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    font-size: 0.9rem;
+}
+
+.time-range-buttons {
+    display: flex;
+    gap: var(--spacing-sm, 0.5rem); /* Smaller gap between buttons */
+    flex-wrap: wrap; 
+}
+
+.time-range-btn {
+    padding: var(--spacing-xs, 0.5rem) var(--spacing-md, 1rem);
+    border: 1px solid var(--border-color, #ddd); 
+    background-color: var(--surface, #fff);
+    color: var(--text-primary, #333);
+    border-radius: var(--radius-md, 8px); /* Slightly more rounded */
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    font-weight: 500;
+    display: inline-flex; /* Align icon and text */
+    align-items: center;
+    gap: var(--spacing-xs, 0.5rem); /* Space between icon and text */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.time-range-btn i {
+    color: var(--text-secondary, #777);
+    transition: color 0.2s ease;
+}
+
+.time-range-btn:hover {
+    background-color: var(--primary-ultralight, #eef7f3); /* Very light primary color */
+    border-color: var(--primary-light, #a0c9b6);
+    color: var (--primary-dark, #1c4b35);
+}
+
+.time-range-btn.active {
+    background-color: var(--primary, #286247);
+    color: var(--surface, #fff);
+    border-color: var(--primary-dark, #1c4b35);
+    box-shadow: 0 2px 5px rgba(40, 98, 71, 0.2);
+}
+
+.time-range-btn.active i {
+    color: var(--surface, #fff);
+}
+
+
+/* Responsive adjustments for the time range selector */
+@media (min-width: 768px) {
+    .time-range-selector-container {
+        flex-direction: row; /* Label and buttons side-by-side */
+        align-items: center; /* Vertically align label and buttons */
+        justify-content: space-between; /* Pushes label to left, buttons to right if desired, or use gap */
+    }
+    .time-range-label {
+        margin-bottom: 0; /* No margin if side-by-side */
+        margin-right: var(--spacing-lg, 1.5rem); /* Space between label and buttons */
+    }
+}
+
+.chart-container {
+    height: 300px; /* Default height, can be adjusted */
+    position: relative; /* For positioning loading/error messages */
+    /* margin-top: var(--spacing-md, 1rem); Remove top margin if insights are directly below */
+}
+
+/* Chart Insights Section */
+.chart-insights {
+    display: grid; /* Use grid for better control over column widths */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive columns */
+    gap: var(--spacing-md, 1rem);
+    padding: var(--spacing-md, 1rem);
+    margin-top: var(--spacing-lg, 1.5rem); /* More space between chart and insights */
+    /* background-color: var(--surface-light, #f8f9fa); Removed general background for individual item styling */
+    border-top: 1px solid var(--border-color-light, #eee); /* Lighter separator */
+}
+
+.insight-item {
+    background-color: var(--surface, #fff); /* White background for each item */
+    border: 1px solid var(--border-color-light, #e9ecef); /* Subtle border for each item */
+    border-radius: var(--radius-md, 8px); /* Rounded corners for each item */
+    padding: var(--spacing-md, 1rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03); /* Subtle shadow for depth */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.insight-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.insight-label {
+    font-size: 0.9rem; /* Slightly larger label */
+    color: var(--text-secondary, #6c757d); /* Softer color for label */
+    margin-bottom: var(--spacing-sm, 0.5rem); /* More space below label */
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs, 0.25rem); /* Space between icon and text */
+}
+
+.insight-label i {
+    color: var(--primary-light, #a0c9b6); /* Icon color matching theme */
+    font-size: 1.1em; /* Slightly larger icon */
+}
+
+.insight-value {
+    font-size: 1.5rem; /* Larger value display */
+    font-weight: 700; /* Bolder value */
+    color: var(--text-primary, #212529); /* Stronger text color */
+    margin-bottom: var(--spacing-xs, 0.25rem);
+}
+
+.insight-subtext {
+    font-size: 0.75rem; /* Smaller subtext */
+    color: var(--text-muted, #868e96); /* Muted color for subtext */
+    line-height: 1.4;
+}
+
+
+/* Specific insight value styling - can be kept or removed if general styling is preferred */
+#minTempInsightValue { /* Renamed from #minTempInsight */
+    color: var(--info-dark, #0c5460); 
+}
+#maxTempInsightValue { /* Renamed from #maxTempInsight */
+    color: var(--danger-dark, #721c24); 
+}
+#avgTempInsightValue { /* Renamed from #avgTempInsight */
+    color: var(--success-dark, #155724); 
+}
+
+/* Loading and Error Message Styles */
+.chart-loading,
+.chart-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
+    border-radius: var(--radius-md, 8px);
+    text-align: center;
+    font-size: 1rem;
+    z-index: 10; /* Ensure it's above the canvas if canvas renders partially */
+}
+
+.chart-loading {
+    background-color: rgba(200, 200, 200, 0.8); /* Semi-transparent background */
+    color: var(--text-primary, #333);
+}
+
+.chart-error {
+    background-color: rgba(255, 224, 224, 0.9); /* Light red background */
+    color: var(--danger, #dc3545); /* Error color */
+    border: 1px solid var(--danger-light, #f5c6cb);
+}
+
+/* Ensure cards have some spacing if not already handled by dashboard.css */
+.card + .card {
+    margin-top: var(--spacing-lg, 1.5rem);
+}
+
+/* Add spacing below the time range selector if it's followed by a card */
+.time-range-selector-container + .card {
+    margin-top: var(--spacing-lg, 1.5rem);
+}

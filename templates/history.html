@@ -6,7 +6,7 @@
 {% block styles %}
 <!-- Styles for dashboard.css are often foundational -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<!-- history.css is currently empty but kept for future styling -->
+<!-- history.css for history page specific styling -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
 {% endblock %}
 
@@ -20,21 +20,67 @@
                 <h1>History Data</h1>
                 <p>View historical sensor data from the greenhouse.</p>
             </div>
-            <!-- Add logo for consistency with other pages -->
             <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
         </header>
 
-        <!-- Placeholder for new history page content -->
-        <div class="card-container">
-            <div class="card">
-                <div class="card__header">
-                    <h2 class="card__title">Historical Data</h2>
+        <!-- Enhanced Time range selector -->
+        <div class="time-range-selector-container">
+            <div class="time-range-label">Select Time Range:</div>
+            <div class="time-range-buttons">
+                <button class="time-range-btn active" data-days="1">
+                    <i class="fas fa-clock"></i> 24 Hours
+                </button>
+                <button class="time-range-btn" data-days="7">
+                    <i class="fas fa-calendar-week"></i> 7 Days
+                </button>
+                <button class="time-range-btn" data-days="30">
+                    <i class="fas fa-calendar-alt"></i> 30 Days
+                </button>
+            </div>
+        </div>
+
+        <!-- Temperature Chart Card -->
+        <div class="card">
+            <div class="card__header">
+                <h2 class="card__title">Temperature History</h2>
+            </div>
+            <div class="card__content">
+                <div class="chart-container" id="temperatureChartContainer">
+                    <canvas id="temperatureChart"></canvas>
+                    <!-- Loading/Error messages will be injected here by JS -->
                 </div>
-                <div class="card__content">
-                    <p>This section is currently under development. Historical charts will be available soon!</p>
+                <div class="chart-insights" id="temperatureInsights">
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-temperature-low"></i> Min Temp</span>
+                        <span class="insight-value" id="minTempInsightValue">--</span>
+                        <span class="insight-subtext" id="minTempInsightSubtext"></span>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-temperature-high"></i> Max Temp</span>
+                        <span class="insight-value" id="maxTempInsightValue">--</span>
+                        <span class="insight-subtext" id="maxTempInsightSubtext"></span>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-thermometer-half"></i> Avg Temp</span>
+                        <span class="insight-value" id="avgTempInsightValue">--</span>
+                        <span class="insight-subtext" id="avgTempInsightSubtext"></span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Placeholder for future charts (Humidity, Light) -->
+        <!-- 
+        <div class="card">
+            <div class="card__header"><h2 class="card__title">Humidity History</h2></div>
+            <div class="card__content"><div class="chart-container" id="humidityChartContainer"><canvas id="humidityChart"></canvas></div></div>
+        </div>
+        <div class="card">
+            <div class="card__header"><h2 class="card__title">Light Level History</h2></div>
+            <div class="card__content"><div class="chart-container" id="lightChartContainer"><canvas id="lightChart"></canvas></div></div>
+        </div>
+        -->
+
     </main>
 
     {{ navigation.bottom_nav('history') }}
@@ -42,9 +88,9 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Chart.js Library and Date Adapter - Kept for future use -->
+<!-- Chart.js Library and Date Adapter -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-<!-- history.js is currently empty but kept for future script additions -->
+<!-- Custom history.js -->
 <script src="{{ url_for('static', filename='js/history.js') }}"></script>
 {% endblock %}
