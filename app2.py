@@ -72,6 +72,18 @@ from blueprints.profile import bp as profile_bp
 from blueprints.history.routes import history as history_bp
 from blueprints.logs import logs_bp
 
+# Explicitly import firestore_logger after logs_bp and its parent module are initialized.
+# This is to ensure any setup in firestore_logger.py happens,
+# and to break the circular import.
+try:
+    import blueprints.logs.firestore_logger
+    logger.info("Successfully imported and initialized blueprints.logs.firestore_logger")
+except ImportError as e:
+    logger.warning(f"Could not import blueprints.logs.firestore_logger: {e}")
+except Exception as e:
+    # Catching general exceptions in case firestore_logger's init has other issues
+    logger.error(f"An error occurred during the import/setup of blueprints.logs.firestore_logger: {e}", exc_info=True)
+
 app.register_blueprint(auth_bp, url_prefix='/auth') # MODIFIED: Added url_prefix
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(sensor_bp)
