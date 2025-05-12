@@ -1,6 +1,6 @@
 // Global variables
 let temperatureChart;
-let currentDays = 1; // Default to 1 day (24 hours)
+let currentSelectedRange = "1day"; // Default to "1day" (24 hours)
 
 // Define colors for different greenhouse sections
 // Using a consistent color palette helps in distinguishing data series.
@@ -15,7 +15,7 @@ const chartColors = {
 document.addEventListener('DOMContentLoaded', function() {
     setupTimeRangeButtons();
     initTemperatureChart();
-    loadHistoricalData(currentDays);
+    loadHistoricalData(currentSelectedRange);
 });
 
 function setupTimeRangeButtons() {
@@ -24,8 +24,8 @@ function setupTimeRangeButtons() {
         button.addEventListener('click', function() {
             buttons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
-            currentDays = parseInt(this.getAttribute('data-days'));
-            loadHistoricalData(currentDays);
+            currentSelectedRange = this.getAttribute('data-range');
+            loadHistoricalData(currentSelectedRange);
         });
     });
 }
@@ -78,13 +78,18 @@ function initTemperatureChart() {
     });
 }
 
-function loadHistoricalData(days) {
-    const chartContainerId = 'temperatureChartContainer'; // Target specific container
+function loadHistoricalData(selectedRange) {
+    const chartContainerId = 'temperatureChartContainer'; 
     showLoadingState(chartContainerId);
-    // Reset insights on new data load
     updateTemperatureInsights(null);
 
-    fetch(`/history/data?days=${days}`)
+    let daysToFetchAPI = 1; // Default for API call
+    if (selectedRange.endsWith('day')) {
+        daysToFetchAPI = parseInt(selectedRange);
+    }
+    // For "1hour", we still fetch 1 day of data and filter on frontend.
+
+    fetch(`/history/data?days=${daysToFetchAPI}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -94,14 +99,15 @@ function loadHistoricalData(days) {
         .then(apiResponse => {
             hideLoadingState(chartContainerId);
             if (apiResponse.success && apiResponse.data) {
-                const { chartData, insightsData } = processTemperatureData(apiResponse.data);
-                updateTemperatureChart(chartData);
+                const { chartData, insightsData } = processTemperatureData(apiResponse.data, selectedRange);
+                updateTemperatureChart(chartData, selectedRange);
                 updateTemperatureInsights(insightsData);
 
-                if (apiResponse.data.length === 0) {
+                // Check based on processed chartData for the specific range, not just apiResponse.data
+                const hasDataForRange = Object.values(chartData).some(arr => arr.length > 0);
+                if (!hasDataForRange) {
                     showErrorState(chartContainerId, 'No data available for the selected period.');
-                    // Ensure insights also show no data
-                    updateTemperatureInsights(null);
+                    updateTemperatureInsights(null); // Ensure insights also show no data
                 }
             } else {
                 showErrorState(chartContainerId, apiResponse.message || 'Failed to load data.');
@@ -116,8 +122,17 @@ function loadHistoricalData(days) {
         });
 }
 
-function processTemperatureData(apiData) {
-    // Initialize an object to hold data arrays for each section
+function processTemperatureData(apiData, selectedRange) {
+    let filteredApiData = apiData;
+
+    if (selectedRange === "1hour") {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        filteredApiData = apiData.filter(point => {
+            const pointTimestamp = new Date(point.timestamp);
+            return pointTimestamp >= oneHourAgo;
+        });
+    }
+
     const chartData = {
         dewasa: [],
         remaja: [],
@@ -131,8 +146,8 @@ function processTemperatureData(apiData) {
     let sumOfAverageTemps = 0;
     let countOfAverageTemps = 0;
 
-    apiData.forEach(point => {
-        const timestamp = new Date(point.timestamp); // API provides ISO string
+    filteredApiData.forEach(point => {
+        const timestamp = new Date(point.timestamp); 
 
         validSections.forEach(sectionName => {
             if (point.data && point.data[sectionName] && 
@@ -145,7 +160,6 @@ function processTemperatureData(apiData) {
                     y: currentAvgTemp
                 });
 
-                // For overall Min/Max, consider avg temp of each section at each point
                 if (currentAvgTemp < minTemp.value) {
                     minTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName };
                 }
@@ -153,7 +167,6 @@ function processTemperatureData(apiData) {
                     maxTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName };
                 }
 
-                // Specifically for overall average, use the 'averages' section's avg
                 if (sectionName === 'averages') {
                     sumOfAverageTemps += currentAvgTemp;
                     countOfAverageTemps++;
@@ -171,75 +184,71 @@ function processTemperatureData(apiData) {
     return { chartData, insightsData };
 }
 
-function updateTemperatureChart(chartData) {
-    temperatureChart.data.datasets = []; // Clear previous datasets
+function updateTemperatureChart(chartData, selectedRange) {
+    temperatureChart.data.datasets = []; 
 
     Object.keys(chartData).forEach(sectionName => {
         if (chartData[sectionName] && chartData[sectionName].length > 0) {
             const isAverages = sectionName === 'averages';
-            const color = chartColors[sectionName] || 'rgba(0, 0, 0, 0.5)'; // Fallback color
+            const color = chartColors[sectionName] || 'rgba(0, 0, 0, 0.5)'; 
             
-            // For 'averages', use a fill and a semi-transparent background
-            // For other sections, use the line color with minimal transparency for background (area under line)
             const backgroundColor = isAverages 
-                ? color.replace('1)', '0.2)') // More transparent for fill to origin
-                : color.replace('1)', '0.1)'); // Standard slight transparency for area under line
+                ? color.replace('1)', '0.2)') 
+                : color.replace('1)', '0.1)'); 
 
             const dataset = {
                 label: `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} Temp`,
                 data: chartData[sectionName],
                 borderColor: color,
                 backgroundColor: backgroundColor,
-                tension: 0.1, // Slight curve to lines
+                tension: 0.1, 
                 borderWidth: 2,
-                pointRadius: currentDays <= 7 ? 2 : 0, 
+                pointRadius: selectedRange === "1hour" ? 3 : (selectedRange === "1day" ? 2 : 0), // Show points for 1hr & 1day
                 pointHoverRadius: 5,
-                fill: isAverages ? 'origin' : false, // Fill 'averages' to origin, others default (or 'false')
-                                                    // 'origin' fills to the x-axis (0 on y-axis if not otherwise specified)
-                                                    // Use 'start' to fill to the bottom of the chart drawing area
+                fill: isAverages ? 'origin' : false, 
             };
 
             if (isAverages) {
-                // Optional: Make the averages line slightly thicker or dashed for more distinction
-                // dataset.borderWidth = 3;
-                // dataset.borderDash = [5, 5]; // Example: dashed line
-                dataset.order = 1; // Attempt to draw averages on top of other fills if they overlap
+                dataset.order = 1; 
             } else {
-                dataset.order = 2; // Other lines
+                dataset.order = 2; 
             }
-
             temperatureChart.data.datasets.push(dataset);
         }
     });
 
-    // Sort datasets to attempt to draw 'averages' last if it has a fill,
-    // so its fill might appear "over" other lines if they also had fills.
-    // However, Chart.js draw order for fills can be complex.
-    // The `order` property on dataset is a more direct way.
-    // temperatureChart.data.datasets.sort((a, b) => (a.label.includes('Averages') ? 1 : -1));
-
-
     // Adjust X-axis time unit and display formats based on the selected range
-    if (currentDays <= 1) { // 24 Hours
+    if (selectedRange === "1hour") {
+        temperatureChart.options.scales.x.time.unit = 'minute';
+        temperatureChart.options.scales.x.time.tooltipFormat = 'HH:mm:ss'; // More precise for minutes
+        temperatureChart.options.scales.x.time.displayFormats = { minute: 'HH:mm' };
+        temperatureChart.options.scales.x.ticks.stepSize = 5; // Example: tick every 5 minutes
+                                                               // Or use maxTicksLimit for auto adjustment
+        // temperatureChart.options.scales.x.ticks.maxTicksLimit = 12; // Show about 12 ticks
+    } else if (selectedRange === "1day") { 
         temperatureChart.options.scales.x.time.unit = 'hour';
         temperatureChart.options.scales.x.time.tooltipFormat = 'HH:mm';
         temperatureChart.options.scales.x.time.displayFormats = { hour: 'HH:mm' };
-        // Remove explicit stepSize to let Chart.js auto-determine ticks
-        // If more control is needed, maxTicksLimit can be an option:
-        // temperatureChart.options.scales.x.ticks.maxTicksLimit = 12; // e.g., for ~2hr intervals
-    } else if (currentDays <= 7) { // 7 Days
+        temperatureChart.options.scales.x.ticks.stepSize = undefined; // Let Chart.js auto-determine
+        // temperatureChart.options.scales.x.ticks.maxTicksLimit = 12; 
+    } else if (selectedRange === "7day") { 
         temperatureChart.options.scales.x.time.unit = 'day';
         temperatureChart.options.scales.x.time.tooltipFormat = 'MMM d, HH:mm';
         temperatureChart.options.scales.x.time.displayFormats = { day: 'MMM d' };
-        // temperatureChart.options.scales.x.ticks.maxTicksLimit = undefined; // Reset if set for 24h
-    } else { // 30 Days
+        temperatureChart.options.scales.x.ticks.stepSize = undefined;
+        // temperatureChart.options.scales.x.ticks.maxTicksLimit = undefined; 
+    } else { // 30day
         temperatureChart.options.scales.x.time.unit = 'day';
         temperatureChart.options.scales.x.time.tooltipFormat = 'MMM d, yyyy';
         temperatureChart.options.scales.x.time.displayFormats = { day: 'MMM d' };
-        // temperatureChart.options.scales.x.ticks.maxTicksLimit = undefined; // Reset if set for 24h
+        temperatureChart.options.scales.x.ticks.stepSize = undefined;
+        // temperatureChart.options.scales.x.ticks.maxTicksLimit = undefined; 
     }
-    // Ensure stepSize is not lingering if it was ever set
-    temperatureChart.options.scales.x.ticks.stepSize = undefined;
+    
+    // Ensure stepSize is explicitly undefined if not "1hour" to rely on auto ticks or maxTicksLimit
+    if (selectedRange !== "1hour") {
+        temperatureChart.options.scales.x.ticks.stepSize = undefined;
+    }
 
 
     temperatureChart.update();

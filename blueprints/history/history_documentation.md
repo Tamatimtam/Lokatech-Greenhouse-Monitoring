@@ -1,14 +1,12 @@
 # History Page Documentation (New Implementation)
 
-This document details the design and implementation of the revamped History page.
+## 1. Overview
 
-## Overview
+The History page allows users to visualize historical sensor data (temperature, humidity, light) from the greenhouse. Data is fetched from a backend API and displayed using Chart.js. Users can select different time ranges (1 Hour, 24 Hours, 7 Days, 30 Days) to view the data. The page also provides key insights such as minimum, maximum, and average values for the selected period, presented in a refined UI. Chart X-axis labels are optimized for readability across different time ranges.
 
-The History page allows users to visualize historical sensor data (temperature, humidity, light) from the greenhouse. Data is fetched from the backend API and displayed using Chart.js. It also provides key insights such as minimum, maximum, and average values for the selected period, presented in a refined UI. Chart X-axis labels are optimized for readability across different time ranges.
+## 2. Backend API and Data Flow
 
-## Backend API and Data Flow
-
-The frontend interacts with the `/history/data` API endpoint to retrieve historical data. Here's a summary of the data flow:
+The frontend interacts with the `/history/data` API endpoint to retrieve historical data.
 
 1.  **Data Ingestion (`Hardware/simulation/mqtt_to_firestore.py`):**
     *   Sensor data (JSON) is published to an MQTT topic.
@@ -18,19 +16,19 @@ The frontend interacts with the `/history/data` API endpoint to retrieve histori
     *   Saves these aggregated statistics as a document (ID: timestamp string) into the **`greenhouse_data`** collection in Firestore. Each document includes a Firestore `timestamp` field (UTC).
 
 2.  **Frontend API Request (`static/js/history.js`):**
-    *   When a time range is selected, `loadHistoricalData(days)` calls `fetch('/history/data?days=<selected_days>')`.
+    *   When a time range is selected, `loadHistoricalData(selectedRange)` is called.
+    *   For "1hour" range, it requests 1 day of data. For other ranges, it requests data for the specified number of days.
+    *   Example API call: `fetch('/history/data?days=<days_to_fetch>')`.
 
-3.  **Backend API Processing:**
-    *   **Route (`blueprints/history/routes.py`):** The `/history/data` endpoint receives the request.
-    *   **Firestore Logic (`blueprints/history/firestore.py`):**
-        *   The `get_historical_data(days=...)` function is called.
-        *   It queries the **`greenhouse_data`** collection for documents where the `timestamp` is within the requested range.
-        *   It processes these documents, converting UTC timestamps to WIB (Asia/Jakarta) ISO strings.
-    *   **Response:** The endpoint returns a JSON object: `{"success": true, "data": [...]}`.
+3.  **Backend API Processing (`blueprints/history/routes.py` & `blueprints/history/firestore.py`):**
+    *   The `/history/data` endpoint queries the `greenhouse_data` collection for documents where the `timestamp` is within the requested range (based on `days` parameter).
+    *   It processes these documents, converting UTC timestamps to WIB (Asia/Jakarta) ISO strings.
+    *   Returns a JSON object: `{"success": true, "data": [...]}`.
 
 4.  **Frontend Rendering (`static/js/history.js`):**
-    *   `processTemperatureData` (and similar functions for other types) parses the API response.
-    *   `updateTemperatureChart` (and others) uses this data to render the charts.
+    *   `processTemperatureData` (and similar functions for other types) parses the API response. If "1hour" range was selected, it filters the received 1-day data on the client-side to the last 60 minutes.
+    *   `updateTemperatureChart` (and others) uses this processed data to render the charts.
+    *   `updateTemperatureInsights` displays calculated min, max, and average values.
 
 ### API Endpoint Details
 
@@ -40,7 +38,6 @@ The frontend interacts with the `/history/data` API endpoint to retrieve histori
         *   `days` (integer, optional, default: `7`): Number of past days of data to retrieve.
         *   `section` (string, optional): Filter by section (e.g., `dewasa`, `remaja`, `penyemaian`, `averages`).
         *   `type` (string, optional): Filter by data type (e.g., `temps`, `humidities`, `lights`).
-    *   **Data Source:** The backend currently queries the `greenhouse_data` collection in Firestore.
     *   **Successful JSON Response Structure (example for `?days=1`):**
         ```json
         {
@@ -51,68 +48,89 @@ The frontend interacts with the `/history/data` API endpoint to retrieve histori
               "data": {
                 "dewasa": {
                   "temps": { "avg": 25.5, "min": 24.0, ... },
-                  "humidities": { "avg": 60.1, ... },
-                  "lights": { "avg": 5000, ... }
-                },
-                "remaja": { /* ...similar structure... */ },
-                "penyemaian": { /* ...similar structure... */ },
-                "averages": { /* ...similar structure... */ }
+                  // ... other data types and sections
+                }
               }
-            },
+            }
             // ... more data points ...
           ]
         }
         ```
 
-## Phase 1: Basic Data Fetching & Single Chart Display (Temperature)
+## 3. Frontend Implementation Details (Temperature Chart Example)
 
-**Objective:** Implement the core logic to fetch data and display temperature data for all greenhouse sections on a single chart, along with key insights in an improved UI. X-axis time labels are optimized.
+This section details the frontend components responsible for fetching, processing, and displaying the temperature history. Similar logic applies to other sensor types (humidity, light) when implemented.
 
-**HTML (`templates/history.html`):**
-*   Time range selector (buttons for 24 Hours, 7 Days, 30 Days) with icons.
-*   Container and canvas for the temperature chart.
-*   An "Insights" section below the chart, structured with individual items for Min, Max, and Average temperature, each including a value and a sub-text area. Icons are added to insight labels.
+### 3.1. HTML Structure (`templates/history.html`)
 
-**CSS (`static/css/history.css`):**
-*   Enhanced styling for the time range selector.
-*   Basic styling for the chart container.
+*   Extends `base.html`.
+*   **Time Range Selector:**
+    *   A `div.time-range-selector-container` contains buttons for "1 Hour", "24 Hours", "7 Days", and "30 Days".
+    *   Each button has a `data-range` attribute (e.g., `"1hour"`, `"1day"`, `"7day"`, `"30day"`) and an icon.
+*   **Temperature Chart Card:**
+    *   A `div.card` contains the chart and insights.
+    *   Chart Canvas: `<canvas id="temperatureChart"></canvas>` within `div.chart-container`.
+    *   Insights Section: `div.chart-insights` with child `div.insight-item` for Min, Max, and Avg. Each item has:
+        *   `span.insight-label` (with icon)
+        *   `span.insight-value` (e.g., `id="minTempInsightValue"`)
+        *   `span.insight-subtext` (e.g., `id="minTempInsightSubtext"`)
+
+### 3.2. CSS Styling (`static/css/history.css`)
+
+*   Styles for the time range selector, buttons (including active state), and icons.
+*   Styles for chart containers, ensuring responsiveness.
 *   Refined styling for the "Insights" section:
-    *   Uses CSS Grid for responsive layout of insight items.
-    *   Each insight item is styled as a distinct "card" or "box" with borders, rounded corners, and hover effects.
-    *   Improved typography and spacing for insight labels, values, and sub-texts.
-*   Styles for loading/error messages.
+    *   Uses CSS Grid for a responsive layout of individual insight items.
+    *   Each `.insight-item` is styled as a distinct "card" or "box" with borders, rounded corners, and hover effects.
+    *   Typography and spacing are optimized for labels, values, and sub-texts.
+*   Styles for loading and error messages within chart containers.
 
-**JavaScript (`static/js/history.js`):**
-*   **Global Variables:** `temperatureChart` instance, `currentDays` selection, `chartColors` for sections.
-*   **Initialization (`DOMContentLoaded`):**
-    *   Set up event listeners for time range buttons.
-    *   Initialize an empty temperature chart.
-    *   Load initial data (default 1 day).
-*   **Time Range Logic:**
-    *   Update `currentDays` on button click.
-    *   Trigger data reloading.
-*   **Chart Initialization (`initTemperatureChart`):**
-    *   Configures X-axis ticks with `source: 'auto'` and `autoSkipPadding` for optimal readability.
-*   **Data Fetching (`loadHistoricalData`):**
-    *   Call `/history/data` API with the selected `days`.
-    *   Handle API response (success/failure).
-*   **Data Processing (`processTemperatureData`):**
-    *   Extract `avg` temperature for each section (`dewasa`, `remaja`, `penyemaian`, `averages`) from API data for chart datasets.
-    *   Calculate overall insights for the selected period:
-        *   **Minimum Temperature:** The lowest `avg` temperature recorded across all sections, including its timestamp and section name.
-        *   **Maximum Temperature:** The highest `avg` temperature recorded across all sections, including its timestamp and section name.
-        *   **Overall Average Temperature:** The average of all `avg` temperature values from the `averages` section data points within the selected period.
-    *   Convert timestamps to JavaScript `Date` objects.
-    *   Return structured data for Chart.js datasets and the calculated insights.
-*   **Chart Update (`updateTemperatureChart`):**
-    *   Update the temperature chart with new datasets.
-    *   Configure X-axis as a time scale. For the 24-hour view (`currentDays <= 1`), `time.unit` is set to `'hour'` and `time.displayFormats` to `'HH:mm'`, relying on Chart.js's automatic tick generation for clear time indication across the axis. Explicit `stepSize` for ticks is avoided to allow for better automatic scaling. For 7-day and 30-day views, `time.unit` is set to `'day'`.
-*   **Insights Update (`updateTemperatureInsights`):**
-    *   Populate the HTML elements in the "Insights" section with improved wording.
-    *   Min/Max insights display: "Lowest/Highest in [Section] at [Time, Date]" (e.g., "Lowest in Dewasa at 16:20, May 12").
-    *   Average insight displays: "Period average".
-    *   Handles cases where no data is available by showing "No data available" in sub-texts.
-*   **UI Feedback:** Implement functions for displaying loading and error states, and for resetting insights when no data is available.
+### 3.3. JavaScript Logic (`static/js/history.js`)
+
+*   **Global Variables:**
+    *   `temperatureChart`: Holds the Chart.js instance for the temperature chart.
+    *   `currentSelectedRange`: Stores the currently active time range (e.g., `"1hour"`, `"1day"`). Default is `"1day"`.
+    *   `chartColors`: Maps greenhouse section names to colors for chart lines.
+*   **Initialization (`DOMContentLoaded` event):**
+    *   `setupTimeRangeButtons()`: Attaches click listeners to time range buttons. These listeners update `currentSelectedRange` and call `loadHistoricalData()`.
+    *   `initTemperatureChart()`: Initializes an empty Chart.js line chart for temperature with basic options (responsiveness, tooltips, legend) and X/Y axis configurations.
+    *   `loadHistoricalData(currentSelectedRange)`: Called to load initial data.
+*   **Data Fetching (`loadHistoricalData(selectedRange)`):**
+    *   Displays a loading state.
+    *   Determines `daysToFetchAPI`:
+        *   If `selectedRange` is `"1hour"`, `daysToFetchAPI` is set to `1` (fetches the last 24 hours of data from the API).
+        *   If `selectedRange` ends with `"day"` (e.g., `"1day"`, `"7day"`), `daysToFetchAPI` is parsed from the string.
+    *   Makes a `fetch` request to `/history/data?days=${daysToFetchAPI}`.
+    *   On successful response:
+        *   Calls `processTemperatureData(apiResponse.data, selectedRange)` to process and filter the data.
+        *   Calls `updateTemperatureChart(processedData.chartData, selectedRange)` to render the chart.
+        *   Calls `updateTemperatureInsights(processedData.insightsData)` to display summary statistics.
+        *   Handles cases where no data is available for the selected range.
+    *   Handles API errors and displays an error message.
+*   **Data Processing (`processTemperatureData(apiData, selectedRange)`):**
+    *   **Client-Side Filtering for "1hour":** If `selectedRange` is `"1hour"`, this function filters the `apiData` (which contains 24 hours of data) to include only data points from the last 60 minutes. For other ranges, `apiData` is used as is.
+    *   Iterates through the (potentially filtered) `apiData`.
+    *   Extracts `avg` temperature for each section (`dewasa`, `remaja`, `penyemaian`, `averages`).
+    *   Converts timestamps to JavaScript `Date` objects.
+    *   Populates `chartData` (e.g., `chartData.dewasa = [{x: Date, y: value}, ...]`).
+    *   Calculates overall insights (min, max, average temperature) for the `selectedRange` based on the (filtered) data.
+    *   Returns an object `{ chartData, insightsData }`.
+*   **Chart Rendering (`updateTemperatureChart(chartData, selectedRange)`):**
+    *   Clears previous datasets from `temperatureChart`.
+    *   For each section in `chartData` with data points:
+        *   Creates a new Chart.js dataset with appropriate labels, data, colors, and styling (e.g., `pointRadius` is larger for "1hour" and "1day" views).
+    *   Configures the X-axis `time` scale based on `selectedRange`:
+        *   **"1hour"**: `unit: 'minute'`, `displayFormats: { minute: 'HH:mm' }`, `tooltipFormat: 'HH:mm:ss'`. `ticks.stepSize` (e.g., 5 minutes) is set for appropriate tick intervals.
+        *   **"1day"**: `unit: 'hour'`, `displayFormats: { hour: 'HH:mm' }`, `tooltipFormat: 'HH:mm'`. `ticks.stepSize` is set to `undefined` to allow Chart.js auto-scaling.
+        *   **"7day" / "30day"**: `unit: 'day'`, `displayFormats: { day: 'MMM d' }`. `ticks.stepSize` is `undefined`.
+    *   Calls `temperatureChart.update()` to re-render the chart.
+*   **Insights Display (`updateTemperatureInsights(insights)`):**
+    *   Updates the content of HTML elements (`#minTempInsightValue`, `#minTempInsightSubtext`, etc.) with the calculated min, max, and average temperatures.
+    *   Formats timestamps for min/max insights (e.g., "Lowest in Dewasa at 16:20, May 12").
+    *   Provides descriptive sub-text (e.g., "Period average").
+    *   Handles cases where no insight data is available.
+*   **UI Feedback (`showLoadingState`, `hideLoadingState`, `showErrorState`):**
+    *   Functions to manage the display of loading and error messages within the chart container.
 
 ---
 *Further phases will be documented here as development progresses.*
