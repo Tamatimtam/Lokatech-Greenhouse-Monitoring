@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The History page allows users to visualize historical sensor data (temperature, humidity, light) from the greenhouse. Data is fetched from a backend API and displayed using Chart.js. Users can select different time ranges (1 Hour, 24 Hours, 7 Days, 30 Days) to view the data. The page also provides key insights such as minimum, maximum, and average values for the selected period, presented in a refined UI. Chart X-axis labels are optimized for readability across different time ranges. The UI is partially localized to Bahasa Indonesia.
+The History page allows users to visualize historical sensor data (temperature, humidity, light intensity) from the greenhouse. Data is fetched from a backend API and displayed using Chart.js. Users can select different time ranges (1 Hour, 24 Hours, 7 Days, 30 Days) to view the data. The page also provides key insights such as minimum, maximum, and average values for the selected period, presented in a refined UI. Chart X-axis labels are optimized for readability across different time ranges. The UI is partially localized to Bahasa Indonesia.
 
 ## 2. Backend API and Data Flow
 
@@ -57,14 +57,14 @@ The frontend interacts with the `/history/data` API endpoint to retrieve histori
         }
         ```
 
-## 3. Frontend Implementation Details (Temperature & Humidity Chart Example)
+## 3. Frontend Implementation Details (Temperature, Humidity, & Light Intensity Chart Example)
 
-This section details the frontend components responsible for fetching, processing, and displaying the temperature and humidity history. Similar logic will apply to light levels when implemented.
+This section details the frontend components responsible for fetching, processing, and displaying the temperature, humidity, and light intensity history.
 
 ### 3.1. HTML Structure (`templates/history.html`)
 
 *   Extends `base.html`.
-*   UI text is partially localized to Bahasa Indonesia (e.g., "Data Riwayat", "Pilih Rentang Waktu", "Riwayat Suhu", "Riwayat Kelembaban").
+*   UI text is partially localized to Bahasa Indonesia (e.g., "Data Riwayat", "Pilih Rentang Waktu", "Riwayat Suhu", "Riwayat Kelembaban", "Riwayat Intensitas Cahaya").
 *   **Time Range Selector:**
     *   A `div.time-range-selector-container` contains buttons for "1 Jam", "24 Jam", "7 Hari", and "30 Hari".
     *   Each button has a `data-range` attribute (e.g., `"1hour"`, `"1day"`, `"7day"`, `"30day"`) and an icon.
@@ -76,6 +76,10 @@ This section details the frontend components responsible for fetching, processin
     *   A similar `div.card` structure for humidity.
     *   Chart Canvas: `<canvas id="humidityChart"></canvas>` within `div.chart-container#humidityChartContainer`.
     *   Insights Section: `div.chart-insights#humidityInsights` with items for Min, Max, and Avg humidity (e.g., `#minHumidityInsightValue`).
+*   **Light Intensity Chart Card:**
+    *   A similar `div.card` structure for light intensity.
+    *   Chart Canvas: `<canvas id="lightChart"></canvas>` within `div.chart-container#lightChartContainer`.
+    *   Insights Section: `div.chart-insights#lightInsights` with items for Min, Max, and Avg light intensity (e.g., `#minLightInsightValue`, `#maxLightInsightValue`, `#avgLightInsightValue`).
 
 ### 3.2. CSS Styling (`static/css/history.css`)
 
@@ -87,31 +91,35 @@ This section details the frontend components responsible for fetching, processin
     *   Typography and spacing are optimized for labels, values, and sub-texts.
 *   Styles for loading and error messages within chart containers.
 *   Includes styling for humidity insight values (e.g., `#minHumidityInsightValue`).
+*   Includes styling for light intensity insight values (e.g., `#minLightInsightValue`).
 
 ### 3.3. JavaScript Logic (`static/js/history.js`)
 
 *   **Global Variables:**
-    *   `temperatureChart`, `humidityChart`: Hold Chart.js instances.
+    *   `temperatureChart`, `humidityChart`, `lightChart`: Hold Chart.js instances.
     *   `currentSelectedRange`: Stores the active time range.
     *   `chartColors`: Maps greenhouse section names to colors.
 *   **Initialization (`DOMContentLoaded` event):**
     *   `setupTimeRangeButtons()`: Attaches click listeners.
     *   `initTemperatureChart()`: Initializes the temperature chart with Indonesian axis labels ("Waktu", "Suhu (°C)").
     *   `initHumidityChart()`: Initializes the humidity chart with Indonesian axis labels ("Waktu", "Kelembaban (%)").
+    *   `initLightChart()`: Initializes the light intensity chart with Y-axis label "Intensitas Cahaya (lux)".
     *   `loadHistoricalData(currentSelectedRange)`: Called to load initial data.
 *   **Data Fetching (`loadHistoricalData(selectedRange)`):**
     *   Displays a global loading state (currently tied to the temperature chart container).
-    *   Clears previous insights for both temperature and humidity.
+    *   Clears previous insights for all three sensor types.
     *   Makes a single `fetch` request to `/history/data?days=${daysToFetchAPI}` (API returns all sensor types).
     *   On successful response:
         *   Calls `processSensorData(apiResponse.data, selectedRange, 'temps')` for temperature.
         *   Calls `processSensorData(apiResponse.data, selectedRange, 'humidities')` for humidity.
+        *   Calls `processSensorData(apiResponse.data, selectedRange, 'lights')` for light intensity.
         *   Calls `updateTemperatureChart()` and `updateTemperatureInsights()`.
         *   Calls `updateHumidityChart()` and `updateHumidityInsights()`.
+        *   Calls `updateLightChart()` and `updateLightInsights()`.
         *   Calls `checkAndShowNoDataError()` for each chart container to display specific "no data" messages if applicable.
     *   Handles API errors.
 *   **Data Processing (`processSensorData(apiData, selectedRange, sensorType)`):**
-    *   This generic function processes data for a given `sensorType` ('temps' or 'humidities').
+    *   This generic function processes data for a given `sensorType` ('temps', 'humidities', or 'lights').
     *   **Insight Calculation Data:** Filters for "1hour" or uses full `apiData` for other ranges. This data is used to calculate the true min, max, and average values for the insights display.
     *   **True Min/Max Identification:** Identifies absolute min/max values (and their original data points) for the `sensorType` from `dataForInsightCalculation`.
     *   **Chart Display Data (`dataForChartDisplay`):**
@@ -128,14 +136,14 @@ This section details the frontend components responsible for fetching, processin
     *   Populates `chartData` for the `sensorType` (e.g., `chartData.dewasa = [{x: Date, y: value}, ...]`) using the final `dataForChartDisplay`.
     *   Calculates insights (min, max, overallAverage) for the `sensorType` using the values derived from `dataForInsightCalculation`.
     *   Returns an object `{ chartData, insightsData }`.
-*   **Chart Rendering (`updateTemperatureChart`, `updateHumidityChart`, `updateGenericChart`):**
-    *   `updateTemperatureChart` and `updateHumidityChart` call a common `updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel)` function.
-    *   `updateGenericChart` clears previous datasets, creates new datasets for each section with appropriate labels (e.g., "Dewasa Suhu", "Remaja Kelembaban"), data, and colors.
+*   **Chart Rendering (`updateTemperatureChart`, `updateHumidityChart`, `updateLightChart`, `updateGenericChart`):**
+    *   `updateTemperatureChart`, `updateHumidityChart`, and `updateLightChart` call a common `updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel)` function.
+    *   `updateGenericChart` clears previous datasets, creates new datasets for each section with appropriate labels (e.g., "Dewasa Suhu", "Remaja Kelembaban", "Penyemaian Intensitas Cahaya"), data, and colors.
     *   Configures the X-axis `time` scale based on `selectedRange` (common for all charts).
     *   Calls `chartInstance.update()`.
-*   **Insights Display (`updateTemperatureInsights`, `updateHumidityInsights`, `updateGenericInsights`):**
-    *   `updateTemperatureInsights` and `updateHumidityInsights` call a common `updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, maxLabelPrefix, avgLabelSubtext)` function.
-    *   `updateGenericInsights` populates the respective HTML elements for min, max, and average values, using the correct unit ("°C" or "%") and localized labels (e.g., "Terendah di", "Tertinggi di").
+*   **Insights Display (`updateTemperatureInsights`, `updateHumidityInsights`, `updateLightInsights`, `updateGenericInsights`):**
+    *   `updateTemperatureInsights`, `updateHumidityInsights`, and `updateLightInsights` call a common `updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, maxLabelPrefix, avgLabelSubtext)` function.
+    *   `updateGenericInsights` populates the respective HTML elements for min, max, and average values, using the correct unit ("°C", "%", or " lux") and localized labels (e.g., "Terendah di", "Tertinggi di").
 *   **UI Feedback (`showLoadingState`, `hideLoadingState`, `showErrorState`):**
     *   Functions to manage loading/error messages. "Memuat data..." is used for loading. `checkAndShowNoDataError` handles "Tidak ada data untuk periode terpilih."
 

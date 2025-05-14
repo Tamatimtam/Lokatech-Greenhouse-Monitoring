@@ -163,6 +163,17 @@
     color: var(--primary-dark, #1c4b35); /* Green for average humidity */
 }
 
+/* Light Intensity Insight Value Colors (example, can be adjusted) */
+#minLightInsightValue {
+    color: var(--secondary-dark, #383d41); /* Dark grey for low light */
+}
+#maxLightInsightValue {
+    color: var(--warning-dark, #ffc107); /* Bright yellow for high light */
+}
+#avgLightInsightValue {
+    color: var(--primary-light, #a0c9b6); /* A lighter green/teal for average light */
+}
+
 /* Loading and Error Message Styles */
 .chart-loading,
 .chart-error {

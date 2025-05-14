@@ -1,6 +1,7 @@
 // Global variables
 let temperatureChart; // Holds the Chart.js instance for the temperature chart.
 let humidityChart;    // Holds the Chart.js instance for the humidity chart.
+let lightChart;       // Holds the Chart.js instance for the light intensity chart.
 let currentSelectedRange = "1day"; // Tracks the currently active time range filter (e.g., "1hour", "1day"). Default is "1day".
 
 // Defines a consistent color palette for different greenhouse sections in the chart.
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTimeRangeButtons(); // Initializes event listeners for time range filter buttons.
     initTemperatureChart();  // Sets up the initial empty temperature chart.
     initHumidityChart();     // Sets up the initial empty humidity chart.
+    initLightChart();        // Sets up the initial empty light intensity chart.
     loadHistoricalData(currentSelectedRange); // Loads data for the default time range.
 });
 
@@ -135,6 +137,54 @@ function initHumidityChart() {
     });
 }
 
+// Initializes the light intensity chart with Chart.js.
+function initLightChart() {
+    const ctx = document.getElementById('lightChart').getContext('2d');
+    lightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [] 
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        tooltipFormat: 'MMM d, yyyy HH:mm'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Waktu' // X-axis label (Indonesian)
+                    },
+                    ticks: {
+                        source: 'auto',
+                        maxRotation: 0,
+                        autoSkipPadding: 20,
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Intensitas Cahaya (lux)' // Y-axis label (Indonesian) - assuming lux
+                    },
+                    beginAtZero: true // Light intensity typically starts at 0
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false,
+                }
+            }
+        }
+    });
+}
 
 // Fetches historical data from the backend API based on the selected time range.
 function loadHistoricalData(selectedRange) {
@@ -144,6 +194,7 @@ function loadHistoricalData(selectedRange) {
     showLoadingState(globalLoadingContainerId); 
     updateTemperatureInsights(null); 
     updateHumidityInsights(null); // Clear humidity insights too.
+    updateLightInsights(null); // Clear light insights too.
 
     let daysToFetchAPI = 1; 
     if (selectedRange.endsWith('day')) {
@@ -173,10 +224,17 @@ function loadHistoricalData(selectedRange) {
                 updateHumidityInsights(humidityInsightsData);
                 checkAndShowNoDataError('humidityChartContainer', humidityChartData, humidityInsightsData);
 
+                // Process data for Light Intensity
+                const { chartData: lightChartData, insightsData: lightInsightsData } = processSensorData(apiResponse.data, selectedRange, 'lights');
+                updateLightChart(lightChartData, selectedRange);
+                updateLightInsights(lightInsightsData);
+                checkAndShowNoDataError('lightChartContainer', lightChartData, lightInsightsData);
+
             } else {
                 showErrorState(globalLoadingContainerId, apiResponse.message || 'Gagal memuat data.');
                 updateTemperatureInsights(null);
                 updateHumidityInsights(null);
+                updateLightInsights(null);
             }
         })
         .catch(error => {
@@ -185,6 +243,7 @@ function loadHistoricalData(selectedRange) {
             showErrorState(globalLoadingContainerId, `Gagal mengambil data: ${error.message}`);
             updateTemperatureInsights(null);
             updateHumidityInsights(null);
+            updateLightInsights(null);
         });
 }
 
@@ -196,6 +255,7 @@ function checkAndShowNoDataError(containerId, chartData, insightsData) {
         // Ensure insights for this specific chart also show no data
         if (containerId === 'temperatureChartContainer') updateTemperatureInsights(null);
         if (containerId === 'humidityChartContainer') updateHumidityInsights(null);
+        if (containerId === 'lightChartContainer') updateLightInsights(null);
     } else {
         // If there was an error message, clear it now that we have data.
         const container = document.getElementById(containerId);
@@ -205,7 +265,6 @@ function checkAndShowNoDataError(containerId, chartData, insightsData) {
         }
     }
 }
-
 
 // Processes raw API data for a given sensor type: filters for "1hour", downsamples for "1day", and calculates insights.
 function processSensorData(apiData, selectedRange, sensorType) {
@@ -335,6 +394,10 @@ function updateHumidityChart(chartData, selectedRange) {
     updateGenericChart(humidityChart, chartData, selectedRange, "Kelembaban");
 }
 
+function updateLightChart(chartData, selectedRange) {
+    updateGenericChart(lightChart, chartData, selectedRange, "Intensitas Cahaya");
+}
+
 function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel) {
     chartInstance.data.datasets = []; // Clear previous datasets.
 
@@ -399,7 +462,6 @@ function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel
     chartInstance.update(); // Re-renders the chart with new data and options.
 }
 
-
 // Updates the Min/Max/Avg temperature insight boxes below the chart.
 function updateTemperatureInsights(insights) {
     updateGenericInsights(insights, 'Temp', '°C', 'Terendah di', 'Tertinggi di', 'Rata-rata periode');
@@ -407,6 +469,10 @@ function updateTemperatureInsights(insights) {
 
 function updateHumidityInsights(insights) {
     updateGenericInsights(insights, 'Humidity', '%', 'Terendah di', 'Tertinggi di', 'Rata-rata periode');
+}
+
+function updateLightInsights(insights) {
+    updateGenericInsights(insights, 'Light', ' lux', 'Terendah di', 'Tertinggi di', 'Rata-rata periode'); // Assuming lux, space before unit for consistency
 }
 
 function updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, maxLabelPrefix, avgLabelSubtext) {
@@ -453,7 +519,6 @@ function updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, max
         avgSubtextEl.textContent = 'Tidak ada data';
     }
 }
-
 
 // UI Feedback Functions: Show/Hide Loading and Error States.
 // Displays a loading message within the specified chart container.

@@ -109,13 +109,36 @@
             </div>
         </div>
 
-        <!-- Placeholder for future charts (Light) -->
-        <!-- 
+        <!-- Light Intensity Chart Card -->
         <div class="card">
-            <div class="card__header"><h2 class="card__title">Light Level History</h2></div>
-            <div class="card__content"><div class="chart-container" id="lightChartContainer"><canvas id="lightChart"></canvas></div></div>
+            <div class="card__header">
+                <h2 class="card__title">Riwayat Intensitas Cahaya</h2>
+            </div>
+            <div class="card__content">
+                <!-- Container for the light intensity chart canvas and any loading/error messages. -->
+                <div class="chart-container" id="lightChartContainer">
+                    <canvas id="lightChart"></canvas> <!-- Canvas element where Chart.js will render the light chart. -->
+                </div>
+                <!-- Section to display key insights (Min, Max, Avg light intensity). -->
+                <div class="chart-insights" id="lightInsights">
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-sun"></i> Intensitas Min</span>
+                        <span class="insight-value" id="minLightInsightValue">--</span>
+                        <span class="insight-subtext" id="minLightInsightSubtext"></span>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-sun"></i> Intensitas Max</span> <!-- Consider a different icon for max if available, e.g., fa-sun-bright -->
+                        <span class="insight-value" id="maxLightInsightValue">--</span>
+                        <span class="insight-subtext" id="maxLightInsightSubtext"></span>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="far fa-sun"></i> Intensitas Rata-rata</span> <!-- Consider a different icon for avg -->
+                        <span class="insight-value" id="avgLightInsightValue">--</span>
+                        <span class="insight-subtext" id="avgLightInsightSubtext"></span>
+                    </div>
+                </div>
+            </div>
         </div>
-        -->
 
     </main>
 
