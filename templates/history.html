@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% import "macros/navigation.html" as navigation %}
+{% extends "base.html" %} <!-- Inherits the base HTML structure. -->
+{% import "macros/navigation.html" as navigation %} <!-- Imports navigation macros. -->
 
 {% block title %}History - Lokatani.id{% endblock %}
 
@@ -27,10 +27,12 @@
         <div class="time-range-selector-container">
             <div class="time-range-label">Select Time Range:</div>
             <div class="time-range-buttons">
+                <!-- Buttons for selecting different time ranges. 
+                     'data-range' attribute is used by JS to determine the selected period. -->
                 <button class="time-range-btn" data-range="1hour">
                     <i class="fas fa-hourglass-half"></i> 1 Hour
                 </button>
-                <button class="time-range-btn active" data-range="1day">
+                <button class="time-range-btn active" data-range="1day"> <!-- 'active' class indicates current selection. -->
                     <i class="fas fa-clock"></i> 24 Hours
                 </button>
                 <button class="time-range-btn" data-range="7day">
@@ -48,14 +50,18 @@
                 <h2 class="card__title">Temperature History</h2>
             </div>
             <div class="card__content">
+                <!-- Container for the temperature chart canvas and any loading/error messages. -->
                 <div class="chart-container" id="temperatureChartContainer">
-                    <canvas id="temperatureChart"></canvas>
-                    <!-- Loading/Error messages will be injected here by JS -->
+                    <canvas id="temperatureChart"></canvas> <!-- Canvas element where Chart.js will render the temperature chart. -->
+                    <!-- Loading/Error messages will be injected here by JS (see history.js) -->
                 </div>
+                <!-- Section to display key insights (Min, Max, Avg temperatures). -->
                 <div class="chart-insights" id="temperatureInsights">
                     <div class="insight-item">
                         <span class="insight-label"><i class="fas fa-temperature-low"></i> Min Temp</span>
+                        <!-- Element to display the minimum temperature value. Updated by JS. -->
                         <span class="insight-value" id="minTempInsightValue">--</span>
+                        <!-- Element to display subtext for min temp (e.g., section and time). Updated by JS. -->
                         <span class="insight-subtext" id="minTempInsightSubtext"></span>
                     </div>
                     <div class="insight-item">
@@ -86,14 +92,16 @@
 
     </main>
 
+    <!-- Renders the bottom navigation bar using the imported macro. -->
     {{ navigation.bottom_nav('history') }}
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Chart.js Library and Date Adapter -->
+<!-- Chart.js Library: For creating interactive charts. -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js Date Adapter for date-fns: Enables time scale functionality with date-fns library. -->
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-<!-- Custom history.js -->
+<!-- Custom JavaScript for the history page logic. -->
 <script src="{{ url_for('static', filename='js/history.js') }}"></script>
 {% endblock %}

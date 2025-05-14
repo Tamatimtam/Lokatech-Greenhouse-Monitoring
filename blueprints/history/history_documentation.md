@@ -93,7 +93,7 @@ This section details the frontend components responsible for fetching, processin
     *   `chartColors`: Maps greenhouse section names to colors for chart lines.
 *   **Initialization (`DOMContentLoaded` event):**
     *   `setupTimeRangeButtons()`: Attaches click listeners to time range buttons. These listeners update `currentSelectedRange` and call `loadHistoricalData()`.
-    *   `initTemperatureChart()`: Initializes an empty Chart.js line chart for temperature with basic options (responsiveness, tooltips, legend) and X/Y axis configurations.
+    *   `initTemperatureChart()`: Initializes an empty Chart.js line chart for temperature. Basic options include responsiveness, legend, and tooltip configuration (`mode: 'nearest'`, `axis: 'x'`, `intersect: false` for consistent tooltip positioning). X/Y axis configurations are also set.
     *   `loadHistoricalData(currentSelectedRange)`: Called to load initial data.
 *   **Data Fetching (`loadHistoricalData(selectedRange)`):**
     *   Displays a loading state.

@@ -7,8 +7,9 @@
     border-radius: var(--radius-md, 8px);
     margin-bottom: var(--spacing-lg, 1.5rem); /* Space below the selector */
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    display: flex;
-    flex-direction: column; /* Stack label and buttons vertically on small screens */
+    /* Container for the time range label and buttons. */
+    display: flex; /* Enables flexbox layout. */
+    flex-direction: column; /* Stacks label and buttons vertically on small screens by default. */
     align-items: flex-start; /* Align items to the start */
 }
 
@@ -20,9 +21,9 @@
 }
 
 .time-range-buttons {
-    display: flex;
+    display: flex; /* Arranges buttons in a row. */
     gap: var(--spacing-sm, 0.5rem); /* Smaller gap between buttons */
-    flex-wrap: wrap; 
+    flex-wrap: wrap; /* Allows buttons to wrap to the next line on smaller screens. */
 }
 
 .time-range-btn {
@@ -66,7 +67,7 @@
 /* Responsive adjustments for the time range selector */
 @media (min-width: 768px) {
     .time-range-selector-container {
-        flex-direction: row; /* Label and buttons side-by-side */
+        flex-direction: row; /* Label and buttons side-by-side on larger screens. */
         align-items: center; /* Vertically align label and buttons */
         justify-content: space-between; /* Pushes label to left, buttons to right if desired, or use gap */
     }
@@ -77,15 +78,15 @@
 }
 
 .chart-container {
-    height: 300px; /* Default height, can be adjusted */
-    position: relative; /* For positioning loading/error messages */
+    height: 300px; /* Defines the default height for chart canvases. */
+    position: relative; /* Establishes a positioning context for absolute positioned children (loading/error messages). */
     /* margin-top: var(--spacing-md, 1rem); Remove top margin if insights are directly below */
 }
 
 /* Chart Insights Section */
 .chart-insights {
-    display: grid; /* Use grid for better control over column widths */
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive columns */
+    display: grid; /* Uses CSS Grid for a flexible and responsive layout of insight items. */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Creates responsive columns: each column is at least 150px wide, and they share available space. */
     gap: var(--spacing-md, 1rem);
     padding: var(--spacing-md, 1rem);
     margin-top: var(--spacing-lg, 1.5rem); /* More space between chart and insights */
@@ -154,15 +155,15 @@
 /* Loading and Error Message Styles */
 .chart-loading,
 .chart-error {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: absolute; /* Positions message relative to .chart-container. */
+    top: 50%;           /* Centers message vertically. */
+    left: 50%;          /* Centers message horizontally. */
+    transform: translate(-50%, -50%); /* Fine-tunes centering. */
     padding: var(--spacing-md, 1rem) var(--spacing-lg, 1.5rem);
     border-radius: var(--radius-md, 8px);
     text-align: center;
     font-size: 1rem;
-    z-index: 10; /* Ensure it's above the canvas if canvas renders partially */
+    z-index: 10; /* Ensures message is displayed above the chart canvas. */
 }
 
 .chart-loading {
