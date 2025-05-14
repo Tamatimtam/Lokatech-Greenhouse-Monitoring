@@ -123,74 +123,22 @@ function loadHistoricalData(selectedRange) {
 }
 
 function processTemperatureData(apiData, selectedRange) {
-    let dataForInsightCalculation = apiData; // Data used for insights calculation
-    let dataForChartDisplay = apiData;    // Data used for chart points
+    let dataForInsightCalculation = apiData; 
+    let dataForChartDisplay = apiData;    
 
+    // First, calculate true Min/Max from the full dataset for the selected range (after 1-hour filtering if applicable)
     if (selectedRange === "1hour") {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         const hourlyFilteredData = apiData.filter(point => new Date(point.timestamp) >= oneHourAgo);
         dataForInsightCalculation = hourlyFilteredData;
-        dataForChartDisplay = hourlyFilteredData;
-    } else if (selectedRange === "1day") {
-        // For "1day", insights use full data, chart uses downsampled data.
-        // dataForInsightCalculation remains apiData (all points for the day).
-        
-        const DOWNSAMPLE_INTERVAL_MINUTES = 15;
-        const downsampledPoints = [];
-        if (apiData.length > 0) {
-            downsampledPoints.push(apiData[0]); // Always include the first point
-            let lastSelectedTime = new Date(apiData[0].timestamp).getTime();
-
-            for (let i = 1; i < apiData.length; i++) {
-                const currentTime = new Date(apiData[i].timestamp).getTime();
-                
-                // If it's the last point, add it if it's not already the last selected one.
-                if (i === apiData.length - 1) {
-                    if (downsampledPoints[downsampledPoints.length - 1] !== apiData[i]) {
-                        downsampledPoints.push(apiData[i]);
-                    }
-                    break; 
-                }
-                
-                // If current point is past the interval from the last selected point
-                if (currentTime - lastSelectedTime >= DOWNSAMPLE_INTERVAL_MINUTES * 60 * 1000) {
-                    downsampledPoints.push(apiData[i]);
-                    lastSelectedTime = currentTime;
-                }
-            }
-        }
-        dataForChartDisplay = downsampledPoints;
+        dataForChartDisplay = hourlyFilteredData; // For 1hr, chart and insights use the same filtered data
     }
-    // For "7day" and "30day", both insights and chart use the full apiData for that range.
-
-    const chartData = {
-        dewasa: [],
-        remaja: [],
-        penyemaian: [],
-        averages: []
-    };
-    const validSections = Object.keys(chartData);
-
-    // Populate chartData using dataForChartDisplay
-    dataForChartDisplay.forEach(point => {
-        const timestamp = new Date(point.timestamp); 
-        validSections.forEach(sectionName => {
-            if (point.data && point.data[sectionName] && 
-                point.data[sectionName].temps && 
-                typeof point.data[sectionName].temps.avg === 'number') {
-                
-                const currentAvgTemp = point.data[sectionName].temps.avg;
-                chartData[sectionName].push({
-                    x: timestamp,
-                    y: currentAvgTemp
-                });
-            }
-        });
-    });
+    // For "7day" and "30day", dataForInsightCalculation and dataForChartDisplay remain apiData initially.
 
     // Calculate insights using dataForInsightCalculation
-    let minTemp = { value: Infinity, timestamp: null, section: null };
-    let maxTemp = { value: -Infinity, timestamp: null, section: null };
+    const validSections = Object.keys(chartColors); // Assuming chartColors keys are the valid sections
+    let trueMinTemp = { value: Infinity, timestamp: null, section: null, originalPoint: null };
+    let trueMaxTemp = { value: -Infinity, timestamp: null, section: null, originalPoint: null };
     let sumOfAverageTemps = 0;
     let countOfAverageTemps = 0;
 
@@ -202,11 +150,11 @@ function processTemperatureData(apiData, selectedRange) {
                 typeof point.data[sectionName].temps.avg === 'number') {
                 
                 const currentAvgTemp = point.data[sectionName].temps.avg;
-                if (currentAvgTemp < minTemp.value) {
-                    minTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName };
+                if (currentAvgTemp < trueMinTemp.value) {
+                    trueMinTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName, originalPoint: point };
                 }
-                if (currentAvgTemp > maxTemp.value) {
-                    maxTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName };
+                if (currentAvgTemp > trueMaxTemp.value) {
+                    trueMaxTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName, originalPoint: point };
                 }
                 if (sectionName === 'averages') {
                     sumOfAverageTemps += currentAvgTemp;
@@ -217,10 +165,71 @@ function processTemperatureData(apiData, selectedRange) {
     });
 
     const insightsData = {
-        minTemp: minTemp.value !== Infinity ? minTemp : null,
-        maxTemp: maxTemp.value !== -Infinity ? maxTemp : null,
+        minTemp: trueMinTemp.value !== Infinity ? { value: trueMinTemp.value, timestamp: trueMinTemp.timestamp, section: trueMinTemp.section } : null,
+        maxTemp: trueMaxTemp.value !== -Infinity ? { value: trueMaxTemp.value, timestamp: trueMaxTemp.timestamp, section: trueMaxTemp.section } : null,
         overallAverageTemp: countOfAverageTemps > 0 ? (sumOfAverageTemps / countOfAverageTemps) : null
     };
+
+    // Now, prepare dataForChartDisplay, applying downsampling for "1day"
+    // and ensuring trueMinTemp.originalPoint and trueMaxTemp.originalPoint are included.
+    if (selectedRange === "1day") {
+        const DOWNSAMPLE_INTERVAL_MINUTES = 15;
+        let downsampledPoints = [];
+
+        if (apiData.length > 0) {
+            downsampledPoints.push(apiData[0]); 
+            let lastSelectedTime = new Date(apiData[0].timestamp).getTime();
+
+            for (let i = 1; i < apiData.length -1; i++) { // Iterate up to second to last
+                const currentTime = new Date(apiData[i].timestamp).getTime();
+                if (currentTime - lastSelectedTime >= DOWNSAMPLE_INTERVAL_MINUTES * 60 * 1000) {
+                    downsampledPoints.push(apiData[i]);
+                    lastSelectedTime = currentTime;
+                }
+            }
+            if (apiData.length > 1 && downsampledPoints[downsampledPoints.length -1] !== apiData[apiData.length -1]) {
+                 downsampledPoints.push(apiData[apiData.length - 1]); // Always include the last point
+            }
+        }
+        
+        // Add true Min/Max original points if they exist and are from the "1day" range
+        if (trueMinTemp.originalPoint) {
+            downsampledPoints.push(trueMinTemp.originalPoint);
+        }
+        if (trueMaxTemp.originalPoint) {
+            downsampledPoints.push(trueMaxTemp.originalPoint);
+        }
+
+        // De-duplicate (based on timestamp) and sort
+        const uniquePointsMap = new Map();
+        downsampledPoints.forEach(p => uniquePointsMap.set(new Date(p.timestamp).getTime(), p));
+        dataForChartDisplay = Array.from(uniquePointsMap.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+    // For "1hour", "7day", "30day", dataForChartDisplay is already set (either filtered 1hr data or full apiData).
+
+
+    const chartData = {
+        dewasa: [],
+        remaja: [],
+        penyemaian: [],
+        averages: []
+    };
+
+    // Populate chartData using the final dataForChartDisplay
+    dataForChartDisplay.forEach(point => {
+        const timestamp = new Date(point.timestamp); 
+        validSections.forEach(sectionName => {
+            if (point.data && point.data[sectionName] && 
+                point.data[sectionName].temps && 
+                typeof point.data[sectionName].temps.avg === 'number') {
+                
+                chartData[sectionName].push({
+                    x: timestamp,
+                    y: point.data[sectionName].temps.avg // Use the avg from the point
+                });
+            }
+        });
+    });
 
     return { chartData, insightsData };
 }

@@ -108,15 +108,19 @@ This section details the frontend components responsible for fetching, processin
         *   Handles cases where no data is available for the selected range.
     *   Handles API errors and displays an error message.
 *   **Data Processing (`processTemperatureData(apiData, selectedRange)`):**
-    *   **Client-Side Filtering/Downsampling:**
-        *   If `selectedRange` is `"1hour"`, the `apiData` (containing 24 hours of data) is filtered on the frontend to include only data points from the last 60 minutes. This filtered data is used for both chart display and insight calculations.
-        *   If `selectedRange` is `"1day"` (24 Hours), the full `apiData` (1-minute intervals) is used for accurate insight calculations (Min, Max, Avg). However, for chart display, `apiData` is downsampled on the client-side to approximately 15-minute intervals (selecting the first point, last point, and points in between at roughly 15-minute gaps). This reduces visual clutter on the chart.
-        *   For `"7day"` and `"30day"` ranges, the full `apiData` received for that period is used for both chart display and insights.
-    *   Iterates through the data designated for chart display.
-    *   Extracts `avg` temperature for each section (`dewasa`, `remaja`, `penyemaian`, `averages`).
-    *   Converts timestamps to JavaScript `Date` objects.
-    *   Populates `chartData` (e.g., `chartData.dewasa = [{x: Date, y: value}, ...]`).
-    *   Calculates overall insights (min, max, average temperature) using the data designated for insight calculation.
+    *   **Insight Calculation Data:**
+        *   If `selectedRange` is `"1hour"`, `apiData` is first filtered to the last 60 minutes. This filtered data (`dataForInsightCalculation`) is used for insight calculations.
+        *   For `"1day"`, `"7day"`, and `"30day"`, the full `apiData` received for the period is used as `dataForInsightCalculation`.
+    *   **True Min/Max Identification:** The absolute minimum and maximum temperature points (value, timestamp, section, and the original data point object) are identified from `dataForInsightCalculation`.
+    *   **Chart Display Data (`dataForChartDisplay`):**
+        *   If `selectedRange` is `"1hour"`, `dataForChartDisplay` is the same as `dataForInsightCalculation` (last 60 minutes, no further downsampling).
+        *   If `selectedRange` is `"1day"` (24 Hours):
+            *   `apiData` is initially downsampled to approximately 15-minute intervals (selecting the first point, last point, and points in between).
+            *   The original data point objects corresponding to the true Min and true Max temperatures (identified above) are then explicitly added to this downsampled list.
+            *   The list is then de-duplicated (by timestamp) and sorted chronologically to form the final `dataForChartDisplay`. This ensures the key Min/Max points are visible on the chart while keeping it relatively uncluttered.
+        *   For `"7day"` and `"30day"` ranges, `dataForChartDisplay` is the full `apiData` received for that period.
+    *   Iterates through `dataForChartDisplay` to populate `chartData` (e.g., `chartData.dewasa = [{x: Date, y: value}, ...]`) for each section.
+    *   Calculates overall insights (min, max, average temperature) using the `trueMinTemp`, `trueMaxTemp`, and averages calculated from `dataForInsightCalculation`.
     *   Returns an object `{ chartData, insightsData }`.
 *   **Chart Rendering (`updateTemperatureChart(chartData, selectedRange)`):**
     *   Clears previous datasets from `temperatureChart`.
