@@ -142,14 +142,25 @@
 
 
 /* Specific insight value styling - can be kept or removed if general styling is preferred */
-#minTempInsightValue { /* Renamed from #minTempInsight */
+#minTempInsightValue { 
     color: var(--info-dark, #0c5460); 
 }
-#maxTempInsightValue { /* Renamed from #maxTempInsight */
+#maxTempInsightValue { 
     color: var(--danger-dark, #721c24); 
 }
-#avgTempInsightValue { /* Renamed from #avgTempInsight */
+#avgTempInsightValue { 
     color: var(--success-dark, #155724); 
+}
+
+/* Humidity Insight Value Colors (example, can be adjusted) */
+#minHumidityInsightValue {
+    color: var(--info-dark, #007bff); /* Blue for low humidity */
+}
+#maxHumidityInsightValue {
+    color: var(--warning-dark, #856404); /* Yellow/Orange for high humidity */
+}
+#avgHumidityInsightValue {
+    color: var(--primary-dark, #1c4b35); /* Green for average humidity */
 }
 
 /* Loading and Error Message Styles */

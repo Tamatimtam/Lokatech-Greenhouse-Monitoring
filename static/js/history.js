@@ -1,5 +1,6 @@
 // Global variables
 let temperatureChart; // Holds the Chart.js instance for the temperature chart.
+let humidityChart;    // Holds the Chart.js instance for the humidity chart.
 let currentSelectedRange = "1day"; // Tracks the currently active time range filter (e.g., "1hour", "1day"). Default is "1day".
 
 // Defines a consistent color palette for different greenhouse sections in the chart.
@@ -14,6 +15,7 @@ const chartColors = {
 document.addEventListener('DOMContentLoaded', function() {
     setupTimeRangeButtons(); // Initializes event listeners for time range filter buttons.
     initTemperatureChart();  // Sets up the initial empty temperature chart.
+    initHumidityChart();     // Sets up the initial empty humidity chart.
     loadHistoricalData(currentSelectedRange); // Loads data for the default time range.
 });
 
@@ -52,7 +54,7 @@ function initTemperatureChart() {
                     },
                     title: {
                         display: true,
-                        text: 'Time' // X-axis label.
+                        text: 'Waktu' // X-axis label (Indonesian)
                     },
                     ticks: {
                         source: 'auto', // Chart.js automatically determines optimal tick placement.
@@ -63,7 +65,7 @@ function initTemperatureChart() {
                 y: {
                     title: {
                         display: true,
-                        text: 'Temperature (°C)' // Y-axis label.
+                        text: 'Suhu (°C)' // Y-axis label (Indonesian)
                     },
                     beginAtZero: false // Y-axis does not necessarily start at zero for temperature.
                 }
@@ -82,17 +84,71 @@ function initTemperatureChart() {
     });
 }
 
+// Initializes the humidity chart with Chart.js.
+function initHumidityChart() {
+    const ctx = document.getElementById('humidityChart').getContext('2d');
+    humidityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [] 
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        tooltipFormat: 'MMM d, yyyy HH:mm'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Waktu' // X-axis label (Indonesian)
+                    },
+                    ticks: {
+                        source: 'auto',
+                        maxRotation: 0,
+                        autoSkipPadding: 20,
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Kelembaban (%)' // Y-axis label (Indonesian)
+                    },
+                    beginAtZero: false, // Humidity typically doesn't start at 0, but can be adjusted
+                    // suggestedMin: 0, // Optional: set a min if desired
+                    // suggestedMax: 100 // Optional: set a max if desired
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false,
+                }
+            }
+        }
+    });
+}
+
+
 // Fetches historical data from the backend API based on the selected time range.
 function loadHistoricalData(selectedRange) {
-    const chartContainerId = 'temperatureChartContainer'; 
-    showLoadingState(chartContainerId); // Displays a loading indicator.
-    updateTemperatureInsights(null); // Clears previous insight values.
+    // For now, use temperatureChartContainer for global loading/error messages.
+    // This can be enhanced later for per-chart loading states.
+    const globalLoadingContainerId = 'temperatureChartContainer'; 
+    showLoadingState(globalLoadingContainerId); 
+    updateTemperatureInsights(null); 
+    updateHumidityInsights(null); // Clear humidity insights too.
 
-    let daysToFetchAPI = 1; // Default days to fetch for the API.
+    let daysToFetchAPI = 1; 
     if (selectedRange.endsWith('day')) {
-        daysToFetchAPI = parseInt(selectedRange); // Parses days from ranges like "1day", "7day".
+        daysToFetchAPI = parseInt(selectedRange); 
     }
-    // For "1hour" range, we fetch 1 day of data and filter it on the client-side.
 
     fetch(`/history/data?days=${daysToFetchAPI}`)
         .then(response => {
@@ -102,124 +158,148 @@ function loadHistoricalData(selectedRange) {
             return response.json();
         })
         .then(apiResponse => {
-            hideLoadingState(chartContainerId); // Hides loading indicator.
+            hideLoadingState(globalLoadingContainerId); 
             if (apiResponse.success && apiResponse.data) {
-                // Processes the fetched data to prepare it for chart and insights.
-                const { chartData, insightsData } = processTemperatureData(apiResponse.data, selectedRange);
-                updateTemperatureChart(chartData, selectedRange); // Updates the chart with new data.
-                updateTemperatureInsights(insightsData); // Updates the insight boxes.
+                // Process data for Temperature
+                const { chartData: tempChartData, insightsData: tempInsightsData } = processSensorData(apiResponse.data, selectedRange, 'temps');
+                updateTemperatureChart(tempChartData, selectedRange);
+                updateTemperatureInsights(tempInsightsData);
+                checkAndShowNoDataError('temperatureChartContainer', tempChartData, tempInsightsData);
 
-                // Checks if any data exists for the processed range to display appropriate messages.
-                const hasDataForRange = Object.values(chartData).some(arr => arr.length > 0);
-                if (!hasDataForRange) {
-                    showErrorState(chartContainerId, 'No data available for the selected period.');
-                    updateTemperatureInsights(null); 
-                }
+
+                // Process data for Humidity
+                const { chartData: humidityChartData, insightsData: humidityInsightsData } = processSensorData(apiResponse.data, selectedRange, 'humidities');
+                updateHumidityChart(humidityChartData, selectedRange);
+                updateHumidityInsights(humidityInsightsData);
+                checkAndShowNoDataError('humidityChartContainer', humidityChartData, humidityInsightsData);
+
             } else {
-                showErrorState(chartContainerId, apiResponse.message || 'Failed to load data.');
+                showErrorState(globalLoadingContainerId, apiResponse.message || 'Gagal memuat data.');
                 updateTemperatureInsights(null);
+                updateHumidityInsights(null);
             }
         })
         .catch(error => {
-            hideLoadingState(chartContainerId);
+            hideLoadingState(globalLoadingContainerId);
             console.error('Error fetching historical data:', error);
-            showErrorState(chartContainerId, `Error fetching data: ${error.message}`);
+            showErrorState(globalLoadingContainerId, `Gagal mengambil data: ${error.message}`);
             updateTemperatureInsights(null);
+            updateHumidityInsights(null);
         });
 }
 
-// Processes raw API data: filters for "1hour", downsamples for "1day", and calculates insights.
-function processTemperatureData(apiData, selectedRange) {
-    let dataForInsightCalculation = apiData; // Data used for calculating Min/Max/Avg insights.
-    let dataForChartDisplay = apiData;    // Data used for plotting points on the chart.
+// Helper to check for no data after processing and display error if needed.
+function checkAndShowNoDataError(containerId, chartData, insightsData) {
+    const hasDataForRange = Object.values(chartData).some(arr => arr.length > 0);
+    if (!hasDataForRange) {
+        showErrorState(containerId, 'Tidak ada data untuk periode terpilih.');
+        // Ensure insights for this specific chart also show no data
+        if (containerId === 'temperatureChartContainer') updateTemperatureInsights(null);
+        if (containerId === 'humidityChartContainer') updateHumidityInsights(null);
+    } else {
+        // If there was an error message, clear it now that we have data.
+        const container = document.getElementById(containerId);
+        if (container) {
+            const existingError = container.querySelector('.chart-error');
+            if (existingError) existingError.remove();
+        }
+    }
+}
 
-    // Client-side filtering for "1hour" range: uses data from the last 60 minutes.
+
+// Processes raw API data for a given sensor type: filters for "1hour", downsamples for "1day", and calculates insights.
+function processSensorData(apiData, selectedRange, sensorType) {
+    let dataForInsightCalculation = apiData; 
+    let dataForChartDisplayPoints = []; // Use a temporary array to build points for chart display
+
     if (selectedRange === "1hour") {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         const hourlyFilteredData = apiData.filter(point => new Date(point.timestamp) >= oneHourAgo);
         dataForInsightCalculation = hourlyFilteredData;
-        dataForChartDisplay = hourlyFilteredData; 
+        dataForChartDisplayPoints = hourlyFilteredData; // For 1hr, chart and insights use the same filtered data
     }
-    // For "7day" and "30day", dataForInsightCalculation and dataForChartDisplay remain the full apiData.
 
-    // Calculate true Min/Max temperatures and overall average from the (potentially filtered) insight data.
     const validSections = Object.keys(chartColors); 
-    let trueMinTemp = { value: Infinity, timestamp: null, section: null, originalPoint: null };
-    let trueMaxTemp = { value: -Infinity, timestamp: null, section: null, originalPoint: null };
-    let sumOfAverageTemps = 0;
-    let countOfAverageTemps = 0;
+    let trueMin = { value: Infinity, timestamp: null, section: null, originalPoint: null };
+    let trueMax = { value: -Infinity, timestamp: null, section: null, originalPoint: null };
+    let sumOfAverageValues = 0;
+    let countOfAverageValues = 0;
 
     dataForInsightCalculation.forEach(point => { 
         const timestamp = new Date(point.timestamp); 
         validSections.forEach(sectionName => {
             if (point.data && point.data[sectionName] && 
-                point.data[sectionName].temps && 
-                typeof point.data[sectionName].temps.avg === 'number') {
+                point.data[sectionName][sensorType] && 
+                typeof point.data[sectionName][sensorType].avg === 'number') {
                 
-                const currentAvgTemp = point.data[sectionName].temps.avg;
-                // Tracks the absolute minimum temperature point.
-                if (currentAvgTemp < trueMinTemp.value) {
-                    trueMinTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName, originalPoint: point };
+                const currentAvgValue = point.data[sectionName][sensorType].avg;
+                if (currentAvgValue < trueMin.value) {
+                    trueMin = { value: currentAvgValue, timestamp: timestamp, section: sectionName, originalPoint: point };
                 }
-                // Tracks the absolute maximum temperature point.
-                if (currentAvgTemp > trueMaxTemp.value) {
-                    trueMaxTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName, originalPoint: point };
+                if (currentAvgValue > trueMax.value) {
+                    trueMax = { value: currentAvgValue, timestamp: timestamp, section: sectionName, originalPoint: point };
                 }
-                // Sums 'averages' section temperatures for overall average calculation.
                 if (sectionName === 'averages') {
-                    sumOfAverageTemps += currentAvgTemp;
-                    countOfAverageTemps++;
+                    sumOfAverageValues += currentAvgValue;
+                    countOfAverageValues++;
                 }
             }
         });
     });
 
     const insightsData = {
-        minTemp: trueMinTemp.value !== Infinity ? { value: trueMinTemp.value, timestamp: trueMinTemp.timestamp, section: trueMinTemp.section } : null,
-        maxTemp: trueMaxTemp.value !== -Infinity ? { value: trueMaxTemp.value, timestamp: trueMaxTemp.timestamp, section: trueMaxTemp.section } : null,
-        overallAverageTemp: countOfAverageTemps > 0 ? (sumOfAverageTemps / countOfAverageTemps) : null
+        min: trueMin.value !== Infinity ? { value: trueMin.value, timestamp: trueMin.timestamp, section: trueMin.section } : null,
+        max: trueMax.value !== -Infinity ? { value: trueMax.value, timestamp: trueMax.timestamp, section: trueMax.section } : null,
+        overallAverage: countOfAverageValues > 0 ? (sumOfAverageValues / countOfAverageValues) : null
     };
 
-    // For "1day" range, downsample data for chart display to reduce clutter,
-    // but ensure the true Min/Max points are included for visual consistency with insights.
+    // Prepare dataForChartDisplay based on selectedRange
     if (selectedRange === "1day") {
-        const DOWNSAMPLE_INTERVAL_MINUTES = 15; // Target interval for downsampling.
-        let downsampledPoints = [];
-
+        const DOWNSAMPLE_INTERVAL_MINUTES = 15; 
         if (apiData.length > 0) {
-            downsampledPoints.push(apiData[0]); // Always include the first data point.
+            dataForChartDisplayPoints.push(apiData[0]); 
             let lastSelectedTime = new Date(apiData[0].timestamp).getTime();
 
-            // Select points at roughly DOWNSAMPLE_INTERVAL_MINUTES.
             for (let i = 1; i < apiData.length -1; i++) { 
                 const currentTime = new Date(apiData[i].timestamp).getTime();
                 if (currentTime - lastSelectedTime >= DOWNSAMPLE_INTERVAL_MINUTES * 60 * 1000) {
-                    downsampledPoints.push(apiData[i]);
+                    dataForChartDisplayPoints.push(apiData[i]);
                     lastSelectedTime = currentTime;
                 }
             }
-            // Always include the last data point.
-            if (apiData.length > 1 && downsampledPoints[downsampledPoints.length -1] !== apiData[apiData.length -1]) {
-                 downsampledPoints.push(apiData[apiData.length - 1]); 
+            if (apiData.length > 1 && dataForChartDisplayPoints[dataForChartDisplayPoints.length -1] !== apiData[apiData.length -1]) {
+                 dataForChartDisplayPoints.push(apiData[apiData.length - 1]); 
             }
         }
-        
-        // Explicitly add the original data points corresponding to true Min/Max temperatures.
-        if (trueMinTemp.originalPoint) {
-            downsampledPoints.push(trueMinTemp.originalPoint);
-        }
-        if (trueMaxTemp.originalPoint) {
-            downsampledPoints.push(trueMaxTemp.originalPoint);
-        }
-
-        // De-duplicate points (by timestamp, in case Min/Max were already picked) and sort chronologically.
-        const uniquePointsMap = new Map();
-        downsampledPoints.forEach(p => uniquePointsMap.set(new Date(p.timestamp).getTime(), p));
-        dataForChartDisplay = Array.from(uniquePointsMap.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    } else if (selectedRange === "7day" || selectedRange === "30day") {
+        // For 7day and 30day, start with all API data for the period.
+        dataForChartDisplayPoints = [...apiData];
     }
-    // For "1hour", "7day", "30day", dataForChartDisplay is already set (either filtered 1hr data or full apiData).
+    // For "1hour", dataForChartDisplayPoints is already set to hourlyFilteredData.
 
-    // Prepare chartData structure for Chart.js.
+    // For "1day", "7day", and "30day", explicitly add true Min/Max points
+    // and then de-duplicate and sort. This ensures these key points are on the chart.
+    if (selectedRange !== "1hour") {
+        if (trueMin.originalPoint) {
+            dataForChartDisplayPoints.push(trueMin.originalPoint);
+        }
+        if (trueMax.originalPoint) {
+            dataForChartDisplayPoints.push(trueMax.originalPoint);
+        }
+
+        // De-duplicate (based on timestamp) and sort
+        const uniquePointsMap = new Map();
+        dataForChartDisplayPoints.forEach(p => {
+            if (p && p.timestamp) { // Ensure point and timestamp exist
+                uniquePointsMap.set(new Date(p.timestamp).getTime(), p);
+            }
+        });
+        dataForChartDisplayPoints = Array.from(uniquePointsMap.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+    
+    // This is the final array of points that will be used to construct chart datasets.
+    const finalDataForChartDisplay = dataForChartDisplayPoints;
+
     const chartData = {
         dewasa: [],
         remaja: [],
@@ -227,17 +307,16 @@ function processTemperatureData(apiData, selectedRange) {
         averages: []
     };
 
-    // Populate chartData using the final (potentially downsampled or filtered) dataForChartDisplay.
-    dataForChartDisplay.forEach(point => {
+    finalDataForChartDisplay.forEach(point => {
         const timestamp = new Date(point.timestamp); 
         validSections.forEach(sectionName => {
             if (point.data && point.data[sectionName] && 
-                point.data[sectionName].temps && 
-                typeof point.data[sectionName].temps.avg === 'number') {
+                point.data[sectionName][sensorType] && 
+                typeof point.data[sectionName][sensorType].avg === 'number') {
                 
                 chartData[sectionName].push({
-                    x: timestamp, // X-coordinate (time).
-                    y: point.data[sectionName].temps.avg // Y-coordinate (temperature value).
+                    x: timestamp, 
+                    y: point.data[sectionName][sensorType].avg 
                 });
             }
         });
@@ -248,82 +327,96 @@ function processTemperatureData(apiData, selectedRange) {
 
 // Updates the Chart.js instance with new data and adjusts X-axis formatting.
 function updateTemperatureChart(chartData, selectedRange) {
-    temperatureChart.data.datasets = []; // Clear previous datasets.
+    // This function is now specific to temperature, but its logic can be a template for humidity
+    updateGenericChart(temperatureChart, chartData, selectedRange, "Suhu");
+}
+
+function updateHumidityChart(chartData, selectedRange) {
+    updateGenericChart(humidityChart, chartData, selectedRange, "Kelembaban");
+}
+
+function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel) {
+    chartInstance.data.datasets = []; // Clear previous datasets.
 
     Object.keys(chartData).forEach(sectionName => {
         if (chartData[sectionName] && chartData[sectionName].length > 0) {
             const isAverages = sectionName === 'averages';
-            const color = chartColors[sectionName] || 'rgba(0, 0, 0, 0.5)'; // Fallback color.
+            const color = chartColors[sectionName] || 'rgba(0, 0, 0, 0.5)';
             
-            // Use different background transparency for 'averages' line fill.
             const backgroundColor = isAverages 
                 ? color.replace('1)', '0.2)') 
                 : color.replace('1)', '0.1)'); 
 
             const dataset = {
-                label: `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} Temp`,
+                label: `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} ${sensorLabel}`,
                 data: chartData[sectionName],
                 borderColor: color,
                 backgroundColor: backgroundColor,
-                tension: 0.1, // Slight curve to lines.
+                tension: 0.1, 
                 borderWidth: 2,
-                // Show points for shorter ranges (1hr, 1day) for better detail.
                 pointRadius: selectedRange === "1hour" ? 3 : (selectedRange === "1day" ? 2 : 0), 
                 pointHoverRadius: 5,
-                fill: isAverages ? 'origin' : false, // Fill 'averages' line to origin.
+                fill: isAverages ? 'origin' : false, 
             };
 
-            // Control draw order if needed (e.g., 'averages' on top).
             if (isAverages) {
                 dataset.order = 1; 
             } else {
                 dataset.order = 2; 
             }
-            temperatureChart.data.datasets.push(dataset);
+            chartInstance.data.datasets.push(dataset);
         }
     });
 
     // Dynamically adjust X-axis time unit, tooltip format, and display formats based on selectedRange.
+    // This logic is common for both charts, so it's applied to the passed chartInstance.
     if (selectedRange === "1hour") {
-        temperatureChart.options.scales.x.time.unit = 'minute';
-        temperatureChart.options.scales.x.time.tooltipFormat = 'HH:mm:ss'; 
-        temperatureChart.options.scales.x.time.displayFormats = { minute: 'HH:mm' };
-        temperatureChart.options.scales.x.ticks.stepSize = 5; // Tick every 5 minutes for 1-hour view.
+        chartInstance.options.scales.x.time.unit = 'minute';
+        chartInstance.options.scales.x.time.tooltipFormat = 'HH:mm:ss'; 
+        chartInstance.options.scales.x.time.displayFormats = { minute: 'HH:mm' };
+        chartInstance.options.scales.x.ticks.stepSize = 5; 
     } else if (selectedRange === "1day") { 
-        temperatureChart.options.scales.x.time.unit = 'hour';
-        temperatureChart.options.scales.x.time.tooltipFormat = 'HH:mm';
-        temperatureChart.options.scales.x.time.displayFormats = { hour: 'HH:mm' };
-        temperatureChart.options.scales.x.ticks.stepSize = undefined; // Let Chart.js auto-determine ticks.
+        chartInstance.options.scales.x.time.unit = 'hour';
+        chartInstance.options.scales.x.time.tooltipFormat = 'HH:mm';
+        chartInstance.options.scales.x.time.displayFormats = { hour: 'HH:mm' };
+        chartInstance.options.scales.x.ticks.stepSize = undefined; 
     } else if (selectedRange === "7day") { 
-        temperatureChart.options.scales.x.time.unit = 'day';
-        temperatureChart.options.scales.x.time.tooltipFormat = 'MMM d, HH:mm';
-        temperatureChart.options.scales.x.time.displayFormats = { day: 'MMM d' };
-        temperatureChart.options.scales.x.ticks.stepSize = undefined;
+        chartInstance.options.scales.x.time.unit = 'day';
+        chartInstance.options.scales.x.time.tooltipFormat = 'MMM d, HH:mm';
+        chartInstance.options.scales.x.time.displayFormats = { day: 'MMM d' };
+        chartInstance.options.scales.x.ticks.stepSize = undefined;
     } else { // "30day"
-        temperatureChart.options.scales.x.time.unit = 'day';
-        temperatureChart.options.scales.x.time.tooltipFormat = 'MMM d, yyyy';
-        temperatureChart.options.scales.x.time.displayFormats = { day: 'MMM d' };
-        temperatureChart.options.scales.x.ticks.stepSize = undefined;
+        chartInstance.options.scales.x.time.unit = 'day';
+        chartInstance.options.scales.x.time.tooltipFormat = 'MMM d, yyyy';
+        chartInstance.options.scales.x.time.displayFormats = { day: 'MMM d' };
+        chartInstance.options.scales.x.ticks.stepSize = undefined;
     }
     
-    // Ensure stepSize is explicitly undefined if not "1hour" to rely on auto ticks.
     if (selectedRange !== "1hour") {
-        temperatureChart.options.scales.x.ticks.stepSize = undefined;
+        chartInstance.options.scales.x.ticks.stepSize = undefined;
     }
 
-    temperatureChart.update(); // Re-renders the chart with new data and options.
+    chartInstance.update(); // Re-renders the chart with new data and options.
 }
+
 
 // Updates the Min/Max/Avg temperature insight boxes below the chart.
 function updateTemperatureInsights(insights) {
-    const minTempValueEl = document.getElementById('minTempInsightValue');
-    const minTempSubtextEl = document.getElementById('minTempInsightSubtext');
-    const maxTempValueEl = document.getElementById('maxTempInsightValue');
-    const maxTempSubtextEl = document.getElementById('maxTempInsightSubtext');
-    const avgTempValueEl = document.getElementById('avgTempInsightValue');
-    const avgTempSubtextEl = document.getElementById('avgTempInsightSubtext');
+    updateGenericInsights(insights, 'Temp', '°C', 'Terendah di', 'Tertinggi di', 'Rata-rata periode');
+}
 
-    // Helper to format date/time for insights display.
+function updateHumidityInsights(insights) {
+    updateGenericInsights(insights, 'Humidity', '%', 'Terendah di', 'Tertinggi di', 'Rata-rata periode');
+}
+
+function updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, maxLabelPrefix, avgLabelSubtext) {
+    const minValEl = document.getElementById(`min${sensorPrefix}InsightValue`);
+    const minSubtextEl = document.getElementById(`min${sensorPrefix}InsightSubtext`);
+    const maxValEl = document.getElementById(`max${sensorPrefix}InsightValue`);
+    const maxSubtextEl = document.getElementById(`max${sensorPrefix}InsightSubtext`);
+    const avgValEl = document.getElementById(`avg${sensorPrefix}InsightValue`);
+    const avgSubtextEl = document.getElementById(`avg${sensorPrefix}InsightSubtext`);
+
     const formatDateForInsight = (date) => {
         if (!date) return 'N/A';
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) + 
@@ -331,37 +424,33 @@ function updateTemperatureInsights(insights) {
                date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    // Helper to capitalize the first letter of a string.
     const capitalizeFirstLetter = (string) => {
         if (!string) return '';
         return string.charAt(0).toUpperCase() + string.slice(1);
     };
 
-    // Populate Min Temperature insight.
-    if (insights && insights.minTemp) {
-        minTempValueEl.textContent = `${insights.minTemp.value.toFixed(1)}°C`;
-        minTempSubtextEl.textContent = `Lowest in ${capitalizeFirstLetter(insights.minTemp.section)} at ${formatDateForInsight(insights.minTemp.timestamp)}`;
+    if (insights && insights.min) {
+        minValEl.textContent = `${insights.min.value.toFixed(1)}${unit}`;
+        minSubtextEl.textContent = `${minLabelPrefix} ${capitalizeFirstLetter(insights.min.section)} pada ${formatDateForInsight(insights.min.timestamp)}`;
     } else {
-        minTempValueEl.textContent = '--';
-        minTempSubtextEl.textContent = 'No data available';
+        minValEl.textContent = '--';
+        minSubtextEl.textContent = 'Tidak ada data';
     }
 
-    // Populate Max Temperature insight.
-    if (insights && insights.maxTemp) {
-        maxTempValueEl.textContent = `${insights.maxTemp.value.toFixed(1)}°C`;
-        maxTempSubtextEl.textContent = `Highest in ${capitalizeFirstLetter(insights.maxTemp.section)} at ${formatDateForInsight(insights.maxTemp.timestamp)}`;
+    if (insights && insights.max) {
+        maxValEl.textContent = `${insights.max.value.toFixed(1)}${unit}`;
+        maxSubtextEl.textContent = `${maxLabelPrefix} ${capitalizeFirstLetter(insights.max.section)} pada ${formatDateForInsight(insights.max.timestamp)}`;
     } else {
-        maxTempValueEl.textContent = '--';
-        maxTempSubtextEl.textContent = 'No data available';
+        maxValEl.textContent = '--';
+        maxSubtextEl.textContent = 'Tidak ada data';
     }
 
-    // Populate Average Temperature insight.
-    if (insights && insights.overallAverageTemp !== null) {
-        avgTempValueEl.textContent = `${insights.overallAverageTemp.toFixed(1)}°C`;
-        avgTempSubtextEl.textContent = `Period average`;
+    if (insights && insights.overallAverage !== null) {
+        avgValEl.textContent = `${insights.overallAverage.toFixed(1)}${unit}`;
+        avgSubtextEl.textContent = avgLabelSubtext;
     } else {
-        avgTempValueEl.textContent = '--';
-        avgTempSubtextEl.textContent = 'No data available';
+        avgValEl.textContent = '--';
+        avgSubtextEl.textContent = 'Tidak ada data';
     }
 }
 
@@ -379,7 +468,7 @@ function showLoadingState(containerId) {
     if (!container.querySelector('.chart-loading')) {
         const loadingEl = document.createElement('div');
         loadingEl.className = 'chart-loading';
-        loadingEl.textContent = 'Loading data...';
+        loadingEl.textContent = 'Memuat data...'; // Indonesian
         container.appendChild(loadingEl);
     }
 }
@@ -400,11 +489,12 @@ function showErrorState(containerId, message) {
     if (!container) return;
     // Remove any existing loading or error message.
     hideLoadingState(containerId); 
+    // Clear previous error before showing new one
     const existingError = container.querySelector('.chart-error');
     if (existingError) existingError.remove();
 
     const errorEl = document.createElement('div');
     errorEl.className = 'chart-error';
-    errorEl.textContent = message;
+    errorEl.textContent = message; // Message is already localized or an error string
     container.appendChild(errorEl);
 }

@@ -1,7 +1,7 @@
 {% extends "base.html" %} <!-- Inherits the base HTML structure. -->
 {% import "macros/navigation.html" as navigation %} <!-- Imports navigation macros. -->
 
-{% block title %}History - Lokatani.id{% endblock %}
+{% block title %}Riwayat Data - Lokatani.id{% endblock %}
 
 {% block styles %}
 <!-- Styles for dashboard.css are often foundational -->
@@ -17,29 +17,29 @@
         <!-- Standard Page Header -->
         <header class="header">
             <div class="header__content">
-                <h1>History Data</h1>
-                <p>View historical sensor data from the greenhouse.</p>
+                <h1>Data Riwayat</h1>
+                <p>Lihat riwayat data sensor dari greenhouse.</p>
             </div>
             <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
         </header>
 
         <!-- Enhanced Time range selector -->
         <div class="time-range-selector-container">
-            <div class="time-range-label">Select Time Range:</div>
+            <div class="time-range-label">Pilih Rentang Waktu:</div>
             <div class="time-range-buttons">
                 <!-- Buttons for selecting different time ranges. 
                      'data-range' attribute is used by JS to determine the selected period. -->
                 <button class="time-range-btn" data-range="1hour">
-                    <i class="fas fa-hourglass-half"></i> 1 Hour
+                    <i class="fas fa-hourglass-half"></i> 1 Jam
                 </button>
                 <button class="time-range-btn active" data-range="1day"> <!-- 'active' class indicates current selection. -->
-                    <i class="fas fa-clock"></i> 24 Hours
+                    <i class="fas fa-clock"></i> 24 Jam
                 </button>
                 <button class="time-range-btn" data-range="7day">
-                    <i class="fas fa-calendar-week"></i> 7 Days
+                    <i class="fas fa-calendar-week"></i> 7 Hari
                 </button>
                 <button class="time-range-btn" data-range="30day">
-                    <i class="fas fa-calendar-alt"></i> 30 Days
+                    <i class="fas fa-calendar-alt"></i> 30 Hari
                 </button>
             </div>
         </div>
@@ -47,7 +47,7 @@
         <!-- Temperature Chart Card -->
         <div class="card">
             <div class="card__header">
-                <h2 class="card__title">Temperature History</h2>
+                <h2 class="card__title">Riwayat Suhu</h2>
             </div>
             <div class="card__content">
                 <!-- Container for the temperature chart canvas and any loading/error messages. -->
@@ -58,19 +58,19 @@
                 <!-- Section to display key insights (Min, Max, Avg temperatures). -->
                 <div class="chart-insights" id="temperatureInsights">
                     <div class="insight-item">
-                        <span class="insight-label"><i class="fas fa-temperature-low"></i> Min Temp</span>
+                        <span class="insight-label"><i class="fas fa-temperature-low"></i> Suhu Min</span>
                         <!-- Element to display the minimum temperature value. Updated by JS. -->
                         <span class="insight-value" id="minTempInsightValue">--</span>
                         <!-- Element to display subtext for min temp (e.g., section and time). Updated by JS. -->
                         <span class="insight-subtext" id="minTempInsightSubtext"></span>
                     </div>
                     <div class="insight-item">
-                        <span class="insight-label"><i class="fas fa-temperature-high"></i> Max Temp</span>
+                        <span class="insight-label"><i class="fas fa-temperature-high"></i> Suhu Max</span>
                         <span class="insight-value" id="maxTempInsightValue">--</span>
                         <span class="insight-subtext" id="maxTempInsightSubtext"></span>
                     </div>
                     <div class="insight-item">
-                        <span class="insight-label"><i class="fas fa-thermometer-half"></i> Avg Temp</span>
+                        <span class="insight-label"><i class="fas fa-thermometer-half"></i> Suhu Rata-rata</span>
                         <span class="insight-value" id="avgTempInsightValue">--</span>
                         <span class="insight-subtext" id="avgTempInsightSubtext"></span>
                     </div>
@@ -78,12 +78,39 @@
             </div>
         </div>
 
-        <!-- Placeholder for future charts (Humidity, Light) -->
-        <!-- 
+        <!-- Humidity Chart Card -->
         <div class="card">
-            <div class="card__header"><h2 class="card__title">Humidity History</h2></div>
-            <div class="card__content"><div class="chart-container" id="humidityChartContainer"><canvas id="humidityChart"></canvas></div></div>
+            <div class="card__header">
+                <h2 class="card__title">Riwayat Kelembaban</h2>
+            </div>
+            <div class="card__content">
+                <!-- Container for the humidity chart canvas and any loading/error messages. -->
+                <div class="chart-container" id="humidityChartContainer">
+                    <canvas id="humidityChart"></canvas> <!-- Canvas element where Chart.js will render the humidity chart. -->
+                </div>
+                <!-- Section to display key insights (Min, Max, Avg humidity). -->
+                <div class="chart-insights" id="humidityInsights">
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-tint"></i> Kelembaban Min</span>
+                        <span class="insight-value" id="minHumidityInsightValue">--</span>
+                        <span class="insight-subtext" id="minHumidityInsightSubtext"></span>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-water"></i> Kelembaban Max</span>
+                        <span class="insight-value" id="maxHumidityInsightValue">--</span>
+                        <span class="insight-subtext" id="maxHumidityInsightSubtext"></span>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-label"><i class="fas fa-hand-holding-water"></i> Kelembaban Rata-rata</span>
+                        <span class="insight-value" id="avgHumidityInsightValue">--</span>
+                        <span class="insight-subtext" id="avgHumidityInsightSubtext"></span>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- Placeholder for future charts (Light) -->
+        <!-- 
         <div class="card">
             <div class="card__header"><h2 class="card__title">Light Level History</h2></div>
             <div class="card__content"><div class="chart-container" id="lightChartContainer"><canvas id="lightChart"></canvas></div></div>
