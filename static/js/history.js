@@ -123,15 +123,45 @@ function loadHistoricalData(selectedRange) {
 }
 
 function processTemperatureData(apiData, selectedRange) {
-    let filteredApiData = apiData;
+    let dataForInsightCalculation = apiData; // Data used for insights calculation
+    let dataForChartDisplay = apiData;    // Data used for chart points
 
     if (selectedRange === "1hour") {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-        filteredApiData = apiData.filter(point => {
-            const pointTimestamp = new Date(point.timestamp);
-            return pointTimestamp >= oneHourAgo;
-        });
+        const hourlyFilteredData = apiData.filter(point => new Date(point.timestamp) >= oneHourAgo);
+        dataForInsightCalculation = hourlyFilteredData;
+        dataForChartDisplay = hourlyFilteredData;
+    } else if (selectedRange === "1day") {
+        // For "1day", insights use full data, chart uses downsampled data.
+        // dataForInsightCalculation remains apiData (all points for the day).
+        
+        const DOWNSAMPLE_INTERVAL_MINUTES = 15;
+        const downsampledPoints = [];
+        if (apiData.length > 0) {
+            downsampledPoints.push(apiData[0]); // Always include the first point
+            let lastSelectedTime = new Date(apiData[0].timestamp).getTime();
+
+            for (let i = 1; i < apiData.length; i++) {
+                const currentTime = new Date(apiData[i].timestamp).getTime();
+                
+                // If it's the last point, add it if it's not already the last selected one.
+                if (i === apiData.length - 1) {
+                    if (downsampledPoints[downsampledPoints.length - 1] !== apiData[i]) {
+                        downsampledPoints.push(apiData[i]);
+                    }
+                    break; 
+                }
+                
+                // If current point is past the interval from the last selected point
+                if (currentTime - lastSelectedTime >= DOWNSAMPLE_INTERVAL_MINUTES * 60 * 1000) {
+                    downsampledPoints.push(apiData[i]);
+                    lastSelectedTime = currentTime;
+                }
+            }
+        }
+        dataForChartDisplay = downsampledPoints;
     }
+    // For "7day" and "30day", both insights and chart use the full apiData for that range.
 
     const chartData = {
         dewasa: [],
@@ -141,14 +171,9 @@ function processTemperatureData(apiData, selectedRange) {
     };
     const validSections = Object.keys(chartData);
 
-    let minTemp = { value: Infinity, timestamp: null, section: null };
-    let maxTemp = { value: -Infinity, timestamp: null, section: null };
-    let sumOfAverageTemps = 0;
-    let countOfAverageTemps = 0;
-
-    filteredApiData.forEach(point => {
+    // Populate chartData using dataForChartDisplay
+    dataForChartDisplay.forEach(point => {
         const timestamp = new Date(point.timestamp); 
-
         validSections.forEach(sectionName => {
             if (point.data && point.data[sectionName] && 
                 point.data[sectionName].temps && 
@@ -159,14 +184,30 @@ function processTemperatureData(apiData, selectedRange) {
                     x: timestamp,
                     y: currentAvgTemp
                 });
+            }
+        });
+    });
 
+    // Calculate insights using dataForInsightCalculation
+    let minTemp = { value: Infinity, timestamp: null, section: null };
+    let maxTemp = { value: -Infinity, timestamp: null, section: null };
+    let sumOfAverageTemps = 0;
+    let countOfAverageTemps = 0;
+
+    dataForInsightCalculation.forEach(point => { 
+        const timestamp = new Date(point.timestamp); 
+        validSections.forEach(sectionName => {
+            if (point.data && point.data[sectionName] && 
+                point.data[sectionName].temps && 
+                typeof point.data[sectionName].temps.avg === 'number') {
+                
+                const currentAvgTemp = point.data[sectionName].temps.avg;
                 if (currentAvgTemp < minTemp.value) {
                     minTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName };
                 }
                 if (currentAvgTemp > maxTemp.value) {
                     maxTemp = { value: currentAvgTemp, timestamp: timestamp, section: sectionName };
                 }
-
                 if (sectionName === 'averages') {
                     sumOfAverageTemps += currentAvgTemp;
                     countOfAverageTemps++;
