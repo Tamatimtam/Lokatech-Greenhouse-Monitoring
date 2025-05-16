@@ -21,7 +21,9 @@
                 <p>Lihat riwayat data sensor dari greenhouse.</p>
             </div>
             <div class="header-controls">
-                <div class="time-range-buttons-wrapper"> <!-- Wrapper for centering time range buttons -->
+                <!-- Group for Chart Time Range Selection -->
+                <div class="control-group chart-display-filters">
+                    <p class="control-group__label">Pilih Rentang Grafik:</p>
                     <div class="time-range-buttons">
                         <!-- Buttons for selecting different time ranges. 
                              'data-range' attribute is used by JS to determine the selected period. -->
@@ -39,13 +41,21 @@
                         </button>
                     </div>
                 </div>
-                <div class="export-buttons-group"> <!-- Wrapper for export buttons -->
-                    <button class="time-range-btn export-btn" id="export1HourBtn" title="Export 1 hour data to Excel">
-                        <i class="fas fa-file-excel"></i> Export 1 Jam
-                    </button>
-                    <button class="time-range-btn export-btn" id="export1DayBtn" title="Export 1 day data to Excel">
-                        <i class="fas fa-file-excel"></i> Export 1 Hari
-                    </button>
+
+                <!-- Group for Export Actions -->
+                <div class="control-group export-actions">
+                    <p class="control-group__label">Ekspor Data ke Excel:</p>
+                    <div class="export-buttons-group"> <!-- Kept this class for consistency if specific styles apply -->
+                        <button class="time-range-btn export-btn" id="export1HourBtn" title="Export 1 hour data to Excel">
+                            <i class="fas fa-file-excel"></i> Export 1 Jam
+                        </button>
+                        <button class="time-range-btn export-btn" id="export1DayBtn" title="Export 1 day data to Excel">
+                            <i class="fas fa-file-excel"></i> Export 1 Hari
+                        </button>
+                        <button class="time-range-btn export-btn" id="export7DaysBtn" title="Export 7 days data to Excel">
+                            <i class="fas fa-file-excel"></i> Export 1 Minggu
+                        </button>
+                    </div>
                 </div>
             </div>
             <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">

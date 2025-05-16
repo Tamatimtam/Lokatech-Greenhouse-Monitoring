@@ -63,6 +63,41 @@
     color: var(--surface, #fff);
 }
 
+/* Updated styles for header controls and new groups */
+.header-controls {
+    display: flex;
+    flex-wrap: wrap; /* Allow groups to wrap on smaller screens */
+    justify-content: space-around; /* Distribute space more evenly, or use space-between if preferred */
+    align-items: flex-start; /* Align groups to the top */
+    gap: var(--spacing-lg, 1.5rem); /* Gap between control groups */
+    margin-bottom: var(--spacing-lg, 1.5rem); /* Overall margin for the controls area */
+    width: 100%;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center label and button group */
+    gap: var(--spacing-sm, 0.5rem); /* Gap between label and buttons */
+}
+
+.control-group__label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary, #555);
+    margin-bottom: var(--spacing-xs, 0.25rem); /* Small space below label */
+}
+
+/* .time-range-buttons and .export-buttons-group will inherit button display from .time-range-btn */
+/* Ensure they are flex containers for their buttons if not already handled by individual button styles */
+.time-range-buttons,
+.export-buttons-group {
+    display: flex;
+    flex-wrap: wrap; /* Allow buttons within a group to wrap */
+    justify-content: center; /* Center buttons within their group */
+    gap: var(--spacing-sm, 0.5rem);
+}
+
 /* New button layout styles */
 .header-controls {
     display: flex;
@@ -111,6 +146,17 @@
     .time-range-label {
         margin-bottom: 0; /* No margin if side-by-side */
         margin-right: var(--spacing-lg, 1.5rem); /* Space between label and buttons */
+    }
+    .header-controls {
+        flex-wrap: nowrap; /* Prevent wrapping on larger screens */
+        justify-content: space-between; /* More controlled spacing */
+    }
+    .control-group {
+        align-items: flex-start; /* Align label to the start for a cleaner look */
+    }
+    .time-range-buttons,
+    .export-buttons-group {
+        justify-content: flex-start; /* Align buttons to the start within their group */
     }
 }
 

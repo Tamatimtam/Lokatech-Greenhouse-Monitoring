@@ -19,7 +19,7 @@ This document details the implementation of the "Data Riwayat" (History Page) fo
 *   **Responsive Design:** Charts and layout adapt to different screen sizes.
 *   **Localization:** UI elements are partially localized to Bahasa Indonesia.
 *   **Dynamic Data Loading:** Data is fetched asynchronously from a backend API.
-*   **Data Export:** Users can export historical data for selected time ranges (currently 1 Hour and 24 Hours) to an Excel file.
+*   **Data Export:** Users can export historical data for selected time ranges (1 Hour, 24 Hours, and 7 Days) to an Excel file. The 7-day export provides data aggregated into 10-minute intervals.
 
 ## 2. System Architecture & Data Flow
 
@@ -108,12 +108,13 @@ sequenceDiagram
     *   `blueprints/history/routes.py`
     *   `blueprints/history/firestore.py` (utilized for data fetching)
 *   **Query Parameters:**
-    *   `range` (string, required): Specifies the time range for the export. Supported values: "1hour", "1day".
+    *   `range` (string, required): Specifies the time range for the export. Supported values: "1hour", "1day", "7day".
 *   **Processing:**
     1.  Retrieves the `range` query parameter.
     2.  Fetches historical data using `get_historical_data` from `firestore.py`.
-        *   For "1hour", data for the last day is fetched and then filtered to the most recent hour.
-        *   For "1day", data for the last day is fetched.
+        *   For "1hour", data for the last day is fetched and then filtered to the most recent hour (1-minute intervals).
+        *   For "1day", data for the last day is fetched (1-minute intervals).
+        *   For "7day", data for the last 7 days is fetched and then aggregated into 10-minute intervals (calculating average, min, max, and total count for each interval; median is omitted for 7-day export).
     3.  If no data is found, returns a JSON error.
     4.  Transforms the fetched data into a tabular format: Timestamp (WIB), Section, Sensor Type, Average, Min, Max, Median, Count.
     5.  Generates an Excel (`.xlsx`) file in memory using the `openpyxl` library.
@@ -251,40 +252,34 @@ This is a crucial generic function responsible for transforming raw API data int
 
 ### 3.8. Excel Export Functionality (`static/js/history_export.js` and `static/js/history.js`)
 
-*   **Button:** An "Export to Excel" button (`#exportExcelBtn`) is present in `templates/history.html`.
+*   **Buttons:** Three "Export to Excel" buttons (`#export1HourBtn`, `#export1DayBtn`, `#export7DaysBtn`) are present in `templates/history.html`.
 *   **`static/js/history_export.js`:**
-    *   **Event Listener:** Attaches a click event listener to `#exportExcelBtn`.
+    *   **Event Listeners:** Attaches click event listeners to each export button.
     *   **Action:**
-        1.  Retrieves the `currentSelectedRange` (e.g., from a global variable in `history.js` or by checking the active time range button).
-        2.  Constructs the download URL: `/history/export_excel?range=<selectedRange>`.
+        1.  Determines the specific range ("1hour", "1day", or "7day") based on the button clicked.
+        2.  Constructs the download URL: `/history/export_excel?range=<specificRange>`.
         3.  Initiates the download by setting `window.location.href` to the constructed URL.
 *   **`static/js/history.js` (Modifications for Export Button State):**
-    *   **`updateExportButtonState()` function:**
-        *   Checks the `currentSelectedRange`.
-        *   If the range is "7day" or "30day", the "Export to Excel" button is disabled and its title updated to indicate unavailability.
-        *   If the range is "1hour" or "1day", the button is enabled.
-    *   This function is called:
-        *   After the initial page load and data fetch.
-        *   Whenever the time range selection is changed by the user.
+    *   The `updateExportButtonState()` function (if it existed for disabling based on `currentSelectedRange`) is no longer strictly necessary for these specific-range buttons, as they are always available. However, `currentSelectedRange` is still used for chart display.
 
 ### Fitur Ekspor Data ke Excel
 
 Fitur ini memungkinkan pengguna untuk mengekspor data sensor historis ke dalam format file Excel (.xlsx). Perubahan terbaru telah menyempurnakan fungsionalitas ini sebagai berikut:
 
 1.  **Tombol Ekspor Khusus:**
-    *   Sebelumnya, terdapat satu tombol "Export to Excel" yang perilakunya bergantung pada rentang waktu grafik yang dipilih.
-    *   Kini, tombol tersebut telah digantikan oleh dua tombol khusus:
-        *   **"Export 1 Jam"**: Mengekspor data sensor dari satu jam terakhir.
-        *   **"Export 1 Hari"**: Mengekspor data sensor dari 24 jam terakhir.
-    *   Kedua tombol ini selalu tersedia dan tidak bergantung pada rentang waktu yang sedang ditampilkan di grafik.
+    *   Terdapat tiga tombol khusus:
+        *   **"Export 1 Jam"**: Mengekspor data sensor dari satu jam terakhir (interval 1 menit).
+        *   **"Export 1 Hari"**: Mengekspor data sensor dari 24 jam terakhir (interval 1 menit).
+        *   **"Export 1 Minggu"**: Mengekspor data sensor dari 7 hari terakhir, dengan data **diagregasi ke interval 10 menit**. Ini berarti setiap baris data di Excel untuk ekspor 7 hari mewakili rata-rata, min, max, dan jumlah hitungan selama periode 10 menit. Median tidak disertakan dalam ekspor 7 hari karena kompleksitas agregasinya.
+    *   Tombol-tombol ini selalu tersedia dan tidak bergantung pada rentang waktu yang sedang ditampilkan di grafik.
 
 2.  **Perbaikan Nama File:**
     *   Masalah yang menyebabkan nama file unduhan menjadi `sensor_data_null_...xlsx` telah diperbaiki.
-    *   Sekarang, nama file akan secara akurat mencerminkan rentang waktu yang diekspor (misalnya, `sensor_data_1hour_YYYYMMDD_HHMMSS.xlsx` atau `sensor_data_1day_YYYYMMDD_HHMMSS.xlsx`).
+    *   Sekarang, nama file akan secara akurat mencerminkan rentang waktu yang diekspor (misalnya, `sensor_data_1hour_YYYYMMDD_HHMMSS.xlsx`, `sensor_data_1day_YYYYMMDD_HHMMSS.xlsx`, atau `sensor_data_7day_YYYYMMDD_HHMMSS.xlsx`).
 
 3.  **Logika Backend yang Disesuaikan:**
-    *   Endpoint backend `/history/export_excel` telah diperbarui untuk secara spesifik menangani permintaan ekspor "1hour" dan "1day".
-    *   Logika pengambilan dan pemfilteran data disesuaikan untuk memastikan data yang diekspor sesuai dengan rentang waktu yang diminta oleh tombol yang ditekan.
+    *   Endpoint backend `/history/export_excel` telah diperbarui untuk secara spesifik menangani permintaan ekspor "1hour", "1day", dan "7day".
+    *   Untuk "7day", data diagregasi ke interval 10 menit di backend sebelum diekspor.
 
 4.  **Peningkatan Performa dan Stabilitas Frontend:**
     *   Masalah di mana grafik akan menampilkan pesan "Memuat data..." tanpa batas setelah melakukan ekspor telah diatasi.
@@ -292,29 +287,31 @@ Fitur ini memungkinkan pengguna untuk mengekspor data sensor historis ke dalam f
 
 5.  **Struktur File Excel:**
     *   File Excel yang dihasilkan berisi data sensor yang relevan, termasuk:
-        *   Timestamp (WIB)
+        *   Timestamp (WIB) (Untuk ekspor 7 hari, ini adalah timestamp awal dari interval 10 menit)
         *   Nama Section (Dewasa, Remaja, Penyemaian, Rata-rata)
         *   Tipe Sensor (Suhu, Kelembaban, Intensitas Cahaya)
         *   Nilai Rata-rata (avg)
         *   Nilai Minimum (min)
         *   Nilai Maksimum (max)
-        *   Nilai Median (median)
-        *   Jumlah Data (count)
+        *   Nilai Median (median) (Kolom ini akan kosong untuk ekspor 7 hari)
+        *   Jumlah Data (count) (Untuk ekspor 7 hari, ini adalah total hitungan dalam interval 10 menit)
     *   Kolom secara otomatis disesuaikan lebarnya agar konten mudah dibaca.
 
 **Cara Menggunakan:**
 1.  Navigasi ke halaman Riwayat.
 2.  Klik tombol "Export 1 Jam" untuk mengunduh data satu jam terakhir dalam format Excel.
 3.  Klik tombol "Export 1 Hari" untuk mengunduh data 24 jam terakhir dalam format Excel.
+4.  Klik tombol "Export 1 Minggu" untuk mengunduh data 7 hari terakhir (diagregasi per 10 menit) dalam format Excel.
 
-Ekspor untuk rentang waktu "7 Hari" dan "30 Hari" saat ini belum didukung melalui tombol langsung, namun fungsionalitas backend telah disiapkan untuk potensi perluasan di masa mendatang.
+Ekspor untuk rentang waktu "30 Hari" saat ini belum didukung melalui tombol langsung.
 
 ## 4. Future Considerations / Potential Enhancements
 
 *   **Per-Chart Loading/Error States:** Currently, a global loading message is shown. Individual loading states for each chart could improve UX.
 *   **Custom Date Range Picker:** Allow users to select custom date ranges instead of predefined ones.
 *   **Data Export:**
-    *   Enable export for "7day" and "30day" ranges, potentially with server-side aggregation if direct export is too slow or results in overly large files.
+    *   Enable export for "30day" range, likely requiring server-side aggregation (e.g., hourly or daily summaries) due to data volume.
+    *   Consider providing an option for "detailed" vs "summary" export for longer ranges if users need finer granularity despite larger file sizes.
     *   Option to export chart data (e.g., as CSV) directly from the chart interface.
 *   **Performance for Very Large Datasets:** For extremely long time ranges or very high-frequency data, further backend aggregation or more sophisticated downsampling might be needed.
 *   **Unit Testing:** Implementing unit tests for `processSensorData` and other key logic.
