@@ -6,3 +6,5 @@ Flask-SocketIO
 gunicorn
 eventlet
 flask_cors
+openpyxl
+pytz

@@ -37,6 +37,7 @@ const chartColors = {
  */
 document.addEventListener('DOMContentLoaded', function() {
     setupTimeRangeButtons();
+    setupExportButton(); // Initialize the export button
     initTemperatureChart();
     initHumidityChart();
     initLightChart();
@@ -64,6 +65,27 @@ function setupTimeRangeButtons() {
             loadHistoricalData(currentSelectedRange);
         });
     });
+}
+
+/**
+ * Sets up the click event listener for the "Export to Excel" button.
+ */
+function setupExportButton() {
+    const exportBtn = document.getElementById('exportExcelBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            // Construct the URL for the export endpoint
+            // The backend will handle fetching and processing data for this range.
+            // For now, we hardcode '1hour' for the trial.
+            // Later, this will use currentSelectedRange.
+            const exportUrl = `/history/export_excel?range=1hour`; 
+            // To use the currently selected range:
+            // const exportUrl = `/history/export_excel?range=${currentSelectedRange}`;
+            
+            // Trigger the download by navigating to the export URL
+            window.location.href = exportUrl;
+        });
+    }
 }
 
 // --- Chart Initialization Functions ---
