@@ -136,6 +136,51 @@
     background-color: #218838; /* Darker green on hover */
 }
 
+/* Custom Tooltip Styles */
+.tooltip-wrapper {
+    position: relative;
+    display: inline-block; /* Or 'block' if buttons are stacked or take full width in their context */
+}
+
+.custom-tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    width: max-content; /* Adjust width as needed, or set a fixed width */
+    max-width: 220px; /* Prevent tooltip from becoming too wide */
+    background-color: #333; /* Dark background for tooltip */
+    color: #fff; /* White text */
+    text-align: center;
+    border-radius: var(--radius-sm, 6px);
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 101; /* Ensure tooltip is above other elements */
+    bottom: 120%; /* Position above the button */
+    left: 50%;
+    transform: translateX(-50%);
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    font-size: 0.75rem; /* Smaller font for tooltip */
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    white-space: normal; /* Allow text to wrap if needed */
+}
+
+/* Arrow for the tooltip */
+.custom-tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%; /* At the bottom of the tooltip */
+    left: 50%;
+    margin-left: -5px; /* Center the arrow */
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent; /* Arrow pointing down */
+}
+
+.tooltip-wrapper:hover .custom-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
 /* Responsive adjustments for the time range selector */
 @media (min-width: 768px) {
     .time-range-selector-container {

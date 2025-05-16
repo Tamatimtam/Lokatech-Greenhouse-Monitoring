@@ -46,15 +46,30 @@
                 <div class="control-group export-actions">
                     <p class="control-group__label">Ekspor Data ke Excel:</p>
                     <div class="export-buttons-group"> <!-- Kept this class for consistency if specific styles apply -->
-                        <button class="time-range-btn export-btn" id="export1HourBtn" title="Export 1 hour data to Excel">
-                            <i class="fas fa-file-excel"></i> Export 1 Jam
-                        </button>
-                        <button class="time-range-btn export-btn" id="export1DayBtn" title="Export 1 day data to Excel">
-                            <i class="fas fa-file-excel"></i> Export 1 Hari
-                        </button>
-                        <button class="time-range-btn export-btn" id="export7DaysBtn" title="Export 7 days data to Excel">
-                            <i class="fas fa-file-excel"></i> Export 1 Minggu
-                        </button>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn export-btn" id="export1HourBtn" title="Export 1 hour data to Excel">
+                                <i class="fas fa-file-excel"></i> Export 1 Jam
+                            </button>
+                            <!-- No custom tooltip needed for 1 Hour, or add a generic one if desired -->
+                        </div>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn export-btn" id="export1DayBtn" title="Export 1 day data to Excel">
+                                <i class="fas fa-file-excel"></i> Export 1 Hari
+                            </button>
+                            <!-- No custom tooltip needed for 1 Day -->
+                        </div>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn export-btn" id="export7DaysBtn" title="Export 7 days data to Excel">
+                                <i class="fas fa-file-excel"></i> Export 1 Minggu
+                            </button>
+                            <span class="custom-tooltip-text">Data diagregasi per 10 menit selama 7 hari.</span>
+                        </div>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn export-btn" id="export30DaysBtn" title="Export 30 days data to Excel">
+                                <i class="fas fa-file-excel"></i> Export 30 Hari
+                            </button>
+                            <span class="custom-tooltip-text">Data diagregasi per jam selama 30 hari.</span>
+                        </div>
                     </div>
                 </div>
             </div>

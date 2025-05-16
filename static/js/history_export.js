@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const export1HourButton = document.getElementById('export1HourBtn');
     const export1DayButton = document.getElementById('export1DayBtn');
     const export7DaysButton = document.getElementById('export7DaysBtn');
+    const export30DaysButton = document.getElementById('export30DaysBtn'); // New button
 
     if (export1HourButton) {
         export1HourButton.addEventListener('click', function() {
@@ -21,13 +22,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    if (export30DaysButton) { // Event listener for the new button
+        export30DaysButton.addEventListener('click', function() {
+            exportData('30day');
+        });
+    }
+
     async function exportData(range) {
         // Construct the URL for the export endpoint
         const exportUrl = `/history/export_excel?range=${range}`;
 
         // Optional: Show some loading indicator to the user
         // For example, you could disable the button and change its text
-        const buttonId = `export${range.charAt(0).toUpperCase() + range.slice(1).replace('day','Day').replace('hour','Hour').replace('Days','DaysBtn').replace('Btn','')}Btn`;
+        // Adjusted buttonId logic to handle '30day' correctly
+        let buttonIdSuffix = range.charAt(0).toUpperCase() + range.slice(1);
+        if (range.includes('day')) {
+            buttonIdSuffix = buttonIdSuffix.replace('day', 'Day');
+            if (range !== '1day') { // For 7day, 30day
+                 buttonIdSuffix = buttonIdSuffix.replace('Day', 'Days');
+            }
+        } else if (range.includes('hour')) {
+            buttonIdSuffix = buttonIdSuffix.replace('hour', 'Hour');
+        }
+        const buttonId = `export${buttonIdSuffix}Btn`;
+        
         const button = document.getElementById(buttonId);
         let originalButtonText = '';
         if (button) {
