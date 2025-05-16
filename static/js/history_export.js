@@ -1,43 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const exportButton = document.getElementById('exportExcelBtn');
+    const export1HourButton = document.getElementById('export1HourBtn');
+    const export1DayButton = document.getElementById('export1DayBtn');
 
-    if (exportButton) {
-        exportButton.addEventListener('click', function() {
-            // Assuming history.js has a way to expose the currently selected time range
-            // For example, a global variable or a function like getCurrentTimeRange()
-            // For now, we'll hardcode to '1hour' as per the initial plan
-            let selectedRange = '1hour'; // Default to 1hour for now
-
-            // Try to get the selected range from history.js if possible
-            // This assumes history.js might set a global variable or a data attribute on a common element
-            if (typeof getCurrentTimeRange === 'function') { // Check if a global function exists
-                selectedRange = getCurrentTimeRange();
-            } else {
-                // Fallback: try to find the active button if history.js doesn't expose the range directly
-                const activeButton = document.querySelector('.time-range-btn.active');
-                if (activeButton && activeButton.dataset.range) {
-                    selectedRange = activeButton.dataset.range;
-                }
-                // If still not found, it remains '1hour' as per our initial hardcoding for the first phase
-            }
-
-            console.log(`Exporting data for range: ${selectedRange}`);
-
-            // Construct the download URL
-            const exportUrl = `/history/export_excel?range=${selectedRange}`;
-
-            // Trigger the download
-            // Using window.location.href for a simple GET request that results in a download
-            window.location.href = exportUrl;
+    if (export1HourButton) {
+        export1HourButton.addEventListener('click', function() {
+            exportData('1hour');
         });
     }
-});
 
-// Placeholder for a function that might be defined in history.js to get the current range
-// If history.js is modified to have such a function, it would look something like:
-/*
-function getCurrentTimeRange() {
-    const activeButton = document.querySelector('.time-range-btn.active');
-    return activeButton ? activeButton.dataset.range : '1hour'; // Default to 1hour if none active
-}
-*/
+    if (export1DayButton) {
+        export1DayButton.addEventListener('click', function() {
+            exportData('1day');
+        });
+    }
+
+    function exportData(range) {
+        // Construct the URL for the export endpoint
+        const exportUrl = `/history/export_excel?range=${range}`;
+
+        // Trigger the download by navigating to the URL
+        window.location.href = exportUrl;
+
+        // Optional: Provide feedback to the user
+        // alert(`Mengekspor data untuk ${range}...`); 
+        // Consider a more subtle notification system if alert is too intrusive.
+    }
+});

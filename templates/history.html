@@ -17,35 +17,39 @@
         <!-- Standard Page Header -->
         <header class="header">
             <div class="header__content">
-                <h1>Data Riwayat</h1>
+                <h1>Riwayat Data Sensor</h1>
                 <p>Lihat riwayat data sensor dari greenhouse.</p>
+            </div>
+            <div class="header-controls">
+                <div class="time-range-buttons-wrapper"> <!-- Wrapper for centering time range buttons -->
+                    <div class="time-range-buttons">
+                        <!-- Buttons for selecting different time ranges. 
+                             'data-range' attribute is used by JS to determine the selected period. -->
+                        <button class="time-range-btn" data-range="1hour">
+                            <i class="fas fa-hourglass-half"></i> 1 Jam
+                        </button>
+                        <button class="time-range-btn active" data-range="1day"> <!-- 'active' class indicates current selection. -->
+                            <i class="fas fa-clock"></i> 24 Jam
+                        </button>
+                        <button class="time-range-btn" data-range="7day">
+                            <i class="fas fa-calendar-week"></i> 7 Hari
+                        </button>
+                        <button class="time-range-btn" data-range="30day">
+                            <i class="fas fa-calendar-alt"></i> 30 Hari
+                        </button>
+                    </div>
+                </div>
+                <div class="export-buttons-group"> <!-- Wrapper for export buttons -->
+                    <button class="time-range-btn export-btn" id="export1HourBtn" title="Export 1 hour data to Excel">
+                        <i class="fas fa-file-excel"></i> Export 1 Jam
+                    </button>
+                    <button class="time-range-btn export-btn" id="export1DayBtn" title="Export 1 day data to Excel">
+                        <i class="fas fa-file-excel"></i> Export 1 Hari
+                    </button>
+                </div>
             </div>
             <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
         </header>
-
-        <!-- Enhanced Time range selector -->
-        <div class="time-range-selector-container">
-            <div class="time-range-label">Pilih Rentang Waktu:</div>
-            <div class="time-range-buttons">
-                <!-- Buttons for selecting different time ranges. 
-                     'data-range' attribute is used by JS to determine the selected period. -->
-                <button class="time-range-btn" data-range="1hour">
-                    <i class="fas fa-hourglass-half"></i> 1 Jam
-                </button>
-                <button class="time-range-btn active" data-range="1day"> <!-- 'active' class indicates current selection. -->
-                    <i class="fas fa-clock"></i> 24 Jam
-                </button>
-                <button class="time-range-btn" data-range="7day">
-                    <i class="fas fa-calendar-week"></i> 7 Hari
-                </button>
-                <button class="time-range-btn" data-range="30day">
-                    <i class="fas fa-calendar-alt"></i> 30 Hari
-                </button>
-            </div>
-            <button class="time-range-btn export-btn" id="exportExcelBtn" title="Export data to Excel">
-                <i class="fas fa-file-excel"></i> Export to Excel
-            </button>
-        </div>
 
         <!-- Temperature Chart Card -->
         <div class="card card-temp card-animate-on-scroll">

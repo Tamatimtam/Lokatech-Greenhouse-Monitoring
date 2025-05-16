@@ -2,10 +2,10 @@ from flask import Blueprint, render_template, request, jsonify, send_file
 from datetime import datetime, timedelta
 from blueprints.decorators import isloggedin
 from .firestore import get_historical_data, get_latest_data
-import openpyxl
+import openpyxl # Ensure openpyxl is imported
 from io import BytesIO
 from openpyxl.utils import get_column_letter
-import pytz # Added pytz import
+import pytz # Ensure pytz is imported
 
 # Create a blueprint for history routes
 history = Blueprint('history', __name__, url_prefix='/history')
@@ -54,80 +54,67 @@ def latest_data():
 @isloggedin
 def export_excel():
     """API endpoint to export historical data to Excel"""
-    time_range_str = request.args.get('range', '1hour') # Default to 1 hour
+    time_range_str = request.args.get('range', '1hour')
 
-    # Map string range to days/hours for data fetching
-    # For simplicity, we'll use the existing 'days' parameter of get_historical_data.
-    # We can refine this to be more precise (e.g., hours for '1hour') if needed.
-    # get_historical_data fetches data *up to* 'days' ago.
-    # For '1hour', we need a more granular fetch or filter after fetching 1 day.
-    # Let's adjust get_historical_data or add a new function for more precise ranges later.
-    # For now, '1hour' will effectively get data from the last 24 hours, and we'll filter.
+    if time_range_str not in ['1hour', '1day', '7day', '30day']:
+        return jsonify({"success": False, "message": "Invalid time range specified."}), 400
     
-    days_to_fetch = 1 # Default to fetching data for the last day for all ranges initially
-    if time_range_str == '1day':
-        days_to_fetch = 1
-    elif time_range_str == '7day':
-        days_to_fetch = 7
-    elif time_range_str == '30day':
-        days_to_fetch = 30
-    # For '1hour', we still fetch 1 day and will rely on client-side or a more refined backend filter later.
-    # Or, ideally, get_historical_data would support finer granularity.
-    # For this phase, we will fetch data for '1day' when '1hour' is requested,
-    # and then filter it.
+    if time_range_str in ['7day', '30day']: # Block 7d and 30d for now
+        return jsonify({"success": False, "message": f"Export for {time_range_str} is not yet supported."}), 400
 
-    # Fetch data using the existing function
-    # We are not passing section or data_type, so it fetches all sections and all sensor types.
+    days_to_fetch = 1 # Fetch 1 day of data for both 1hour and 1day requests initially
+    
     raw_data = get_historical_data(days=days_to_fetch)
+    processed_data = []
+    now_wib = datetime.now(pytz.timezone('Asia/Jakarta'))
 
-    # Filter data for the '1hour' range if specified
     if time_range_str == '1hour':
-        now = datetime.now(pytz.timezone('Asia/Jakarta'))
-        one_hour_ago = now - timedelta(hours=1)
-        
-        filtered_data = []
+        one_hour_ago = now_wib - timedelta(hours=1)
         for record in raw_data:
-            # Assuming record['timestamp'] is an ISO format string from get_historical_data
             record_ts_str = record.get('timestamp')
             if record_ts_str:
-                record_ts = datetime.fromisoformat(record_ts_str)
-                # Ensure both are offset-aware for comparison if needed, or make them naive
-                # get_historical_data returns WIB (Asia/Jakarta) timezone-aware ISO strings
-                if record_ts >= one_hour_ago:
-                    filtered_data.append(record)
-        processed_data = filtered_data
-    else:
-        processed_data = raw_data
-
+                try:
+                    record_ts = datetime.fromisoformat(record_ts_str)
+                    if record_ts >= one_hour_ago:
+                        processed_data.append(record)
+                except ValueError:
+                    print(f"Warning: Could not parse timestamp {record_ts_str} for 1-hour filter.")
+                    continue
+    elif time_range_str == '1day':
+        one_day_ago = now_wib - timedelta(days=1)
+        for record in raw_data:
+            record_ts_str = record.get('timestamp')
+            if record_ts_str:
+                try:
+                    record_ts = datetime.fromisoformat(record_ts_str)
+                    if record_ts >= one_day_ago: # Ensure data is within the last 24 hours from now
+                        processed_data.append(record) # Corrected: Added append here
+                except ValueError:
+                    print(f"Warning: Could not parse timestamp {record_ts_str} for 1-day filter.")
+                    continue
+    # No 'else' needed as 7d/30d are blocked and other invalid ranges are caught earlier.
 
     if not processed_data:
         return jsonify({"success": False, "message": "No data to export for the selected range."}), 404
 
-    # Create an Excel workbook in memory
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Sensor Data"
-
-    # Define headers
     headers = ["Timestamp (WIB)", "Section", "Sensor Type", "Average", "Min", "Max", "Median", "Count"]
     ws.append(headers)
 
-    # Populate data
-    # The data structure from get_historical_data is a list of dicts:
-    # [{'timestamp': '...', 'data': {'dewasa': {'temps': {...}, 'humidities': {...}}}}]
     for record in processed_data:
         timestamp_str = record.get('timestamp')
-        # Attempt to parse the timestamp and format it nicely, or use as is
         try:
             ts_datetime = datetime.fromisoformat(timestamp_str)
             formatted_timestamp = ts_datetime.strftime('%Y-%m-%d %H:%M:%S')
         except (ValueError, TypeError):
-            formatted_timestamp = timestamp_str # Fallback to original string if parsing fails
+            formatted_timestamp = timestamp_str
 
         sections_data = record.get('data', {})
         for section_name, sensor_types_data in sections_data.items():
             for sensor_type, values in sensor_types_data.items():
-                if isinstance(values, dict): # Ensure 'values' is a dictionary containing stats
+                if isinstance(values, dict):
                     row = [
                         formatted_timestamp,
                         section_name.capitalize(),
@@ -140,19 +127,15 @@ def export_excel():
                     ]
                     ws.append(row)
     
-    # Adjust column widths
     for col_idx, column_cells in enumerate(ws.columns):
-        length = max(len(str(cell.value)) for cell in column_cells)
-        ws.column_dimensions[get_column_letter(col_idx + 1)].width = length + 2
+        if column_cells: # Ensure column_cells is not empty
+            length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
+            ws.column_dimensions[get_column_letter(col_idx + 1)].width = length + 2
 
-
-    # Save to an in-memory buffer
     excel_buffer = BytesIO()
     wb.save(excel_buffer)
     excel_buffer.seek(0)
-
-    # Create a filename
-    filename = f"sensor_data_{time_range_str}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"sensor_data_{time_range_str}_{now_wib.strftime('%Y%m%d_%H%M%S')}.xlsx"
 
     return send_file(
         excel_buffer,

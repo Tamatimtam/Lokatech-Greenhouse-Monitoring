@@ -17,6 +17,13 @@ let lightChart;
 /** @type {string} Tracks the currently selected time range filter (e.g., "1hour", "1day"). Defaults to "1day". */
 let currentSelectedRange = "1day";
 
+// Function to get the current selected range, callable by history_export.js
+// This function might no longer be needed by history_export.js if export buttons have fixed ranges.
+// However, it's kept for now as it might be used by other parts of history.js or for future features.
+function getCurrentTimeRange() {
+    return currentSelectedRange;
+}
+
 /**
  * @constant {Object<string, string>} chartColors
  * Defines a consistent color palette for different greenhouse sections in the charts.
@@ -37,7 +44,6 @@ const chartColors = {
  */
 document.addEventListener('DOMContentLoaded', function() {
     setupTimeRangeButtons();
-    setupExportButton(); // Initialize the export button
     initTemperatureChart();
     initHumidityChart();
     initLightChart();
@@ -53,9 +59,14 @@ document.addEventListener('DOMContentLoaded', function() {
  * `currentSelectedRange`, and reloads the historical data.
  */
 function setupTimeRangeButtons() {
-    const buttons = document.querySelectorAll('.time-range-btn');
+    // Select only time range buttons that are not export buttons OR that have a data-range attribute.
+    // Using :not(.export-btn) is cleaner if export buttons are the only other .time-range-btn
+    const buttons = document.querySelectorAll('.time-range-btn:not(.export-btn)');
     buttons.forEach(button => {
         button.addEventListener('click', function() {
+            // Ensure the button clicked is indeed a range selection button
+            if (!this.hasAttribute('data-range')) return;
+
             // Update active class for visual feedback
             buttons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
@@ -65,27 +76,6 @@ function setupTimeRangeButtons() {
             loadHistoricalData(currentSelectedRange);
         });
     });
-}
-
-/**
- * Sets up the click event listener for the "Export to Excel" button.
- */
-function setupExportButton() {
-    const exportBtn = document.getElementById('exportExcelBtn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', function() {
-            // Construct the URL for the export endpoint
-            // The backend will handle fetching and processing data for this range.
-            // For now, we hardcode '1hour' for the trial.
-            // Later, this will use currentSelectedRange.
-            const exportUrl = `/history/export_excel?range=1hour`; 
-            // To use the currently selected range:
-            // const exportUrl = `/history/export_excel?range=${currentSelectedRange}`;
-            
-            // Trigger the download by navigating to the export URL
-            window.location.href = exportUrl;
-        });
-    }
 }
 
 // --- Chart Initialization Functions ---

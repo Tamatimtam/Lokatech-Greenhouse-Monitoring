@@ -63,6 +63,43 @@
     color: var(--surface, #fff);
 }
 
+/* New button layout styles */
+.header-controls {
+    display: flex;
+    justify-content: space-between; /* Distributes space between time range and export groups */
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.time-range-buttons-wrapper {
+    flex-grow: 1; /* Allows this wrapper to take up available space */
+    display: flex;
+    justify-content: center; /* Centers the time-range-buttons div within this wrapper */
+}
+
+.time-range-buttons {
+    display: flex;
+    gap: 10px;
+    /* Removed justify-content: center; as it's handled by the wrapper */
+}
+
+.export-buttons-group {
+    display: flex;
+    gap: 10px;
+    /* This group will naturally be on the right due to justify-content: space-between in .header-controls */
+}
+
+/* Ensure individual buttons still have their styles */
+.time-range-btn.export-btn {
+    background-color: #28a745; /* Green background for export buttons */
+    color: white;
+    border: none;
+}
+
+.time-range-btn.export-btn:hover {
+    background-color: #218838; /* Darker green on hover */
+}
 
 /* Responsive adjustments for the time range selector */
 @media (min-width: 768px) {
@@ -140,7 +177,6 @@
     line-height: 1.4;
 }
 
-
 /* Specific insight value styling - can be kept or removed if general styling is preferred */
 #minTempInsightValue { 
     color: var(--info-dark, #0c5460); 
@@ -186,7 +222,6 @@
 .card-light {
     border-top: 3px solid var(--warning-dark, #ffc107);
 }
-
 
 /* Scroll Animation for Cards */
 .card-animate-on-scroll {
