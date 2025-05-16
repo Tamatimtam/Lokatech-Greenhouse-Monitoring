@@ -6,15 +6,17 @@ The Lokatech Greenhouse Monitoring application implements a robust authenticatio
 ## Table of Contents
 1. [Authentication Architecture](#authentication-architecture)
 2. [Firebase Configuration](#firebase-configuration)
-3. [Authentication Features](#authentication-features)
+3. [Security Framework](#security-framework)
+4. [Authentication Features](#authentication-features)
    - [Login System](#login-system)
    - [User Registration](#user-registration)
    - [Password Reset](#password-reset)
-4. [Technical Implementation](#technical-implementation)
+   - [Account Deletion](#account-deletion)
+5. [Technical Implementation](#technical-implementation)
    - [Backend Routes](#backend-routes)
    - [Frontend Components](#frontend-components)
    - [Firebase Methods](#firebase-methods)
-5. [Security Considerations](#security-considerations)
+6. [Security Considerations](#security-considerations)
 
 ## Authentication Architecture
 
@@ -57,6 +59,30 @@ local_path = os.path.join(os.path.dirname(__file__), "secrets", "firebase-creden
 cloud_path = "/secrets/firebase-credentials.json"
 credentials_path = local_path if os.path.exists(local_path) else cloud_path
 ```
+
+## Security Framework
+
+The system implements multiple layers of security:
+
+1. **Authentication Layer**:
+   - Firebase Authentication handles credential verification
+   - JWT-based tokens protect against forgery attempts
+   - Password complexity requirements enforced
+
+2. **Authorization Layer**:
+   - Server-side session validation for all protected routes
+   - Role-based access controls
+   - Domain restrictions for registration
+
+3. **Data Protection**:
+   - Passwords never stored in plaintext (Firebase handles hashing)
+   - Sensitive operations require password re-verification
+   - Secure password reset workflows
+
+4. **Infrastructure Security**:
+   - HTTPS for all communications
+   - Firebase service credentials stored securely
+   - Environment-aware configuration
 
 ## Authentication Features
 
@@ -257,11 +283,136 @@ document.getElementById('resetPassword').addEventListener('click', async functio
 });
 ```
 
+### Account Deletion
+
+The account deletion feature allows users to permanently remove their accounts from the system with proper security verification.
+
+**Account Deletion Flow:**
+1. User navigates to profile page and selects "Hapus akun ini"
+2. System presents warning message about permanent deletion
+3. User must re-enter password for security verification
+4. Backend verifies password with Firebase
+5. If verified, account is deleted from Firebase
+6. User session is cleared and redirected to login page
+
+**Key Files:**
+- Frontend: `profile.html`, `profile-page.js`
+- Backend: `blueprints/profile/routes.py`
+
+**Frontend Implementation**:
+```javascript
+function handleDeleteAccount(modal) { 
+  const passwordInput = document.getElementById('deleteAccountPassword');
+  const confirmButton = document.getElementById('savedeleteAccountModal');
+  
+  if (!passwordInput || !confirmButton) {
+    console.error('Delete account password input or confirm button not found');
+    showValidationError('Terjadi kesalahan internal.');
+    return;
+  }
+
+  const password = passwordInput.value;
+    
+  if (!password) {
+    showValidationError('Silakan masukkan kata sandi Anda untuk konfirmasi');
+    return;
+  }
+  
+  // Show loading state
+  const originalText = confirmButton.textContent;
+  confirmButton.disabled = true;
+  confirmButton.textContent = 'Menghapus...';
+  
+  // Send delete request
+  deleteAccount(password)
+    .then(data => {
+      if (data.status === 'success') {
+        showToast('Akun berhasil dihapus');
+        setTimeout(() => {
+          window.location.href = '/'; // Redirect to login page
+        }, 1500);
+      } else {
+        confirmButton.disabled = false;
+        confirmButton.textContent = originalText;
+        
+        showValidationError(data.message || 'Gagal menghapus akun');
+      }
+    })
+    .catch(error => {
+      confirmButton.disabled = false;
+      confirmButton.textContent = originalText;
+      
+      console.error('Error deleting account:', error);
+      showValidationError('Terjadi kesalahan saat menghapus akun');
+    });
+}
+```
+
+**Backend Implementation**:
+```python
+@bp.route("/delete", methods=["POST"])
+@isloggedin
+def delete_account():
+    try:
+        data = request.json
+        password = data.get('password')
+        
+        # Security: Validate password is provided
+        if not password:
+            logger.warning(f"Missing password in delete account attempt: {session['user']['email']}")
+            return jsonify({'status': 'error', 'message': 'Kata sandi diperlukan untuk konfirmasi'}), 400
+        
+        email = session['user']['email']
+        
+        try:
+            # Security: Get Firebase user by email
+            firebase_user = auth.get_user_by_email(email)
+            
+            # Security: Verify password using Firebase REST API
+            firebase_api_key = current_app.config.get('FIREBASE_API_KEY')
+            if not firebase_api_key:
+                logger.error("Firebase API key not configured")
+                return jsonify({'status': 'error', 'message': 'Konfigurasi server tidak lengkap'}), 500
+            
+            # Step 1: Security: Verify password by attempting to sign in
+            verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={firebase_api_key}"
+            verify_data = {
+                "email": email,
+                "password": password,
+                "returnSecureToken": True
+            }
+            
+            verify_response = requests.post(verify_url, json=verify_data)
+            
+            if not verify_response.ok:
+                logger.warning(f"Invalid password in delete account attempt: {email}")
+                return jsonify({'status': 'error', 'message': 'Kata sandi tidak valid'}), 401
+            
+            # Step 2: Delete user account using Firebase Admin SDK
+            auth.delete_user(firebase_user.uid)
+            
+            # Clear user session
+            session.clear()
+            
+            logger.info(f"User account deleted successfully: {email}")
+            return jsonify({'status': 'success', 'message': 'Akun berhasil dihapus'})
+            
+        except auth.UserNotFoundError:
+            logger.error(f"User not found in Firebase: {email}")
+            return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan'}), 404
+        except Exception as e:
+            logger.error(f"Firebase account deletion error: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'Gagal menghapus akun'}), 500
+    except Exception as e:
+        logger.error(f"Account deletion failed: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Terjadi kesalahan sistem'}), 500
+```
+
 ## Technical Implementation
 
 ### Backend Routes
 
-The backend provides three main authentication endpoints:
+The backend provides four main authentication endpoints:
 
 1. **Login (`/auth/login`)**: 
    - Verifies Firebase ID token
@@ -277,6 +428,12 @@ The backend provides three main authentication endpoints:
    - Validates email format and domain
    - Creates user in Firebase
    - Returns success for frontend to send password setup email
+
+4. **Delete Account (`/profile/delete`)**:
+   - Requires password re-verification for security
+   - Verifies user credentials with Firebase
+   - Permanently deletes user account
+   - Clears server-side session
 
 ### Frontend Components
 
@@ -295,6 +452,11 @@ The backend provides three main authentication endpoints:
    - Email validation
    - Success/error messaging
 
+4. **Account Deletion**:
+   - Confirmation modal with warning
+   - Password verification field
+   - Success/error handling
+
 ### Firebase Methods
 
 Key Firebase methods used in the application:
@@ -306,27 +468,30 @@ Key Firebase methods used in the application:
 2. **User Management**:
    - `auth.create_user(email=email)`: Creates new users (backend)
    - `auth.verify_id_token(id_token)`: Verifies ID tokens (backend)
+   - `auth.delete_user(uid)`: Permanently deletes a user account (backend)
 
 3. **Password Management**:
    - `firebase.auth().sendPasswordResetEmail(email)`: Sends password reset emails
 
 ## Security Considerations
 
-1. **Token Verification**:
-   - ID tokens are verified on the backend using Firebase Admin SDK
-   - Token clock skew tolerance is set to 20 seconds
+### 🔐 Authentication Security
+- **Multi-layer Verification**: Credentials verified by Firebase and tokens verified by backend
+- **Token Protection**: JWT tokens with expiration to prevent replay attacks
+- **Password Requirements**: Firebase enforces strong password requirements
+- **Brute Force Prevention**: Firebase automatically limits login attempts
 
-2. **Domain Restrictions**:
-   - Registration is limited to specific email domains
-   - Both frontend and backend validation is implemented
+### 🛡️ Access Controls
+- **Domain Restrictions**: Only approved email domains can register
+- **Session Verification**: Every protected route checks for valid session
+- **CSRF Protection**: All sensitive operations use POST requests with proper headers
 
-3. **Error Handling**:
-   - Generic error messages to prevent information leakage
-   - Detailed logging for troubleshooting
+### 🔒 Data Protection
+- **Password Handling**: Passwords never stored in plaintext or on backend
+- **Re-authentication**: Critical operations (delete account, password change) require password verification
+- **Secure Communication**: All API requests use HTTPS
 
-4. **Session Management**:
-   - Server-side sessions for authenticated state
-   - Session clearing on logout
-
-5. **CORS Protection**:
-   - CORS enabled for API endpoints
+### 📝 Audit & Monitoring
+- **Activity Logging**: All authentication activities are logged with timestamp and IP
+- **Error Tracking**: Detailed error logging for security investigation
+- **Anomaly Detection**: Suspicious activities are logged with warning level

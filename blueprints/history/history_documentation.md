@@ -19,7 +19,6 @@ This document details the implementation of the "Data Riwayat" (History Page) fo
 *   **Responsive Design:** Charts and layout adapt to different screen sizes.
 *   **Localization:** UI elements are partially localized to Bahasa Indonesia.
 *   **Dynamic Data Loading:** Data is fetched asynchronously from a backend API.
-*   **Sleek UI Polish:** Subtle visual enhancements like distinct card headers, improved hover effects, and value update animations for a more refined user experience.
 
 ## 2. System Architecture & Data Flow
 
@@ -100,7 +99,7 @@ sequenceDiagram
 *   **Relevant Files:**
     *   `templates/history.html`: Main HTML structure for the page.
     *   `static/js/history.js`: Core JavaScript logic for interactivity, data fetching, processing, and chart rendering.
-    *   `static/css/history.css`: Styles specific to the history page, including UI polish elements like distinct card header borders, enhanced hover states for insight items, and animations for value updates.
+    *   `static/css/history.css`: Styles specific to the history page.
 *   **Process:**
     1.  **Page Load:** Renders `history.html`.
     2.  **Initialization (`history.js`):**
@@ -215,7 +214,6 @@ This is a crucial generic function responsible for transforming raw API data int
     3.  If `insights.max` exists, formats and displays the max value and subtext.
     4.  If `insights.overallAverage` exists, formats and displays the average value.
     5.  If data is not available for any insight, displays "--" and "Tidak ada data".
-    *   Triggers a brief CSS animation on an `.insight-value` element when its text content changes, providing visual feedback for data updates.
 
 ### 3.7. UI Feedback
 

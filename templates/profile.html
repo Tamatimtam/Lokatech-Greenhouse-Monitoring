@@ -25,14 +25,17 @@
   </header>
 
   {% call card.card('PROFIL PENGGUNA', 'card--profile') %}
-    <div class="profile__header">
-      <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
-           alt="Foto Profil" 
-           class="profile__image"
-           id="mainProfileImage"> <!-- Keep this ID if needed elsewhere, but src is now static -->
-      <div class="profile__info">
-        <h2>{{ user.name if user else 'Pengguna Tamu' }}</h2>
-        <p>{{ user.email if user else 'Belum masuk' }}</p>
+    <div class="profile-banner-container">
+      <img src="{{ url_for('static', filename='images/banner.png') }}" alt="Profile Banner" class="profile-banner__image">
+      <div class="profile__header">
+        <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
+             alt="Foto Profil" 
+             class="profile__image"
+             id="mainProfileImage">
+        <div class="profile__info">
+          <h2>{{ user.name if user else 'Pengguna Tamu' }}</h2>
+          <p>{{ user.email if user else 'Belum masuk' }}</p>
+        </div>
       </div>
     </div>
   {% endcall %}
