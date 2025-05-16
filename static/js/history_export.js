@@ -5,53 +5,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const export30DaysButton = document.getElementById('export30DaysBtn'); // New button
 
     if (export1HourButton) {
-        export1HourButton.addEventListener('click', function() {
-            exportData('1hour');
+        export1HourButton.addEventListener('click', function(event) {
+            exportData('1hour', event.currentTarget);
         });
     }
 
     if (export1DayButton) {
-        export1DayButton.addEventListener('click', function() {
-            exportData('1day');
+        export1DayButton.addEventListener('click', function(event) {
+            exportData('1day', event.currentTarget);
         });
     }
 
     if (export7DaysButton) {
-        export7DaysButton.addEventListener('click', function() {
-            exportData('7day');
+        export7DaysButton.addEventListener('click', function(event) {
+            exportData('7day', event.currentTarget);
         });
     }
 
     if (export30DaysButton) { // Event listener for the new button
-        export30DaysButton.addEventListener('click', function() {
-            exportData('30day');
+        export30DaysButton.addEventListener('click', function(event) {
+            exportData('30day', event.currentTarget);
         });
     }
 
-    async function exportData(range) {
+    async function exportData(range, buttonElement) {
         // Construct the URL for the export endpoint
         const exportUrl = `/history/export_excel?range=${range}`;
 
-        // Optional: Show some loading indicator to the user
-        // For example, you could disable the button and change its text
-        // Adjusted buttonId logic to handle '30day' correctly
-        let buttonIdSuffix = range.charAt(0).toUpperCase() + range.slice(1);
-        if (range.includes('day')) {
-            buttonIdSuffix = buttonIdSuffix.replace('day', 'Day');
-            if (range !== '1day') { // For 7day, 30day
-                 buttonIdSuffix = buttonIdSuffix.replace('Day', 'Days');
-            }
-        } else if (range.includes('hour')) {
-            buttonIdSuffix = buttonIdSuffix.replace('hour', 'Hour');
-        }
-        const buttonId = `export${buttonIdSuffix}Btn`;
-        
-        const button = document.getElementById(buttonId);
         let originalButtonText = '';
-        if (button) {
-            originalButtonText = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengekspor...';
+        if (buttonElement) {
+            originalButtonText = buttonElement.innerHTML;
+            buttonElement.disabled = true;
+            buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengekspor...';
         }
 
         try {
@@ -111,9 +96,9 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Terjadi kesalahan jaringan atau masalah lain saat mencoba mengekspor data.');
         } finally {
             // Restore button state
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = originalButtonText;
+            if (buttonElement) {
+                buttonElement.disabled = false;
+                buttonElement.innerHTML = originalButtonText;
             }
         }
     }

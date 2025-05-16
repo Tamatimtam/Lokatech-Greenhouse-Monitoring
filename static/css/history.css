@@ -63,15 +63,25 @@
     color: var(--surface, #fff);
 }
 
+/* Assuming .header is styled in dashboard.css or a base CSS file (e.g., display: flex) */
+.header__content {
+    /* Add margin to the right of the header title/description block */
+    margin-right: var(--spacing-xl, 2rem); /* Adjust value as needed: 1.5rem, 2rem, 2.5rem etc. */
+    /* flex-shrink: 0; /* Optional: Prevents this block from shrinking too much if space is tight */
+}
+
 /* Updated styles for header controls and new groups */
+/* Consolidate and refine .header-controls styling */
 .header-controls {
     display: flex;
-    flex-wrap: wrap; /* Allow groups to wrap on smaller screens */
-    justify-content: space-around; /* Distribute space more evenly, or use space-between if preferred */
-    align-items: flex-start; /* Align groups to the top */
-    gap: var(--spacing-lg, 1.5rem); /* Gap between control groups */
-    margin-bottom: var(--spacing-lg, 1.5rem); /* Overall margin for the controls area */
-    width: 100%;
+    flex-wrap: wrap; /* Allow control groups to wrap on smaller screens */
+    align-items: flex-start; /* Top-align the 'Pilih Rentang' and 'Ekspor Data' groups */
+    gap: var(--spacing-xl, 2rem); /* Consistent gap between 'Pilih Rentang' and 'Ekspor Data' groups. Adjust as needed. */
+    /* Removed width: 100% and specific justify-content from previous conflicting rules.
+       Let it size naturally as a flex item. Its alignment within .header is handled by .header's styles. */
+    margin-bottom: 0; /* Reset specific margin, parent .header should handle overall bottom spacing */
+                      /* If cards start immediately after and .header has no bottom padding, 
+                         you might need margin-bottom: var(--spacing-lg, 1.5rem); here */
 }
 
 .control-group {
