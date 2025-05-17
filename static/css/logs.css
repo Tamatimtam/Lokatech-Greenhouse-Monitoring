@@ -1,6 +1,5 @@
 /* Logs page specific styling */
 
-/* Message component styling for the WIP notice */
 .message {
   display: flex;
   align-items: flex-start;
@@ -34,81 +33,128 @@
   color: #2874a6;
 }
 
-/* Log entry table styling that will be used when implemented */
+/* Log Summary Styles */
+.log-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.summary-item {
+    background-color: var(--surface-light, #f8f9fa);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border-color-light, #eee);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.summary-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.summary-value {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 0.95rem;
+}
+
+
+/* Log Controls */
+.log-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background-color: var(--surface-light, #f8f9fa);
+    border-radius: var(--radius-sm);
+}
+
+.log-control-btn {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border: 1px solid var(--primary-light);
+    background-color: var(--primary);
+    color: white;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.log-control-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+.log-input {
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    border: 1px solid #ccc;
+    width: 80px;
+}
+
+
+/* Log entry table styling */
+.log-entries-table-container {
+    max-height: 600px; /* Or any height you prefer */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: var(--radius-sm);
+}
+
 .log-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: var(--spacing-md);
+  /* margin-top: var(--spacing-md); Removed, container handles margin */
+  font-size: 0.85rem; /* Smaller font for more data */
 }
 
 .log-table th {
   text-align: left;
-  padding: var(--spacing-sm);
-  border-bottom: 2px solid #eee;
+  padding: var(--spacing-sm) var(--spacing-xs); /* Reduced padding */
+  border-bottom: 2px solid #ddd; /* Stronger header bottom border */
   font-weight: 600;
   color: var(--text-secondary);
+  background-color: #f9f9f9; /* Light grey for header */
+  position: sticky; /* Make header sticky */
+  top: 0;
+  z-index: 1;
 }
 
 .log-table td {
-  padding: var(--spacing-sm);
+  padding: var(--spacing-xs); /* Reduced padding */
   border-bottom: 1px solid #eee;
+  white-space: nowrap; /* Prevent text wrapping in cells */
+}
+
+.log-table tr:nth-child(even) {
+  background-color: #fdfdfd; /* Zebra striping for rows */
 }
 
 .log-table tr:hover {
-  background-color: rgba(var(--primary-rgb), 0.05);
+  background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.05);
 }
 
-/* Different log levels will have different colors */
-.log-level--info {
-  color: #3498db;
-}
+/* Different log levels will have different colors (not used yet, but good to have) */
+.log-level--info { color: #3498db; }
+.log-level--warning { color: #f39c12; }
+.log-level--error { color: #e74c3c; }
+.log-level--success { color: var(--primary); }
 
-.log-level--warning {
-  color: #f39c12;
-}
-
-.log-level--error {
-  color: #e74c3c;
-}
-
-.log-level--success {
-  color: var(--primary);
-}
-
-/* Filter controls will be positioned at the top of the log entries */
-.log-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.log-filter-btn {
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px solid #eee;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.log-filter-btn:hover {
-  border-color: var(--primary);
-}
-
-.log-filter-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
 
 @media (max-width: 768px) {
   .log-table {
-    font-size: 0.9rem;
+    font-size: 0.8rem; /* Even smaller on mobile */
   }
   
   .log-table th,
   .log-table td {
-    padding: var(--spacing-xs);
+    padding: var(--spacing-xs) 4px; /* Further reduce padding */
+  }
+  .log-summary {
+    grid-template-columns: 1fr; /* Stack summary items on mobile */
   }
 }

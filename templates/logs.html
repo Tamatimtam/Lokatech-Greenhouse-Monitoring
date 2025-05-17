@@ -4,29 +4,87 @@
 
 {% block title %}System Logs - Lokatani.id{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container">
   <header class="header">
     <div class="header__content">
-      <h1>System Logs</h1>
-      <p>View system activity and event history</p>
+      <h1>System Logs & Latency</h1>
+      <p>View system activity, event history, and performance metrics.</p>
     </div>
     <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Lokatani.id Logo">
   </header>
   
-  {% call card.card('LOG ENTRIES') %}
-    <!-- Placeholder for log entries table/list -->
-    <div id="log-entries-container">
-      <p>Log entries will be loaded here.</p>
-      
-      <!-- WIP Indicator styled as a message similar to warnings in profile page -->
-      <div class="message message--info">
-        <i class="fas fa-info-circle"></i>
-        <div>
-          <p class="message__title">Work In Progress</p>
-          <p class="message__text">This feature is currently under development.</p>
+  {% call card.card('SUMMARY STATISTICS') %}
+    <div id="log-summary-container" class="log-summary">
+        <div class="summary-item">
+            <span class="summary-label">Avg. ESP-NOW Latency (Penyemaian):</span>
+            <span class="summary-value" id="avg-espnow-penyemaian">-- ms</span>
         </div>
-      </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg. ESP-NOW Latency (Dewasa):</span>
+            <span class="summary-value" id="avg-espnow-dewasa">-- ms</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg. MQTT Latency:</span>
+            <span class="summary-value" id="avg-mqtt-latency">-- ms</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg. WebSocket Latency:</span>
+            <span class="summary-value" id="avg-websocket-latency">-- ms</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg. Total Latency:</span>
+            <span class="summary-value" id="avg-total-latency">-- ms</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg. MQTT Jitter:</span>
+            <span class="summary-value" id="avg-mqtt-jitter">-- ms</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg. WebSocket Jitter:</span>
+            <span class="summary-value" id="avg-websocket-jitter">-- ms</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Packets Received:</span>
+            <span class="summary-value" id="packets-received">0</span>
+        </div>
+    </div>
+  {% endcall %}
+
+  {% call card.card('DETAILED LOG ENTRIES') %}
+    <div class="log-controls">
+        <button id="clearLogsButton" class="log-control-btn">Clear Logs</button>
+        <label for="maxLogs">Max Logs to Display: </label>
+        <input type="number" id="maxLogs" value="50" min="10" max="500" class="log-input">
+    </div>
+    <div id="log-entries-container" class="log-entries-table-container">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>Packet ID</th>
+            <th>HW Send (UTC)</th>
+            <th>Server MQTT Recv (UTC)</th>
+            <th>Server WS Send (UTC)</th>
+            <th>FE WS Recv (Local)</th>
+            <th>ESP-P (ms)</th>
+            <th>ESP-D (ms)</th>
+            <th>MQTT (ms)</th>
+            <th>WS (ms)</th>
+            <th>Total (ms)</th>
+            <th>Jitter MQTT (ms)</th>
+            <th>Jitter WS (ms)</th>
+          </tr>
+        </thead>
+        <tbody id="log-table-body">
+          <!-- Log entries will be populated here by logs.js -->
+          <tr><td colspan="12" style="text-align:center;">Menunggu data log...</td></tr>
+        </tbody>
+      </table>
     </div>
   {% endcall %}
 </div>
@@ -35,10 +93,6 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Socket.IO client already included in base.html -->
 <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
-{% endblock %}
-
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
 {% endblock %}
