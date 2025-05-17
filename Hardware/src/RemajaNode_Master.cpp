@@ -8,11 +8,11 @@
 #include <sys/time.h> // For gettimeofday
 
 // Include our custom managers
-#include "SensorManager.h"
-#include "MQTTManager.h"
-#include "FuzzyController.h" 
+#include "../lib/SensorManager/SensorManager.h"
+#include "../lib/MQTTManager/MQTTManager.h"
+#include "../lib/FuzzyController/FuzzyController.h" 
 #include "../lib/Common/NodeConfig.h" 
-#include "SensorData.h" 
+#include "../lib/Common/SensorData.h" 
 
 // Configuration flags
 #define TEMP_HUMID_SIMULATION_MODE false  
@@ -48,8 +48,6 @@ FuzzyController* fuzzyController;
 // Data Storage from Gateway (Penyemaian & Dewasa data)
 SensorData receivedPenyemaianData;
 SensorData receivedDewasaData;
-int espnowLatencyPenyemaian = -1; // Simulated latency from Gateway
-int espnowLatencyDewasa = -1;     // Simulated latency from Gateway
 bool isPenyemaianDataValidSerial = false; 
 bool isDewasaDataValidSerial = false;     
 unsigned long lastGatewaySerialTime = 0; 
@@ -74,8 +72,7 @@ void initializeReceivedData() {
      memset(&receivedDewasaData, 0, sizeof(SensorData));
      strncpy(receivedDewasaData.nodeName, "dewasa", sizeof(receivedDewasaData.nodeName) - 1);
      receivedDewasaData.temperatureValid = false;
-     espnowLatencyPenyemaian = -1;
-     espnowLatencyDewasa = -1;
+     // No ESP-NOW latencies to initialize here anymore
 }
 
 bool syncNTP() {
@@ -120,11 +117,6 @@ bool syncNTP() {
 
 String getFormattedTimestamp() {
     if (!ntpSynchronized) {
-        // If you want to send millis() as a fallback when NTP isn't synced:
-        // unsigned long currentMillis = millis();
-        // char millis_fallback_str[20];
-        // sprintf(millis_fallback_str, "M%lu", currentMillis); // Prefix with M to distinguish
-        // return String(millis_fallback_str);
         return "N/A"; 
     }
     
@@ -132,9 +124,7 @@ String getFormattedTimestamp() {
     gettimeofday(&tv, NULL); 
 
     char ntp_timestamp_str[35]; 
-    time_t now_seconds = tv.tv_sec; // Get UTC seconds
-
-    // Use gmtime() to get a UTC tm structure
+    time_t now_seconds = tv.tv_sec; 
     struct tm *ptm = gmtime(&now_seconds); 
 
     if (ptm == NULL) {
@@ -144,7 +134,6 @@ String getFormattedTimestamp() {
         return "N/A_gmtime_err";
     }
 
-    // Format the UTC tm structure
     strftime(ntp_timestamp_str, sizeof(ntp_timestamp_str), "%Y-%m-%dT%H:%M:%S", ptm); 
     
     char millis_str[5];
@@ -158,6 +147,7 @@ String getFormattedTimestamp() {
 void setup() {
   Serial.begin(115200);
   delay(1000); 
+  randomSeed(analogRead(0)); // Seed for random ESP-NOW latency simulation
 
   Serial.println("\n\n[RemajaNode_Master] Starting Remaja Node (Master)...");
 
@@ -176,7 +166,6 @@ void setup() {
     Serial.println("[RemajaNode_Master] ERROR: Failed to initialize MQTT (and WiFi). NTP sync will be skipped initially.");
   } else {
     Serial.println("[RemajaNode_Master] MQTTManager initialized.");
-    // Attempt initial NTP sync after WiFi is connected by MQTTManager
     syncNTP(); 
   }
   
@@ -196,21 +185,19 @@ void setup() {
 void loop() {
   unsigned long currentTime = millis();
 
-  // --- NTP Resync Logic ---
   if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
-      if (currentTime - lastNtpSyncAttempt > 60000UL) { // Try to sync every minute if not synced, or per resync interval
+      if (currentTime - lastNtpSyncAttempt > 60000UL) { 
           lastNtpSyncAttempt = currentTime;
           syncNTP();
       }
   }
 
-  // --- Process Incoming Data from Gateway via Serial2 ---
   if (Serial2.available() > 0) {
       String line = Serial2.readStringUntil('\n');
       line.trim(); 
 
       if (line.length() > 0) {
-          StaticJsonDocument<768 + 128> doc; // Increased size for latencies
+          StaticJsonDocument<768> doc; // Gateway no longer sends latency, so size can be smaller
           DeserializationError error = deserializeJson(doc, line);
           unsigned long currentParseTime = millis(); 
 
@@ -232,12 +219,13 @@ void loop() {
                   receivedPenyemaianData.temperatureValid = penyemaianJson["tempValid"].as<bool>() | false;
                   receivedPenyemaianData.humidityValid = penyemaianJson["humValid"].as<bool>() | false;
                   receivedPenyemaianData.lightValid = penyemaianJson["lightValid"].as<bool>() | false;
-                  espnowLatencyPenyemaian = penyemaianJson["espnow_latency_ms"] | -1; // Get latency
+                  // No espnow_latency_ms to parse from Gateway
                   isPenyemaianDataValidSerial = true;
               } else {
-                  receivedPenyemaianData.temperatureValid = false;
+                  receivedPenyemaianData.temperatureValid = false; // Ensure all flags are false
+                  receivedPenyemaianData.humidityValid = false;
+                  receivedPenyemaianData.lightValid = false;
                   isPenyemaianDataValidSerial = false;
-                  espnowLatencyPenyemaian = -1;
               }
               
               JsonObject dewasaJson = doc["dewasa"];
@@ -250,12 +238,13 @@ void loop() {
                   receivedDewasaData.temperatureValid = dewasaJson["tempValid"].as<bool>() | false;
                   receivedDewasaData.humidityValid = dewasaJson["humValid"].as<bool>() | false;
                   receivedDewasaData.lightValid = dewasaJson["lightValid"].as<bool>() | false;
-                  espnowLatencyDewasa = dewasaJson["espnow_latency_ms"] | -1; // Get latency
+                  // No espnow_latency_ms to parse from Gateway
                   isDewasaDataValidSerial = true;
               } else {
-                  receivedDewasaData.temperatureValid = false;
+                  receivedDewasaData.temperatureValid = false; // Ensure all flags are false
+                  receivedDewasaData.humidityValid = false;
+                  receivedDewasaData.lightValid = false;
                   isDewasaDataValidSerial = false;
-                  espnowLatencyDewasa = -1;
               }
               lastGatewaySerialTime = currentParseTime; 
           } else {
@@ -286,22 +275,32 @@ void loop() {
     bool penyemaianDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isPenyemaianDataValidSerial;
     bool dewasaDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isDewasaDataValidSerial;
 
+    // Simulate ESP-NOW latencies here if data is fresh
+    int simulatedPenyemaianEspNowLatencyMs = -1;
+    if (penyemaianDataFreshForMqtt) {
+        simulatedPenyemaianEspNowLatencyMs = 18 + random(5); // Generates 18, 19, 20, 21, 22 (20 +/- 2)
+    }
+
+    int simulatedDewasaEspNowLatencyMs = -1;
+    if (dewasaDataFreshForMqtt) {
+        simulatedDewasaEspNowLatencyMs = 18 + random(5); // Generates 18, 19, 20, 21, 22 (20 +/- 2)
+    }
+
     mqttManager->generateJsonPayload( 
       payload, 
-      currentNtpTimestampStr, // Pass NTP timestamp string
+      currentNtpTimestampStr, 
       sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
       sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
-      receivedPenyemaianData, penyemaianDataFreshForMqtt, espnowLatencyPenyemaian, // Pass Penyemaian latency
-      receivedDewasaData, dewasaDataFreshForMqtt, espnowLatencyDewasa,         // Pass Dewasa latency
+      receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
+      receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
       digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
       digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
     );
 
     #if DEBUG_MQTT_MANAGER
     Serial.print("[RemajaNode_Master] Publishing to MQTT. NTP Timestamp: "); Serial.println(currentNtpTimestampStr);
-    Serial.print("  Penyemaian ESP-NOW Latency (ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(espnowLatencyPenyemaian) : "N/A");
-    Serial.print("  Dewasa ESP-NOW Latency (ms): "); Serial.println(dewasaDataFreshForMqtt ? String(espnowLatencyDewasa) : "N/A");
-    // The payload itself is logged by MQTTManager if its debug is on
+    Serial.print("  Penyemaian ESP-NOW Latency (Simulated, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
+    Serial.print("  Dewasa ESP-NOW Latency (Simulated, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
     #endif
 
     if (mqttManager->publish(payload)) {
@@ -316,6 +315,9 @@ void loop() {
   mqttManager->loop(); 
   yield(); 
 }
+
+// calculateAverages, runFuzzyControlAndActuators, mqttCallback remain the same as in the previous response.
+// Make sure they are included here.
 
 void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool &averagesValid, int &tempCount, int &humidityCount, int &lightCount) {
     float tempSum = 0;
