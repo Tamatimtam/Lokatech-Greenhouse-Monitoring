@@ -7,8 +7,7 @@
 #include "../lib/Common/NodeConfig.h" 
 
 // --- Serial Communication with Remaja Node (Master) ---
-#define SERIAL_TO_REMAJA_MASTER Serial2 // Default: RX2=16, TX2=17
-// SERIAL_BAUD_RATE is in NodeConfig.h
+#define SERIAL_TO_REMAJA_MASTER Serial2 
 
 // --- Data Storage ---
 SensorData receivedPenyemaianData;
@@ -22,7 +21,11 @@ unsigned long lastDewasaReceiveTime = 0;
 
 // --- Timing for Forwarding Data ---
 unsigned long lastSerialForwardTime = 0;
-const unsigned long SERIAL_FORWARD_INTERVAL = 2500UL; // Forward data every 2.5 seconds, or sooner if both updated
+const unsigned long SERIAL_FORWARD_INTERVAL = 2500UL; 
+
+// --- Simulated ESP-NOW Latency ---
+int simulatedPenyemaianLatencyMs = -1;
+int simulatedDewasaLatencyMs = -1;
 
 // ESP-NOW Receive Callback
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
@@ -33,16 +36,25 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
         return;
     }
 
+    // Simulate ESP-NOW latency (20-80 ms)
+    int simulated_latency = random(20, 81); // Upper bound is exclusive for random()
+
     if (memcmp(mac_addr, MAC_ADDR_PENYEMAIAN, 6) == 0) {
         memcpy(&receivedPenyemaianData, incomingData, sizeof(SensorData));
         lastPenyemaianReceiveTime = millis();
         newPenyemaianDataFlag = true;
-        Serial.println("[Gateway] Data received from Penyemaian Node.");
-    } else if (memcmp(mac_addr, MAC_ADDR_DEWASA, 6) == 0) { // MAC_ADDR_DEWASA is the old Peremajaan MAC
+        simulatedPenyemaianLatencyMs = simulated_latency;
+        #if DEBUG_GATEWAY
+        Serial.printf("[Gateway] Data received from Penyemaian. ESP-NOW Latency (Simulated): %d ms\n", simulated_latency);
+        #endif
+    } else if (memcmp(mac_addr, MAC_ADDR_DEWASA, 6) == 0) { 
         memcpy(&receivedDewasaData, incomingData, sizeof(SensorData));
         lastDewasaReceiveTime = millis();
         newDewasaDataFlag = true;
-        Serial.println("[Gateway] Data received from Dewasa Node.");
+        simulatedDewasaLatencyMs = simulated_latency;
+        #if DEBUG_GATEWAY
+        Serial.printf("[Gateway] Data received from Dewasa. ESP-NOW Latency (Simulated): %d ms\n", simulated_latency);
+        #endif
     } else {
         Serial.print("[Gateway] Received data from unrecognized MAC: ");
         for(int i=0; i<6; i++) { Serial.print(mac_addr[i], HEX); if(i<5) Serial.print(":"); }
@@ -54,14 +66,15 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println("\n\n[GatewayNode] Starting ESP-NOW to Serial Gateway (Dual Input)...");
+    randomSeed(analogRead(0)); // Seed for random latency simulation
 
-    SERIAL_TO_REMAJA_MASTER.begin(SERIAL_BAUD_RATE, SERIAL_8N1, 16, 17); // Default RX2, TX2
+    SERIAL_TO_REMAJA_MASTER.begin(SERIAL_BAUD_RATE, SERIAL_8N1, 16, 17); 
     Serial.println("[GatewayNode] Serial to Remaja Master initialized.");
 
     WiFi.mode(WIFI_STA);
     WiFi.disconnect(); 
     Serial.print("[GatewayNode] MAC Address: ");
-    Serial.println(WiFi.macAddress()); // This is MAC_ADDR_GATEWAY
+    Serial.println(WiFi.macAddress()); 
 
     Serial.printf("[GatewayNode] Setting WiFi channel to %d...\n", WIFI_CHANNEL);
     if (esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE) != ESP_OK) {
@@ -78,7 +91,6 @@ void setup() {
     esp_now_register_recv_cb(OnDataRecv);
     Serial.println("[GatewayNode] ESP-NOW Receive Callback Registered.");
 
-    // Add Penyemaian as a peer
     esp_now_peer_info_t penyemaianPeer = {};
     memcpy(penyemaianPeer.peer_addr, MAC_ADDR_PENYEMAIAN, 6);
     penyemaianPeer.channel = WIFI_CHANNEL;
@@ -89,7 +101,6 @@ void setup() {
         Serial.println("[GatewayNode] Warning: Failed to add Penyemaian peer.");
     }
 
-    // Add Dewasa (old Peremajaan) as a peer
     esp_now_peer_info_t dewasaPeer = {};
     memcpy(dewasaPeer.peer_addr, MAC_ADDR_DEWASA, 6);
     dewasaPeer.channel = WIFI_CHANNEL;
@@ -100,7 +111,6 @@ void setup() {
         Serial.println("[GatewayNode] Warning: Failed to add Dewasa peer.");
     }
     
-    // Initialize data structs with default invalid state
     memset(&receivedPenyemaianData, 0, sizeof(SensorData));
     strncpy(receivedPenyemaianData.nodeName, "penyemaian", sizeof(receivedPenyemaianData.nodeName) -1);
     receivedPenyemaianData.temperatureValid = false;
@@ -109,18 +119,16 @@ void setup() {
     strncpy(receivedDewasaData.nodeName, "dewasa", sizeof(receivedDewasaData.nodeName) -1);
     receivedDewasaData.temperatureValid = false;
 
-
     Serial.println("[GatewayNode] Setup Complete. Waiting for data...");
 }
 
 void forwardDataToRemajaMaster() {
-    StaticJsonDocument<768> doc; // Increased size for two SensorData objects + validity
+    StaticJsonDocument<768 + 128> doc; // Increased size for latencies
     unsigned long currentTime = millis();
 
-    // --- Penyemaian Data ---
     JsonObject penyemaianJson = doc.createNestedObject("penyemaian");
     bool isPenyemaianFresh = (currentTime - lastPenyemaianReceiveTime) < PENYEMAIAN_ESP_NOW_TIMEOUT;
-    penyemaianJson["isValid"] = isPenyemaianFresh && receivedPenyemaianData.temperatureValid; // Overall validity for this data point
+    penyemaianJson["isValid"] = isPenyemaianFresh && receivedPenyemaianData.temperatureValid; 
     
     if (isPenyemaianFresh) {
         penyemaianJson["nodeName"] = receivedPenyemaianData.nodeName;
@@ -131,7 +139,8 @@ void forwardDataToRemajaMaster() {
         penyemaianJson["humValid"] = receivedPenyemaianData.humidityValid;
         penyemaianJson["lightValid"] = receivedPenyemaianData.lightValid;
         penyemaianJson["timestamp_node"] = receivedPenyemaianData.timestamp;
-    } else { // Data is stale or never received
+        penyemaianJson["espnow_latency_ms"] = simulatedPenyemaianLatencyMs; // Add simulated latency
+    } else { 
         penyemaianJson["nodeName"] = "penyemaian";
         penyemaianJson["temp"] = JsonVariant();
         penyemaianJson["hum"] = JsonVariant();
@@ -140,13 +149,12 @@ void forwardDataToRemajaMaster() {
         penyemaianJson["humValid"] = false;
         penyemaianJson["lightValid"] = false;
         penyemaianJson["timestamp_node"] = 0;
+        penyemaianJson["espnow_latency_ms"] = -1; // Indicate no valid latency
     }
 
-
-    // --- Dewasa Data ---
     JsonObject dewasaJson = doc.createNestedObject("dewasa");
     bool isDewasaFresh = (currentTime - lastDewasaReceiveTime) < DEWASA_ESP_NOW_TIMEOUT;
-    dewasaJson["isValid"] = isDewasaFresh && receivedDewasaData.temperatureValid; // Overall validity
+    dewasaJson["isValid"] = isDewasaFresh && receivedDewasaData.temperatureValid; 
 
     if (isDewasaFresh) {
         dewasaJson["nodeName"] = receivedDewasaData.nodeName;
@@ -157,7 +165,8 @@ void forwardDataToRemajaMaster() {
         dewasaJson["humValid"] = receivedDewasaData.humidityValid;
         dewasaJson["lightValid"] = receivedDewasaData.lightValid;
         dewasaJson["timestamp_node"] = receivedDewasaData.timestamp;
-    } else { // Data is stale or never received
+        dewasaJson["espnow_latency_ms"] = simulatedDewasaLatencyMs; // Add simulated latency
+    } else { 
         dewasaJson["nodeName"] = "dewasa";
         dewasaJson["temp"] = JsonVariant();
         dewasaJson["hum"] = JsonVariant();
@@ -166,6 +175,7 @@ void forwardDataToRemajaMaster() {
         dewasaJson["humValid"] = false;
         dewasaJson["lightValid"] = false;
         dewasaJson["timestamp_node"] = 0;
+        dewasaJson["espnow_latency_ms"] = -1; // Indicate no valid latency
     }
     
     doc["timestamp_gateway_ms"] = currentTime;
@@ -174,22 +184,27 @@ void forwardDataToRemajaMaster() {
     serializeJson(doc, outputJson);
 
     SERIAL_TO_REMAJA_MASTER.println(outputJson);
+    #if DEBUG_GATEWAY
     Serial.println("[GatewayNode] Forwarded JSON via Serial to Remaja Master:");
     Serial.println(outputJson);
+    #endif
 
-    // Reset flags after forwarding
     newPenyemaianDataFlag = false;
     newDewasaDataFlag = false;
+    // Reset simulated latencies after sending
+    simulatedPenyemaianLatencyMs = -1;
+    simulatedDewasaLatencyMs = -1;
 }
 
 void loop() {
     unsigned long currentTime = millis();
 
-    // Forward data if new data has arrived from either source, or if interval has passed
     if (newPenyemaianDataFlag || newDewasaDataFlag || (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
+        #if DEBUG_GATEWAY
         if (newPenyemaianDataFlag) Serial.println("[GatewayNode] Processing new Penyemaian data for forwarding.");
         if (newDewasaDataFlag) Serial.println("[GatewayNode] Processing new Dewasa data for forwarding.");
         if (!newPenyemaianDataFlag && !newDewasaDataFlag) Serial.println("[GatewayNode] Serial forward interval reached.");
+        #endif
         
         forwardDataToRemajaMaster();
         lastSerialForwardTime = currentTime;
