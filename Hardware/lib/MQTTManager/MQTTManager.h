@@ -3,10 +3,10 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiClientSecure.h>  // Add secure client
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "../ESPNowManager/ESPNowManager.h"
+#include "../Common/SensorData.h" // Changed path to Common
 
 // Define callback signature if it's not defined by PubSubClient
 #ifndef MQTT_CALLBACK_SIGNATURE
@@ -23,16 +23,18 @@ public:
     bool publish(const String& payload);
     bool isConnected();
     void loop();
-    PubSubClient& getClient(); // Add getter for the client instance
-    void setCallback(MQTT_CALLBACK_SIGNATURE); // Add method to set callback
-    // Updated declaration to include actuator state and mode
-    void generateJsonPayload(String& output, float dewasaTemp, float dewasaHumidity, float dewasaLight,
-                          bool dewasaTempValid, bool dewasaHumidityValid, bool dewasaLightValid,
-                          const SensorData& penyemaianData, bool penyemaianValid,
-                          const SensorData& peremajaanData, bool peremajaanValid,
-                          // Added parameters
-                          bool fanState, const char* fanMode, 
-                          bool lightState, const char* lightMode);
+    PubSubClient& getClient(); 
+    void setCallback(MQTT_CALLBACK_SIGNATURE); 
+    
+    // Updated declaration to include NTP timestamp and ESP-NOW latencies
+    void generateJsonPayload(String& output, 
+                          const String& ntpTimestampStr, // NTP timestamp string
+                          float remajaTemp, float remajaHumidity, float remajaLight,
+                          bool remajaTempValid, bool remajaHumidityValid, bool remajaLightValid,
+                          const SensorData& penyemaianData, bool penyemaianOverallValid, int penyemaianEspNowLatencyMs,
+                          const SensorData& dewasaData, bool dewasaOverallValid, int dewasaEspNowLatencyMs,
+                          bool remajaFanState, const char* remajaFanMode, 
+                          bool remajaLightState, const char* remajaLightMode);
 
 private:
     const char* _ssid;
@@ -40,17 +42,17 @@ private:
     const char* _mqttServer;
     const char* _mqttPublishTopic;
     const char* _mqttControlTopic;
-    const char* _mqttUser;         // Added for MQTT authentication
-    const char* _mqttPassword;     // Added for MQTT authentication
+    const char* _mqttUser;         
+    const char* _mqttPassword;     
     int _mqttPort;
-    WiFiClientSecure _wifiClientSecure;  // Changed to secure client
+    WiFiClientSecure _wifiClientSecure;  
     PubSubClient _mqttClient;
     unsigned long _lastReconnectAttempt;
-    const unsigned long RECONNECT_INTERVAL = 5000; // Reconnect every 5 seconds
-    std::function<void(char*, uint8_t*, unsigned int)> _callback;  // Store callback as std::function
+    const unsigned long RECONNECT_INTERVAL = 5000; 
+    std::function<void(char*, uint8_t*, unsigned int)> _callback;  
     
     bool connectWiFi();
-    String determineTrend(float current, float previous);
+    // String determineTrend(float current, float previous); // Removed, trends are simplified
 };
 
 #endif // MQTT_MANAGER_H
