@@ -1,57 +1,47 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
-#include <esp_wifi.h> // Needed for esp_wifi_set_channel
+#include <esp_wifi.h> 
 
 // Include shared libraries
 #include "SensorManager.h"
-#include "NodeConfig.h" // Include common configuration (contains MAC addresses now)
-#include "SensorData.h" // Include the data structure definition
+#include "NodeConfig.h" 
+#include "SensorData.h" 
 
-// --- ESP-NOW Send Retry Configuration ---
-const int MAX_SEND_RETRIES = 5;                 // Max attempts per data packet
-const unsigned long SEND_CALLBACK_TIMEOUT_MS = 200; // Max wait time for ACK callback (milliseconds)
-const unsigned long RETRY_DELAY_MS = 100;          // Delay between retries (milliseconds)
+const int MAX_SEND_RETRIES = 5;                 
+const unsigned long SEND_CALLBACK_TIMEOUT_MS = 200; 
+const unsigned long RETRY_DELAY_MS = 100;          
 
-// Configuration flags
-#define TEMP_HUMID_SIMULATION_MODE false  // Set to true to simulate DHT22 readings
-#define LIGHT_SIMULATION_MODE false       // Set to true to simulate BH1750 readings
+#define TEMP_HUMID_SIMULATION_MODE false  
+#define LIGHT_SIMULATION_MODE false       
 
-// MAC address of the destination node (Gateway Node) - DEFINED IN NodeConfig.h
-// uint8_t gatewayMac[] = MAC_ADDR_GATEWAY; // This is how you'd use it if needed locally
-
-// Timing variables
 unsigned long lastSensorReadTime = 0;
 unsigned long lastSendTime = 0;
-// Interval constants are now defined in NodeConfig.h
 
-// Managers
 SensorManager* sensorManager;
-
-// Data structure to send
 SensorData myData;
-
-// Global flag to track ESP-NOW send status from callback
 volatile bool esp_now_send_success = false;
 
-// Callback function when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
     esp_now_send_success = (status == ESP_NOW_SEND_SUCCESS); 
-
+    #ifdef DEBUG_PENYEMAIAN // Use specific debug flag if defined
     if (!esp_now_send_success) { 
         Serial.printf("[PenyemaianNode] Send CB to %02X:%02X:%02X:%02X:%02X:%02X : Fail (Status: %d)\n",
                        mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5], status);
+    } else { 
+        Serial.printf("[PenyemaianNode] Send CB to %02X:%02X:%02X:%02X:%02X:%02X : Success\n",
+                       mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
     }
-    // else { // Optional: log success
-    //     Serial.printf("[PenyemaianNode] Send CB to %02X:%02X:%02X:%02X:%02X:%02X : Success\n",
-    //                    mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-    // }
+    #else // Default minimal logging if no specific debug flag
+    if (!esp_now_send_success) { 
+        Serial.printf("PN Send Fail: %d\n", status);
+    }
+    #endif
 }
 
 void setup() {
   Serial.begin(115200);
   delay(1000); 
-
   Serial.println("\n\n[PenyemaianNode] Starting Penyemaian Node...");
 
   sensorManager = new SensorManager(DHT_PIN, TEMP_HUMID_SIMULATION_MODE, LIGHT_SIMULATION_MODE);
@@ -76,7 +66,7 @@ void setup() {
   esp_now_register_send_cb(OnDataSent);
 
   esp_now_peer_info_t peerInfo = {};
-  memcpy(peerInfo.peer_addr, MAC_ADDR_GATEWAY, 6); // Target Gateway
+  memcpy(peerInfo.peer_addr, MAC_ADDR_GATEWAY, 6); 
   peerInfo.channel = WIFI_CHANNEL; 
   peerInfo.encrypt = false;
 
@@ -97,12 +87,15 @@ void loop() {
 
   if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) {
     lastSensorReadTime = currentTime;
-
+    #ifdef DEBUG_PENYEMAIAN
     Serial.println("\n[PenyemaianNode] Reading sensors...");
+    #endif
     bool success = sensorManager->readSensors();
 
     if (success) {
+      #ifdef DEBUG_PENYEMAIAN
       Serial.println("[PenyemaianNode] Sensors read successfully.");
+      #endif
       myData.temperature = sensorManager->getTemperature();
       myData.humidity = sensorManager->getHumidity();
       myData.lightIntensity = sensorManager->getLightIntensity();
@@ -115,16 +108,18 @@ void loop() {
       myData.temperatureValid = sensorManager->isTemperatureValid();
       myData.humidityValid = sensorManager->isHumidityValid();
       myData.lightValid = sensorManager->isLightValid();
-      myData.temperature = sensorManager->getTemperature(); // Might be NaN or stale
-      myData.humidity = sensorManager->getHumidity();     // Might be NaN or stale
-      myData.lightIntensity = sensorManager->getLightIntensity(); // Might be NaN or stale
+      myData.temperature = sensorManager->getTemperature(); 
+      myData.humidity = sensorManager->getHumidity();     
+      myData.lightIntensity = sensorManager->getLightIntensity(); 
       myData.timestamp = currentTime;
     }
   }
 
   if (currentTime - lastSendTime >= SEND_INTERVAL) {
       lastSendTime = currentTime;
+      #ifdef DEBUG_PENYEMAIAN
       Serial.println("[PenyemaianNode] Attempting to send data to Gateway...");
+      #endif
 
       bool sent_successfully_after_retries = false;
       for (int attempt = 0; attempt < MAX_SEND_RETRIES; ++attempt) {
@@ -138,18 +133,26 @@ void loop() {
               }
 
               if (esp_now_send_success) {
+                  #ifdef DEBUG_PENYEMAIAN
                   Serial.printf("[PenyemaianNode] Sent successfully to Gateway on attempt %d.\n", attempt + 1);
+                  #endif
                   sent_successfully_after_retries = true;
                   break; 
               } else {
+                  #ifdef DEBUG_PENYEMAIAN
                   Serial.printf("[PenyemaianNode] Send attempt %d to Gateway: ACK not received within %lu ms.\n", attempt + 1, SEND_CALLBACK_TIMEOUT_MS);
+                  #endif
               }
           } else {
+              #ifdef DEBUG_PENYEMAIAN
               Serial.printf("[PenyemaianNode] esp_now_send error on attempt %d. ESP-NOW Error Code: %d (%s)\n", attempt + 1, result, esp_err_to_name(result));
+              #endif
           }
 
           if (!sent_successfully_after_retries && attempt < MAX_SEND_RETRIES - 1) {
+              #ifdef DEBUG_PENYEMAIAN
               Serial.printf("[PenyemaianNode] Retrying send in %lu ms...\n", RETRY_DELAY_MS);
+              #endif
               delay(RETRY_DELAY_MS);
           }
       } 
