@@ -48,8 +48,8 @@ const unsigned long COMBINED_DATA_TIMEOUT = 7000UL;      // e.g., 7 seconds
 
 // --- Node-Specific Operation Intervals (in milliseconds) ---
 const unsigned long SENSOR_READ_INTERVAL = 2000UL;  // How often nodes read their local sensors (2 seconds)
-const unsigned long SEND_INTERVAL = 2000;         // How often nodes send data (5 seconds)
-const unsigned long MQTT_PUBLISH_INTERVAL = 2000; // How often Remaja (Master) publishes to MQTT (5 seconds)
+const unsigned long SEND_INTERVAL = 2000;         // How often nodes send data (was 5 seconds, now 2 to match MQTT)
+const unsigned long MQTT_PUBLISH_INTERVAL = 2000; // How often Remaja (Master) publishes to MQTT (was 5 seconds, now 2)
 
 
 // --- Serial Communication (Gateway <-> Remaja/Master) ---
@@ -59,6 +59,15 @@ const long SERIAL_BAUD_RATE = 115200;
 // --- Actuator Pins (for Remaja Node (Master) - Old Dewasa Hardware) ---
 const int REMAJA_FAN_LED_PIN = 18;
 const int REMAJA_LIGHT_LED_PIN = 19;
+
+// --- NTP Configuration (for Remaja Node (Master)) ---
+extern const char* NTP_SERVER_1;
+extern const char* NTP_SERVER_2;
+const long  GMT_OFFSET_SEC = 7 * 3600; // WIB is UTC+7
+const int   DAYLIGHT_OFFSET_SEC = 0;   // No daylight saving for WIB
+const int NTP_SYNC_RETRY_COUNT = 5;
+const unsigned long NTP_SYNC_RETRY_DELAY_MS = 2000; // 2 seconds between retries
+const unsigned long NTP_RESYNC_INTERVAL_MS = 1 * 60 * 60 * 1000; // Resync NTP every 1 hour
 
 
 // --- Debug Flags (Optional) ---
@@ -70,6 +79,7 @@ const int REMAJA_LIGHT_LED_PIN = 19;
 // #define DEBUG_SENSOR_MANAGER
  #define DEBUG_FUZZY_CONTROLLER_INTERNAL  1
  #define DEBUG_REMAJA_FUZZY_CONTROL 1
+ #define DEBUG_NTP 1
 
 
 #endif // NODE_CONFIG_H
