@@ -1,4 +1,5 @@
 #include "MQTTManager.h"
+#include "../Common/NodeConfig.h" // For DEBUG_MQTT_MANAGER
 
 MQTTManager::MQTTManager(const char* ssid, const char* password, const char* mqttServer, 
                          int mqttPort, const char* mqttPublishTopic, const char* mqttControlTopic,
@@ -14,9 +15,9 @@ bool MQTTManager::begin() {
     if (!connectWiFi()) {
         return false;
     }
-    _wifiClientSecure.setInsecure(); // For HiveMQ Cloud, typically no specific root CA needed for ESP32
+    _wifiClientSecure.setInsecure(); 
     _mqttClient.setServer(_mqttServer, _mqttPort);
-    _mqttClient.setBufferSize(1024); // Increased buffer for larger JSON
+    _mqttClient.setBufferSize(1024); 
     _lastReconnectAttempt = 0;
     return connect();
 }
@@ -25,16 +26,37 @@ bool MQTTManager::connectWiFi() {
     #if DEBUG_MQTT_MANAGER
     Serial.println("[MQTTManager] Connecting to WiFi...");
     #endif
-    WiFi.disconnect(); // Ensure clean state
+    WiFi.disconnect(); 
     delay(100);
     WiFi.begin(_ssid, _password);
-    // Don't wait here, loop() will handle connection status
-    return true;
+    // Connection status will be checked in loop() or connect()
+    unsigned long startTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 15000) { // 15 sec timeout for WiFi
+        delay(500);
+        #if DEBUG_MQTT_MANAGER
+        Serial.print(".");
+        #endif
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+        #if DEBUG_MQTT_MANAGER
+        Serial.println("\n[MQTTManager] WiFi connected.");
+        Serial.print("[MQTTManager] IP address: "); Serial.println(WiFi.localIP());
+        #endif
+        return true;
+    } else {
+        #if DEBUG_MQTT_MANAGER
+        Serial.println("\n[MQTTManager] WiFi connection failed.");
+        #endif
+        return false;
+    }
 }
 
 bool MQTTManager::connect() {
     if (WiFi.status() != WL_CONNECTED) {
-        return false;
+        #if DEBUG_MQTT_MANAGER
+        Serial.println("[MQTTManager] WiFi not connected, cannot connect to MQTT.");
+        #endif
+        return false; // Don't attempt MQTT connection if WiFi is down
     }
 
     if (!_mqttClient.connected()) {
@@ -48,9 +70,9 @@ bool MQTTManager::connect() {
             Serial.println("[MQTTManager] WARNING: MQTT callback not set.");
         }
         
-        String clientId = "ESP32RemajaMaster-"; // Updated Client ID
+        String clientId = "ESP32RemajaMaster-"; 
         clientId += String(WiFi.macAddress());
-        clientId.replace(":", ""); // Remove colons from MAC for client ID
+        clientId.replace(":", ""); 
         clientId += "-";
         clientId += String(millis() % 1000); 
         
@@ -75,19 +97,19 @@ bool MQTTManager::connect() {
             #if DEBUG_MQTT_MANAGER
             Serial.println("[MQTTManager] MQTT connected successfully.");
             #endif
-            // Subscribe to the control topic
-            if (_mqttClient.subscribe(_mqttControlTopic, 1)) { // QoS 1
-                #if DEBUG_MQTT_MANAGER
-                Serial.printf("[MQTTManager] Subscribed to control topic: %s\n", _mqttControlTopic);
-                #endif
-            } else {
-                Serial.printf("[MQTTManager] ERROR: Failed to subscribe to control topic %s. State: %d\n", _mqttControlTopic, _mqttClient.state());
+            if (_mqttControlTopic && strlen(_mqttControlTopic) > 0) {
+                if (_mqttClient.subscribe(_mqttControlTopic, 1)) { 
+                    #if DEBUG_MQTT_MANAGER
+                    Serial.printf("[MQTTManager] Subscribed to control topic: %s\n", _mqttControlTopic);
+                    #endif
+                } else {
+                    Serial.printf("[MQTTManager] ERROR: Failed to subscribe to control topic %s. State: %d\n", _mqttControlTopic, _mqttClient.state());
+                }
             }
             return true;
         } else {
             Serial.print("[MQTTManager] ERROR: MQTT connection failed, rc=");
             Serial.print(_mqttClient.state()); Serial.println();
-            // Detailed error printing can be added here based on _mqttClient.state()
             return false;
         }
     }
@@ -100,8 +122,6 @@ bool MQTTManager::publish(const String& payload) {
         if(WiFi.status() != WL_CONNECTED) Serial.println("[MQTTManager] WiFi not connected, cannot publish.");
         if(!_mqttClient.connected()) Serial.println("[MQTTManager] MQTT not connected, cannot publish.");
         #endif
-        // Attempt to reconnect if necessary, or rely on loop() to do it
-        // connect(); // Optionally try immediate reconnect
         return false;
     }
     
@@ -111,7 +131,7 @@ bool MQTTManager::publish(const String& payload) {
     Serial.print("[MQTTManager] Topic: "); Serial.println(_mqttPublishTopic);
     #endif
     
-    bool result = _mqttClient.publish(_mqttPublishTopic, payload.c_str(), false); // Retain = false
+    bool result = _mqttClient.publish(_mqttPublishTopic, payload.c_str(), false); 
     
     #if DEBUG_MQTT_MANAGER
     if (!result) {
@@ -133,7 +153,7 @@ PubSubClient& MQTTManager::getClient() {
 
 void MQTTManager::setCallback(MQTT_CALLBACK_SIGNATURE) {
     _callback = callback;
-    if (_mqttClient.connected()) { // If already connected, set it immediately
+    if (_mqttClient.connected()) { 
         _mqttClient.setCallback(_callback);
     }
 }
@@ -148,7 +168,7 @@ void MQTTManager::loop() {
             #endif
             connectWiFi(); 
         }
-    } else { // WiFi is connected
+    } else { 
         if (!_mqttClient.connected()) {
              unsigned long now = millis();
              if (now - _lastReconnectAttempt > RECONNECT_INTERVAL) {
@@ -156,72 +176,73 @@ void MQTTManager::loop() {
                  #if DEBUG_MQTT_MANAGER
                  Serial.println("[MQTTManager] MQTT disconnected. Attempting MQTT reconnection...");
                  #endif
-                 connect(); // Attempt to reconnect MQTT
+                 connect(); 
              }
-        } else { // WiFi and MQTT are connected
-            _mqttClient.loop(); // Process MQTT messages
+        } else { 
+            _mqttClient.loop(); 
         }
     }
 }
 
-// Modified generateJsonPayload
+// Modified generateJsonPayload to include NTP timestamp and ESP-NOW latencies
 void MQTTManager::generateJsonPayload(String& output, 
+                                   const String& ntpTimestampStr,
                                    float remajaTemp, float remajaHumidity, float remajaLight,
                                    bool remajaTempValid, bool remajaHumidityValid, bool remajaLightValid,
-                                   const SensorData& penyemaianData, bool penyemaianOverallValid,
-                                   const SensorData& dewasaData, bool dewasaOverallValid,
+                                   const SensorData& penyemaianData, bool penyemaianOverallValid, int penyemaianEspNowLatencyMs,
+                                   const SensorData& dewasaData, bool dewasaOverallValid, int dewasaEspNowLatencyMs,
                                    bool remajaFanState, const char* remajaFanMode, 
                                    bool remajaLightState, const char* remajaLightMode) {
     StaticJsonDocument<1024> doc; 
     
-    doc["timestamp"] = millis() / 1000; // Or use NTP time if available
+    // Use provided NTP timestamp string, or "N/A" if not available
+    doc["hardware_send_timestamp_str"] = ntpTimestampStr;
     
     JsonObject sections = doc.createNestedObject("sections");
     
-    // Remaja (Local) Section
     JsonObject remaja = sections.createNestedObject("remaja");
     remaja["temp"] = remajaTempValid ? remajaTemp : JsonVariant();
     remaja["humidity"] = remajaHumidityValid ? remajaHumidity : JsonVariant();
     remaja["light"] = remajaLightValid ? remajaLight : JsonVariant();
-    // Trends for remaja can be calculated if previous values are stored, or set to "equals"
     JsonObject remajaTrends = remaja.createNestedObject("trends");
     remajaTrends["temp"] = "equals"; 
     remajaTrends["humidity"] = "equals";
     remajaTrends["light"] = "equals";
     
-    // Penyemaian Section (from Gateway)
     JsonObject penyemaian = sections.createNestedObject("penyemaian");
     if (penyemaianOverallValid) {
         penyemaian["temp"] = penyemaianData.temperatureValid ? penyemaianData.temperature : JsonVariant();
         penyemaian["humidity"] = penyemaianData.humidityValid ? penyemaianData.humidity : JsonVariant();
         penyemaian["light"] = penyemaianData.lightValid ? penyemaianData.lightIntensity : JsonVariant();
+        penyemaian["espnow_latency_ms"] = penyemaianEspNowLatencyMs; // Add latency
     } else {
         penyemaian["temp"] = JsonVariant();
         penyemaian["humidity"] = JsonVariant();
         penyemaian["light"] = JsonVariant();
+        penyemaian["espnow_latency_ms"] = JsonVariant(); // Null if data invalid
     }
-    JsonObject penyemaianTrends = penyemaian.createNestedObject("trends"); // Placeholder trends
+    JsonObject penyemaianTrends = penyemaian.createNestedObject("trends"); 
     penyemaianTrends["temp"] = "equals";
     penyemaianTrends["humidity"] = "equals";
     penyemaianTrends["light"] = "equals";
 
-    // Dewasa Section (from Gateway)
     JsonObject dewasa = sections.createNestedObject("dewasa");
     if (dewasaOverallValid) {
         dewasa["temp"] = dewasaData.temperatureValid ? dewasaData.temperature : JsonVariant();
         dewasa["humidity"] = dewasaData.humidityValid ? dewasaData.humidity : JsonVariant();
         dewasa["light"] = dewasaData.lightValid ? dewasaData.lightIntensity : JsonVariant();
+        dewasa["espnow_latency_ms"] = dewasaEspNowLatencyMs; // Add latency
     } else {
         dewasa["temp"] = JsonVariant();
         dewasa["humidity"] = JsonVariant();
         dewasa["light"] = JsonVariant();
+        dewasa["espnow_latency_ms"] = JsonVariant(); // Null if data invalid
     }
-    JsonObject dewasaTrends = dewasa.createNestedObject("trends"); // Placeholder trends
+    JsonObject dewasaTrends = dewasa.createNestedObject("trends"); 
     dewasaTrends["temp"] = "equals";
     dewasaTrends["humidity"] = "equals";
     dewasaTrends["light"] = "equals";
     
-    // Calculate Averages
     JsonObject averages = doc.createNestedObject("averages");
     float tempSum = 0; int tempCount = 0;
     float humiditySum = 0; int humidityCount = 0;
@@ -243,12 +264,11 @@ void MQTTManager::generateJsonPayload(String& output,
     averages["humidity"] = (humidityCount > 0) ? round(humiditySum / humidityCount) : JsonVariant();
     averages["light"] = (lightCount > 0) ? round(lightSum / lightCount) : JsonVariant();
 
-    // Actuators (for Remaja node)
     JsonObject actuators = doc.createNestedObject("actuators");
-    JsonObject fan = actuators.createNestedObject("fan"); // Assuming fan is for Remaja
+    JsonObject fan = actuators.createNestedObject("fan"); 
     fan["state"] = remajaFanState;
     fan["mode"] = remajaFanMode; 
-    JsonObject lightActuator = actuators.createNestedObject("light"); // Assuming light is for Remaja
+    JsonObject lightActuator = actuators.createNestedObject("light"); 
     lightActuator["state"] = remajaLightState;
     lightActuator["mode"] = remajaLightMode; 
     
