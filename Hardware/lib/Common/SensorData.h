@@ -23,4 +23,12 @@ struct CombinedData {
     unsigned long timestamp;    // Timestamp when this combined packet was created (millis())
 };
 
+// Define the structure for actuator commands sent from Gateway to Dewasa
+struct ActuatorCommand {
+    char device[10]; // "fan" or "light"
+    bool state;      // true for ON, false for OFF
+    // uint32_t commandId; // Optional: for more advanced ACK tracking if needed
+};
+
+
 #endif // SENSORDATA_H

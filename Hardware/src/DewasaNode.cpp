@@ -45,6 +45,29 @@ void OnDataSentToGateway(const uint8_t *mac_addr, esp_now_send_status_t status) 
     #endif
 }
 
+// ESP-NOW Receive Callback for control commands from Gateway
+void OnControlDataRecvFromGateway(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
+    if (memcmp(mac_addr, MAC_ADDR_GATEWAY, 6) != 0) {
+        Serial.println("[DewasaNode] Control command received from unrecognized MAC. Ignoring.");
+        return;
+    }
+    if (len != sizeof(ActuatorCommand)) {
+        Serial.printf("[DewasaNode] Control command received with incorrect size. Expected %d, got %d. Ignoring.\n", sizeof(ActuatorCommand), len);
+        return;
+    }
+
+    ActuatorCommand cmd;
+    memcpy(&cmd, incomingData, sizeof(ActuatorCommand));
+
+    Serial.printf("[DewasaNode] Received control command for device '%s' to state %s\n", cmd.device, cmd.state ? "ON" : "OFF");
+
+    if (strcmp(cmd.device, "fan") == 0) {
+        digitalWrite(DEWASA_FAN_PIN, cmd.state ? HIGH : LOW);
+    } else if (strcmp(cmd.device, "light") == 0) {
+        digitalWrite(DEWASA_LIGHT_PIN, cmd.state ? HIGH : LOW);
+    }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000); 
@@ -52,6 +75,12 @@ void setup() {
 
   sensorManager = new SensorManager(DHT_PIN, TEMP_HUMID_SIMULATION_MODE, LIGHT_SIMULATION_MODE);
   sensorManager->begin();
+
+  // Initialize actuator pins
+  pinMode(DEWASA_FAN_PIN, OUTPUT);
+  pinMode(DEWASA_LIGHT_PIN, OUTPUT);
+  digitalWrite(DEWASA_FAN_PIN, LOW); // Default OFF
+  digitalWrite(DEWASA_LIGHT_PIN, LOW); // Default OFF
 
   WiFi.mode(WIFI_STA);
   Serial.print("[DewasaNode] MAC Address: ");
@@ -69,7 +98,9 @@ void setup() {
     Serial.println("[DewasaNode] Error initializing ESP-NOW");
     return;
   }
+  // Register send callback for data TO Gateway
   esp_now_register_send_cb(OnDataSentToGateway);
+  esp_now_register_recv_cb(OnControlDataRecvFromGateway); // Register receive callback for commands FROM Gateway
 
   // Add Gateway as peer
   esp_now_peer_info_t gatewayPeerInfo = {};
@@ -81,7 +112,7 @@ void setup() {
     Serial.println("[DewasaNode] Failed to add Gateway peer");
     return;
   }
-  Serial.println("[DewasaNode] Gateway node added as peer.");
+  Serial.println("[DewasaNode] Gateway node added as peer (for sending sensor data and receiving commands).");
 
   // Set node name in the data structure
   strncpy(dewasaLocalData.nodeName, "dewasa", sizeof(dewasaLocalData.nodeName) - 1);

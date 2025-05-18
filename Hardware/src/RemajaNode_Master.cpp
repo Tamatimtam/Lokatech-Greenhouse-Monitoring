@@ -56,13 +56,23 @@ unsigned long lastGatewaySerialTime = 0;
 bool remajaFanManual = false;    
 bool remajaLightManual = false;  
 
+// --- Serial Command ACK ---
+static uint32_t currentSerialCommandId = 0;
+volatile uint32_t expectedSerialAckId = 0;
+volatile bool serialCommandAckReceived = false;
+volatile bool serialCommandAckStatusOk = false;
+
+
 // Function Prototypes
 void initializeReceivedData();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void runFuzzyControlAndActuators();
 void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool &averagesValid, int &tempCount, int &humidityCount, int &lightCount);
+// void sendControlCommandToGatewayForDewasa(const char* device, bool state, const char* mode); // Old declaration
+bool sendControlCommandToGatewayForDewasaWithRetries(const char* device, bool state, const char* mode); // New declaration
 bool syncNTP();
 String getFormattedTimestamp();
+void processSerialFromGateway(); // New function to handle all serial input
 
 void initializeReceivedData() {
      memset(&receivedPenyemaianData, 0, sizeof(SensorData));
@@ -72,19 +82,19 @@ void initializeReceivedData() {
      memset(&receivedDewasaData, 0, sizeof(SensorData));
      strncpy(receivedDewasaData.nodeName, "dewasa", sizeof(receivedDewasaData.nodeName) - 1);
      receivedDewasaData.temperatureValid = false;
-     // No ESP-NOW latencies to initialize here anymore
 }
 
 bool syncNTP() {
+    return true;
     if (WiFi.status() != WL_CONNECTED) {
-        #if DEBUG_NTP
+        #if DEBUG_NTP && DEBUG_REMAJA_MASTER
         Serial.println("[NTP] WiFi not connected. Cannot sync NTP.");
         #endif
         ntpSynchronized = false;
         return false;
     }
 
-    #if DEBUG_NTP
+    #if DEBUG_NTP && DEBUG_REMAJA_MASTER
     Serial.println("[NTP] Attempting to synchronize time...");
     #endif
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER_1, NTP_SERVER_2);
@@ -92,12 +102,12 @@ bool syncNTP() {
     struct tm timeinfo;
     int retry = 0;
     while (!getLocalTime(&timeinfo, 10000)) { // Timeout 10 seconds
-        #if DEBUG_NTP
+        #if DEBUG_NTP && DEBUG_REMAJA_MASTER
         Serial.println("[NTP] Failed to obtain time. Retrying...");
         #endif
         retry++;
         if (retry >= NTP_SYNC_RETRY_COUNT) {
-            #if DEBUG_NTP
+            #if DEBUG_NTP && DEBUG_REMAJA_MASTER
             Serial.println("[NTP] Max retries reached. NTP sync failed.");
             #endif
             ntpSynchronized = false;
@@ -106,7 +116,7 @@ bool syncNTP() {
         delay(NTP_SYNC_RETRY_DELAY_MS);
     }
     
-    #if DEBUG_NTP
+    #if DEBUG_NTP && DEBUG_REMAJA_MASTER
     Serial.print("[NTP] Time synchronized: ");
     Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
     #endif
@@ -128,7 +138,7 @@ String getFormattedTimestamp() {
     struct tm *ptm = gmtime(&now_seconds); 
 
     if (ptm == NULL) {
-        #if DEBUG_NTP
+        #if DEBUG_NTP && DEBUG_REMAJA_MASTER
         Serial.println("[NTP] gmtime() returned NULL!");
         #endif
         return "N/A_gmtime_err";
@@ -147,7 +157,7 @@ String getFormattedTimestamp() {
 void setup() {
   Serial.begin(115200);
   delay(1000); 
-  randomSeed(analogRead(0)); // Seed for random ESP-NOW latency simulation
+  randomSeed(analogRead(0)); 
 
   Serial.println("\n\n[RemajaNode_Master] Starting Remaja Node (Master)...");
 
@@ -182,142 +192,191 @@ void setup() {
   Serial.println("[RemajaNode_Master] Setup completed.");
 }
 
-void loop() {
-  unsigned long currentTime = millis();
+void processSerialFromGateway() {
+    if (Serial2.available() > 0) {
+        String line = Serial2.readStringUntil('\n');
+        line.trim(); 
 
-  if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
-      if (currentTime - lastNtpSyncAttempt > 60000UL) { 
-          lastNtpSyncAttempt = currentTime;
-          syncNTP();
-      }
-  }
+        if (line.length() > 0) {
+            #if DEBUG_REMAJA_MASTER
+            // Serial.printf("[RemajaNode_Master] Raw Serial2 input: %s\n", line.c_str());
+            #endif
 
-  if (Serial2.available() > 0) {
-      String line = Serial2.readStringUntil('\n');
-      line.trim(); 
+            StaticJsonDocument<1024> doc; // Large enough for sensor data or ACK
+            DeserializationError error = deserializeJson(doc, line);
 
-      if (line.length() > 0) {
-          StaticJsonDocument<768> doc; // Gateway no longer sends latency, so size can be smaller
-          DeserializationError error = deserializeJson(doc, line);
-          unsigned long currentParseTime = millis(); 
+            if (!error) {
+                const char* msgType = doc["type"];
+                if (msgType && strcmp(msgType, "ack") == 0) {
+                    #if DEBUG_REMAJA_MASTER
+                    Serial.printf("[RemajaNode_Master] Received ACK from Gateway: %s\n", line.c_str());
+                    #endif
+                    uint32_t ackId = doc["id"] | 0;
+                    if (ackId != 0 && ackId == expectedSerialAckId) {
+                        serialCommandAckStatusOk = (strcmp(doc["status"], "ok") == 0);
+                        serialCommandAckReceived = true;
+                        // expectedSerialAckId is reset by the sender function after processing
+                    } else {
+                        #if DEBUG_REMAJA_MASTER
+                        Serial.printf("[RemajaNode_Master] Stray/unexpected ACK. ID: %u, Expected: %u\n", ackId, expectedSerialAckId);
+                        #endif
+                    }
+                } else { // Assume it's sensor data from Gateway
+                    #if DEBUG_REMAJA_MASTER
+                    Serial.println("[RemajaNode_Master] Parsed Sensor JSON from Gateway. Content:");
+                    serializeJsonPretty(doc, Serial); 
+                    Serial.println();
+                    #endif
+                    unsigned long currentParseTime = millis(); 
 
-          if (!error) {
-              #if DEBUG_REMAJA_MASTER
-              Serial.println("[RemajaNode_Master] Parsed JSON from Gateway. Content:");
-              serializeJsonPretty(doc, Serial); 
-              Serial.println();
-              #endif
-
-              JsonObject penyemaianJson = doc["penyemaian"];
-              bool gatewayReportedPenyemaianValid = penyemaianJson["isValid"].as<bool>() | false; 
-              
-              if (gatewayReportedPenyemaianValid) {
-                  strncpy(receivedPenyemaianData.nodeName, penyemaianJson["nodeName"] | "penyemaian", sizeof(receivedPenyemaianData.nodeName)-1);
-                  receivedPenyemaianData.temperature = penyemaianJson["temp"] | -999.0f;
-                  receivedPenyemaianData.humidity = penyemaianJson["hum"] | -999.0f;
-                  receivedPenyemaianData.lightIntensity = penyemaianJson["light"] | -999.0f;
-                  receivedPenyemaianData.temperatureValid = penyemaianJson["tempValid"].as<bool>() | false;
-                  receivedPenyemaianData.humidityValid = penyemaianJson["humValid"].as<bool>() | false;
-                  receivedPenyemaianData.lightValid = penyemaianJson["lightValid"].as<bool>() | false;
-                  // No espnow_latency_ms to parse from Gateway
-                  isPenyemaianDataValidSerial = true;
-              } else {
-                  receivedPenyemaianData.temperatureValid = false; // Ensure all flags are false
-                  receivedPenyemaianData.humidityValid = false;
-                  receivedPenyemaianData.lightValid = false;
-                  isPenyemaianDataValidSerial = false;
-              }
-              
-              JsonObject dewasaJson = doc["dewasa"];
-              bool gatewayReportedDewasaValid = dewasaJson["isValid"].as<bool>() | false;
-              if (gatewayReportedDewasaValid) {
-                  strncpy(receivedDewasaData.nodeName, dewasaJson["nodeName"] | "dewasa", sizeof(receivedDewasaData.nodeName)-1);
-                  receivedDewasaData.temperature = dewasaJson["temp"] | -999.0f;
-                  receivedDewasaData.humidity = dewasaJson["hum"] | -999.0f;
-                  receivedDewasaData.lightIntensity = dewasaJson["light"] | -999.0f;
-                  receivedDewasaData.temperatureValid = dewasaJson["tempValid"].as<bool>() | false;
-                  receivedDewasaData.humidityValid = dewasaJson["humValid"].as<bool>() | false;
-                  receivedDewasaData.lightValid = dewasaJson["lightValid"].as<bool>() | false;
-                  // No espnow_latency_ms to parse from Gateway
-                  isDewasaDataValidSerial = true;
-              } else {
-                  receivedDewasaData.temperatureValid = false; // Ensure all flags are false
-                  receivedDewasaData.humidityValid = false;
-                  receivedDewasaData.lightValid = false;
-                  isDewasaDataValidSerial = false;
-              }
-              lastGatewaySerialTime = currentParseTime; 
-          } else {
-              Serial.print("[RemajaNode_Master] ERROR: Failed to parse JSON from Gateway: "); Serial.println(error.c_str());
-              Serial.print("  Raw line: "); Serial.println(line);
-          }
-      } 
-  } 
-
-  if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
-    lastSensorReadTime = currentTime;
-    #if DEBUG_REMAJA_MASTER
-    Serial.println("\n[RemajaNode_Master] Reading local Remaja sensors...");
-    #endif
-    sensorManager->readSensors(); 
-  }
-
-  runFuzzyControlAndActuators();
-
-  if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
-    lastMqttPublishTime = currentTime;
-    #if DEBUG_REMAJA_MASTER
-    Serial.println("\n[RemajaNode_Master] Preparing MQTT payload...");
-    #endif
-    String payload;
-    String currentNtpTimestampStr = getFormattedTimestamp();
-
-    bool penyemaianDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isPenyemaianDataValidSerial;
-    bool dewasaDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isDewasaDataValidSerial;
-
-    // Simulate ESP-NOW latencies here if data is fresh
-    int simulatedPenyemaianEspNowLatencyMs = -1;
-    if (penyemaianDataFreshForMqtt) {
-        simulatedPenyemaianEspNowLatencyMs = 18 + random(5); // Generates 18, 19, 20, 21, 22 (20 +/- 2)
+                    JsonObject penyemaianJson = doc["penyemaian"];
+                    bool gatewayReportedPenyemaianValid = penyemaianJson["isValid"].as<bool>() | false; 
+                    
+                    if (gatewayReportedPenyemaianValid) {
+                        strncpy(receivedPenyemaianData.nodeName, penyemaianJson["nodeName"] | "penyemaian", sizeof(receivedPenyemaianData.nodeName)-1);
+                        receivedPenyemaianData.temperature = penyemaianJson["temp"] | -999.0f;
+                        receivedPenyemaianData.humidity = penyemaianJson["hum"] | -999.0f;
+                        receivedPenyemaianData.lightIntensity = penyemaianJson["light"] | -999.0f;
+                        receivedPenyemaianData.temperatureValid = penyemaianJson["tempValid"].as<bool>() | false;
+                        receivedPenyemaianData.humidityValid = penyemaianJson["humValid"].as<bool>() | false;
+                        receivedPenyemaianData.lightValid = penyemaianJson["lightValid"].as<bool>() | false;
+                        isPenyemaianDataValidSerial = true;
+                    } else {
+                        receivedPenyemaianData.temperatureValid = false; 
+                        receivedPenyemaianData.humidityValid = false;
+                        receivedPenyemaianData.lightValid = false;
+                        isPenyemaianDataValidSerial = false;
+                    }
+                    
+                    JsonObject dewasaJson = doc["dewasa"];
+                    bool gatewayReportedDewasaValid = dewasaJson["isValid"].as<bool>() | false;
+                    if (gatewayReportedDewasaValid) {
+                        strncpy(receivedDewasaData.nodeName, dewasaJson["nodeName"] | "dewasa", sizeof(receivedDewasaData.nodeName)-1);
+                        receivedDewasaData.temperature = dewasaJson["temp"] | -999.0f;
+                        receivedDewasaData.humidity = dewasaJson["hum"] | -999.0f;
+                        receivedDewasaData.lightIntensity = dewasaJson["light"] | -999.0f;
+                        receivedDewasaData.temperatureValid = dewasaJson["tempValid"].as<bool>() | false;
+                        receivedDewasaData.humidityValid = dewasaJson["humValid"].as<bool>() | false;
+                        receivedDewasaData.lightValid = dewasaJson["lightValid"].as<bool>() | false;
+                        isDewasaDataValidSerial = true;
+                    } else {
+                        receivedDewasaData.temperatureValid = false; 
+                        receivedDewasaData.humidityValid = false;
+                        receivedDewasaData.lightValid = false;
+                        isDewasaDataValidSerial = false;
+                    }
+                    lastGatewaySerialTime = currentParseTime; 
+                }
+            } else {
+                #if DEBUG_REMAJA_MASTER
+                Serial.print("[RemajaNode_Master] ERROR: Failed to parse JSON from Gateway: "); Serial.println(error.c_str());
+                Serial.print("  Raw line: "); Serial.println(line);
+                #endif
+            }
+        } 
     }
-
-    int simulatedDewasaEspNowLatencyMs = -1;
-    if (dewasaDataFreshForMqtt) {
-        simulatedDewasaEspNowLatencyMs = 18 + random(5); // Generates 18, 19, 20, 21, 22 (20 +/- 2)
-    }
-
-    mqttManager->generateJsonPayload( 
-      payload, 
-      currentNtpTimestampStr, 
-      sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
-      sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
-      receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
-      receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
-      digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
-      digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
-    );
-
-    #if DEBUG_MQTT_MANAGER
-    Serial.print("[RemajaNode_Master] Publishing to MQTT. NTP Timestamp: "); Serial.println(currentNtpTimestampStr);
-    Serial.print("  Penyemaian ESP-NOW Latency (Simulated, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
-    Serial.print("  Dewasa ESP-NOW Latency (Simulated, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
-    #endif
-
-    if (mqttManager->publish(payload)) {
-      #if DEBUG_REMAJA_MASTER
-      Serial.println("[RemajaNode_Master] Data published to MQTT successfully");
-      #endif
-    } else {
-      Serial.println("[RemajaNode_Master] ERROR: Failed to publish data to MQTT");
-    }
-  }
-
-  mqttManager->loop(); 
-  yield(); 
 }
 
-// calculateAverages, runFuzzyControlAndActuators, mqttCallback remain the same as in the previous response.
-// Make sure they are included here.
+// RemajaNode_Master.cpp - loop() - Iteration 1
+void loop() {
+  // unsigned long currentTime = millis(); // Not needed yet
+
+  // if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
+  //     if (currentTime - lastNtpSyncAttempt > 60000UL) { 
+  //         lastNtpSyncAttempt = currentTime;
+  //         syncNTP();
+  //     }
+  // }
+
+  processSerialFromGateway(); // Process any incoming Serial data from Gateway (for ACKs or sensor data)
+
+  // if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
+  //   // Skip sensor reading
+  // }
+
+  // runFuzzyControlAndActuators(); // Skip fuzzy
+
+  // if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
+  //   // Skip MQTT publishing
+  // }
+
+  mqttManager->loop(); // Keep MQTT connection alive and process incoming messages (like control commands)
+  yield(); 
+}
+// void loop() {
+//     Serial2.println("FUCK");
+//   unsigned long currentTime = millis();
+
+//   if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
+//       if (currentTime - lastNtpSyncAttempt > 60000UL) { 
+//           lastNtpSyncAttempt = currentTime;
+//           syncNTP();
+//       }
+//   }
+
+//   processSerialFromGateway(); // Process any incoming Serial data from Gateway
+
+//   if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
+//     lastSensorReadTime = currentTime;
+//     #if DEBUG_REMAJA_MASTER
+//     Serial.println("\n[RemajaNode_Master] Reading local Remaja sensors...");
+//     #endif
+//     sensorManager->readSensors(); 
+//   }
+
+//   runFuzzyControlAndActuators();
+
+//   if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
+//     lastMqttPublishTime = currentTime;
+//     #if DEBUG_REMAJA_MASTER
+//     Serial.println("\n[RemajaNode_Master] Preparing MQTT payload...");
+//     #endif
+//     String payload;
+//     String currentNtpTimestampStr = getFormattedTimestamp();
+
+//     bool penyemaianDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isPenyemaianDataValidSerial;
+//     bool dewasaDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isDewasaDataValidSerial;
+
+//     int simulatedPenyemaianEspNowLatencyMs = -1;
+//     if (penyemaianDataFreshForMqtt) {
+//         simulatedPenyemaianEspNowLatencyMs = 18 + random(5); 
+//     }
+
+//     int simulatedDewasaEspNowLatencyMs = -1;
+//     if (dewasaDataFreshForMqtt) {
+//         simulatedDewasaEspNowLatencyMs = 18 + random(5); 
+//     }
+
+//     mqttManager->generateJsonPayload( 
+//       payload, 
+//       currentNtpTimestampStr, 
+//       sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
+//       sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
+//       receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
+//       receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
+//       digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
+//       digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
+//     );
+
+//     #if DEBUG_MQTT_MANAGER && DEBUG_REMAJA_MASTER
+//     Serial.print("[RemajaNode_Master] Publishing to MQTT. NTP Timestamp: "); Serial.println(currentNtpTimestampStr);
+//     Serial.print("  Penyemaian ESP-NOW Latency (Simulated, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
+//     Serial.print("  Dewasa ESP-NOW Latency (Simulated, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
+//     #endif
+
+//     if (mqttManager->publish(payload)) {
+//       #if DEBUG_REMAJA_MASTER
+//       // Serial.println("[RemajaNode_Master] Data published to MQTT successfully"); // Already logged by MQTTManager
+//       #endif
+//     } else {
+//       Serial.println("[RemajaNode_Master] ERROR: Failed to publish data to MQTT");
+//     }
+//   }
+
+//   mqttManager->loop(); 
+//   yield(); 
+// }
+
 
 void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool &averagesValid, int &tempCount, int &humidityCount, int &lightCount) {
     float tempSum = 0;
@@ -388,6 +447,107 @@ void runFuzzyControlAndActuators() {
     digitalWrite(REMAJA_LIGHT_LED_PIN, finalLightState ? HIGH : LOW);
 }
 
+bool sendControlCommandToGatewayForDewasaWithRetries(const char* device, bool state, const char* mode) {
+    currentSerialCommandId++;
+    if (currentSerialCommandId == 0) currentSerialCommandId = 1; // Avoid ID 0, which is default for expectedSerialAckId
+
+    #if DEBUG_REMAJA_MASTER
+    Serial.printf("[Remaja->Gateway] Attempting to send command for Dewasa: Device='%s', State=%s, Mode='%s', ID=%u\n", device, state ? "ON" : "OFF", mode, currentSerialCommandId);
+    #endif
+
+    for (int attempt = 0; attempt < MAX_SERIAL_COMMAND_RETRIES; ++attempt) {
+        StaticJsonDocument<128> doc;
+        doc["type"] = "control_dewasa";
+        doc["device"] = device;
+        doc["state"] = state;
+        doc["id"] = currentSerialCommandId;
+
+        String outputJson;
+        serializeJson(doc, outputJson);
+
+        serialCommandAckReceived = false; 
+        serialCommandAckStatusOk = false;
+        expectedSerialAckId = currentSerialCommandId; 
+
+        Serial2.println(outputJson);
+        Serial2.println("FUCK");
+        #if DEBUG_REMAJA_MASTER
+        Serial.printf("[Remaja->Gateway] Sent command (Attempt %d/%d), ID %u: %s\n", attempt + 1, MAX_SERIAL_COMMAND_RETRIES, currentSerialCommandId, outputJson.c_str());
+        #endif
+
+        unsigned long ackWaitStart = millis();
+        while (!serialCommandAckReceived && (millis() - ackWaitStart < SERIAL_COMMAND_ACK_TIMEOUT_MS)) {
+            processSerialFromGateway(); // Allow ACK processing
+            mqttManager->loop();        // Keep MQTT alive
+            yield();                    // Allow other tasks
+        }
+        
+        // No longer expecting this specific ACK ID after timeout or reception
+        // Keep expectedSerialAckId as is, it will be overwritten by next command send or naturally ignored if an old ACK arrives.
+        // If we reset it to 0 here, a late ACK for this ID might be ignored by processSerialFromGateway.
+        // The check `ackId == expectedSerialAckId` in processSerialFromGateway is key.
+
+        if (serialCommandAckReceived) {
+            if (serialCommandAckStatusOk) {
+                #if DEBUG_REMAJA_MASTER
+                Serial.printf("[Remaja->Gateway] Command ID %u ACKed successfully by Gateway on attempt %d.\n", currentSerialCommandId, attempt + 1);
+                #endif
+                expectedSerialAckId = 0; // Successfully processed, clear expectation
+                return true; 
+            } else {
+                #if DEBUG_REMAJA_MASTER
+                Serial.printf("[Remaja->Gateway] Command ID %u NACKed by Gateway on attempt %d. Retrying...\n", currentSerialCommandId, attempt + 1);
+                #endif
+            }
+        } else {
+            #if DEBUG_REMAJA_MASTER
+            Serial.printf("[Remaja->Gateway] Timeout waiting for ACK for command ID %u on attempt %d. Retrying...\n", currentSerialCommandId, attempt + 1);
+            #endif
+        }
+
+        if (attempt < MAX_SERIAL_COMMAND_RETRIES - 1) {
+            delay(SERIAL_COMMAND_RETRY_DELAY_MS);
+        }
+    }
+    Serial.printf("[Remaja->Gateway] ERROR: Failed to send command ID %u to Gateway for Dewasa after all retries.\n", currentSerialCommandId);
+    expectedSerialAckId = 0; // Failed all retries, clear expectation
+    return false;
+}
+
+bool fuck(const char* device, bool state, const char* mode) {
+    currentSerialCommandId++;
+    if (currentSerialCommandId == 0) currentSerialCommandId = 1; 
+
+    #if DEBUG_REMAJA_MASTER
+    Serial.printf("[Remaja->Gateway] INSIDE sendControlCommand... ID=%u, Device='%s', State=%s\n", 
+                  currentSerialCommandId, device, state ? "ON" : "OFF");
+    #endif
+
+    StaticJsonDocument<128> doc;
+    doc["type"] = "control_dewasa";
+    doc["device"] = device;
+    doc["state"] = state;
+    doc["id"] = currentSerialCommandId;
+
+    String outputJson;
+    serializeJson(doc, outputJson);
+
+    String fullCommandString = "CMD:" + outputJson; // Using the prefix method
+
+    Serial.println("[Remaja->Gateway] BEFORE Serial2.println in sendControlCommand...");
+    Serial.print("   Sending: "); Serial.println(fullCommandString);
+
+    Serial2.println(fullCommandString);
+    Serial2.flush(); // Make sure it's sent out
+
+    Serial.println("[Remaja->Gateway] AFTER Serial2.println and flush in sendControlCommand.");
+    
+    // FOR THIS TEST, WE ARE NOT WAITING FOR ACK OR RETRYING.
+    // WE JUST WANT TO SEE IF THIS SINGLE SEND WORKS.
+    // The function will always return false for now, or true, doesn't matter for this test.
+    return false; 
+};
+
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.printf("\n[RemajaNode_Master][MQTT Callback] Message arrived on topic: %s\n", topic);
   
@@ -421,27 +581,35 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             return;
         }
 
+        bool state = false; // Default state
+        if (doc.containsKey("state")) {
+            state = doc["state"].as<bool>();
+        } else if (!mode) { // If no mode and no state, it's an incomplete command for direct state change
+            Serial.println("[MQTT Callback] Command for 'remaja' missing 'state' for direct control.");
+            return;
+        }
+
+
         if (mode) { 
             Serial.printf("[MQTT Callback] Processing mode switch for Remaja: device='%s', mode='%s'\n", device, mode);
             if (strcmp(device, "fan") == 0) {
                 remajaFanManual = (strcmp(mode, "manual") == 0);
                 if (remajaFanManual && doc.containsKey("state")) { 
-                    digitalWrite(REMAJA_FAN_LED_PIN, doc["state"].as<bool>() ? HIGH : LOW);
-                }
+                    digitalWrite(REMAJA_FAN_LED_PIN, state ? HIGH : LOW);
+                } // If auto, fuzzy logic will handle it
                 Serial.printf("[Control] Remaja Fan mode set to %s. Current state: %s\n", 
                               remajaFanManual ? "Manual" : "Auto", 
                               digitalRead(REMAJA_FAN_LED_PIN) ? "ON" : "OFF");
             } else if (strcmp(device, "light") == 0) {
                 remajaLightManual = (strcmp(mode, "manual") == 0);
                  if (remajaLightManual && doc.containsKey("state")) {
-                    digitalWrite(REMAJA_LIGHT_LED_PIN, doc["state"].as<bool>() ? HIGH : LOW);
-                }
+                    digitalWrite(REMAJA_LIGHT_LED_PIN, state ? HIGH : LOW);
+                } // If auto, fuzzy logic will handle it
                 Serial.printf("[Control] Remaja Light mode set to %s. Current state: %s\n", 
                               remajaLightManual ? "Manual" : "Auto",
                               digitalRead(REMAJA_LIGHT_LED_PIN) ? "ON" : "OFF");
             }
-        } else if (doc.containsKey("state")) { 
-            bool state = doc["state"].as<bool>();
+        } else if (doc.containsKey("state")) { // Direct state command (implies manual)
             Serial.printf("[MQTT Callback] Processing state change for Remaja: device='%s', state=%s\n", device, state ? "ON" : "OFF");
             if (strcmp(device, "fan") == 0) {
                 remajaFanManual = true; 
@@ -453,8 +621,32 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                 Serial.printf("[Control] Remaja Light (Manual) set to %s\n", state ? "ON" : "OFF");
             }
         } else {
+             // This case should ideally not be reached if logic above is correct
             Serial.println("[MQTT Callback] Command for 'remaja' missing 'mode' or 'state'.");
+            return; 
         }
+        
+        // Mirror the command to Dewasa Node if a state was determined/present
+        if (doc.containsKey("state") || mode) { // If mode is set (even to auto), or state is set
+            bool effectiveState = state; // Use state from MQTT if present
+            if (strcmp(mode, "auto")==0 && !doc.containsKey("state")) { // If mode is auto and no explicit state, use current fuzzy state
+                 if (strcmp(device, "fan") == 0) effectiveState = fuzzyController->getFanOutput();
+                 else if (strcmp(device, "light") == 0) effectiveState = fuzzyController->getLightOutput();
+            }
+            // If mode is manual and no state, use current manual state (which is `state` already)
+
+            #if DEBUG_REMAJA_MASTER
+            Serial.println("[MQTT Callback] Mirroring Remaja command to Dewasa node");
+            #endif
+            // sendControlCommandToGatewayForDewasaWithRetries(device, effectiveState, mode ? mode : "manual");
+            fuck(device, effectiveState, mode ? mode : "manual"); // Call the simplified one
+        }
+
+    } else if (targetNode && strcmp(targetNode, "dewasa") == 0) {
+        // Command is specifically for Dewasa Node, forward it via Serial to Gateway
+        bool stateCmd = doc["state"] | false; // Default to false if not present
+        // sendControlCommandToGatewayForDewasaWithRetries(device, stateCmd, mode ? mode : "manual");
+            fuck(device, stateCmd, mode ? mode : "manual"); // Call the simplified one
     } else {
         Serial.printf("[MQTT Callback] Command for unhandled node '%s' or missing node field. Ignoring.\n", targetNode ? targetNode : "N/A");
     }

@@ -54,11 +54,19 @@ const unsigned long MQTT_PUBLISH_INTERVAL = 2000; // How often Remaja (Master) p
 
 // --- Serial Communication (Gateway <-> Remaja/Master) ---
 const long SERIAL_BAUD_RATE = 115200;
+// NEW: Serial Command ACK Configuration (Remaja Master <-> Gateway)
+const unsigned long SERIAL_COMMAND_ACK_TIMEOUT_MS = 500UL; // Timeout for Remaja Master to wait for ACK from Gateway
+const int MAX_SERIAL_COMMAND_RETRIES = 30;
+const unsigned long SERIAL_COMMAND_RETRY_DELAY_MS = 200UL;
 
 
 // --- Actuator Pins (for Remaja Node (Master) - Old Dewasa Hardware) ---
 const int REMAJA_FAN_LED_PIN = 18;
 const int REMAJA_LIGHT_LED_PIN = 19;
+
+// --- Actuator Pins (for Dewasa Node - Old Peremajaan Hardware) ---
+const int DEWASA_FAN_PIN = 18; // Example pin, adjust if different on that board
+const int DEWASA_LIGHT_PIN = 19; // Example pin
 
 // --- NTP Configuration (for Remaja Node (Master)) ---
 extern const char* NTP_SERVER_1;
@@ -69,12 +77,17 @@ const int NTP_SYNC_RETRY_COUNT = 5;
 const unsigned long NTP_SYNC_RETRY_DELAY_MS = 2000; // 2 seconds between retries
 const unsigned long NTP_RESYNC_INTERVAL_MS = 1 * 60 * 60 * 1000; // Resync NTP every 1 hour
 
+// --- ESP-NOW Command Control (Gateway to Dewasa) ---
+const unsigned long COMMAND_ACK_TIMEOUT_MS = 200UL; // Timeout for waiting for command ACK
+const int MAX_COMMAND_SEND_RETRIES = 3;
+const unsigned long COMMAND_RETRY_DELAY_MS = 150UL;
+
 
 // --- Debug Flags (Optional) ---
 // #define DEBUG_PENYEMAIAN
 // #define DEBUG_DEWASA_NODE // For the new Dewasa Node (old Peremajaan)
  #define DEBUG_GATEWAY 1
-// #define DEBUG_REMAJA_MASTER // For the new Remaja Master (old Dewasa)
+ #define DEBUG_REMAJA_MASTER 1 // For the new Remaja Master (old Dewasa)
  #define DEBUG_MQTT_MANAGER 1
 // #define DEBUG_SENSOR_MANAGER
  #define DEBUG_FUZZY_CONTROLLER_INTERNAL  1
