@@ -277,105 +277,79 @@ void processSerialFromGateway() {
     }
 }
 
-// RemajaNode_Master.cpp - loop() - Iteration 1
+
 void loop() {
-  // unsigned long currentTime = millis(); // Not needed yet
+  unsigned long currentTime = millis();
 
-  // if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
-  //     if (currentTime - lastNtpSyncAttempt > 60000UL) { 
-  //         lastNtpSyncAttempt = currentTime;
-  //         syncNTP();
-  //     }
-  // }
+  if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
+      if (currentTime - lastNtpSyncAttempt > 60000UL) { 
+          lastNtpSyncAttempt = currentTime;
+          syncNTP();
+      }
+  }
 
-  processSerialFromGateway(); // Process any incoming Serial data from Gateway (for ACKs or sensor data)
+  processSerialFromGateway(); // Process any incoming Serial data from Gateway
 
-  // if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
-  //   // Skip sensor reading
-  // }
+  if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
+    lastSensorReadTime = currentTime;
+    #if DEBUG_REMAJA_MASTER
+    Serial.println("\n[RemajaNode_Master] Reading local Remaja sensors...");
+    #endif
+    sensorManager->readSensors(); 
+  }
 
-  // runFuzzyControlAndActuators(); // Skip fuzzy
+  runFuzzyControlAndActuators();
 
-  // if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
-  //   // Skip MQTT publishing
-  // }
+  if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
+    lastMqttPublishTime = currentTime;
+    #if DEBUG_REMAJA_MASTER
+    Serial.println("\n[RemajaNode_Master] Preparing MQTT payload...");
+    #endif
+    String payload;
+    String currentNtpTimestampStr = getFormattedTimestamp();
 
-  mqttManager->loop(); // Keep MQTT connection alive and process incoming messages (like control commands)
+    bool penyemaianDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isPenyemaianDataValidSerial;
+    bool dewasaDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isDewasaDataValidSerial;
+
+    int simulatedPenyemaianEspNowLatencyMs = -1;
+    if (penyemaianDataFreshForMqtt) {
+        simulatedPenyemaianEspNowLatencyMs = 18 + random(5); 
+    }
+
+    int simulatedDewasaEspNowLatencyMs = -1;
+    if (dewasaDataFreshForMqtt) {
+        simulatedDewasaEspNowLatencyMs = 18 + random(5); 
+    }
+
+    mqttManager->generateJsonPayload( 
+      payload, 
+      currentNtpTimestampStr, 
+      sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
+      sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
+      receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
+      receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
+      digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
+      digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
+    );
+
+    #if DEBUG_MQTT_MANAGER && DEBUG_REMAJA_MASTER
+    Serial.print("[RemajaNode_Master] Publishing to MQTT. NTP Timestamp: "); Serial.println(currentNtpTimestampStr);
+    Serial.print("  Penyemaian ESP-NOW Latency (Simulated, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
+    Serial.print("  Dewasa ESP-NOW Latency (Simulated, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
+    #endif
+
+    if (mqttManager->publish(payload)) {
+      #if DEBUG_REMAJA_MASTER
+      // Serial.println("[RemajaNode_Master] Data published to MQTT successfully"); // Already logged by MQTTManager
+      #endif
+    } else {
+      Serial.println("[RemajaNode_Master] ERROR: Failed to publish data to MQTT");
+    }
+  }
+
+  mqttManager->loop(); 
   yield(); 
 }
-// void loop() {
-//     Serial2.println("FUCK");
-//   unsigned long currentTime = millis();
-
-//   if (WiFi.status() == WL_CONNECTED && (currentTime - lastSuccessfulNtpSync > NTP_RESYNC_INTERVAL_MS || !ntpSynchronized)) {
-//       if (currentTime - lastNtpSyncAttempt > 60000UL) { 
-//           lastNtpSyncAttempt = currentTime;
-//           syncNTP();
-//       }
-//   }
-
-//   processSerialFromGateway(); // Process any incoming Serial data from Gateway
-
-//   if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
-//     lastSensorReadTime = currentTime;
-//     #if DEBUG_REMAJA_MASTER
-//     Serial.println("\n[RemajaNode_Master] Reading local Remaja sensors...");
-//     #endif
-//     sensorManager->readSensors(); 
-//   }
-
-//   runFuzzyControlAndActuators();
-
-//   if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
-//     lastMqttPublishTime = currentTime;
-//     #if DEBUG_REMAJA_MASTER
-//     Serial.println("\n[RemajaNode_Master] Preparing MQTT payload...");
-//     #endif
-//     String payload;
-//     String currentNtpTimestampStr = getFormattedTimestamp();
-
-//     bool penyemaianDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isPenyemaianDataValidSerial;
-//     bool dewasaDataFreshForMqtt = (currentTime - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isDewasaDataValidSerial;
-
-//     int simulatedPenyemaianEspNowLatencyMs = -1;
-//     if (penyemaianDataFreshForMqtt) {
-//         simulatedPenyemaianEspNowLatencyMs = 18 + random(5); 
-//     }
-
-//     int simulatedDewasaEspNowLatencyMs = -1;
-//     if (dewasaDataFreshForMqtt) {
-//         simulatedDewasaEspNowLatencyMs = 18 + random(5); 
-//     }
-
-//     mqttManager->generateJsonPayload( 
-//       payload, 
-//       currentNtpTimestampStr, 
-//       sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
-//       sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
-//       receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
-//       receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
-//       digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
-//       digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
-//     );
-
-//     #if DEBUG_MQTT_MANAGER && DEBUG_REMAJA_MASTER
-//     Serial.print("[RemajaNode_Master] Publishing to MQTT. NTP Timestamp: "); Serial.println(currentNtpTimestampStr);
-//     Serial.print("  Penyemaian ESP-NOW Latency (Simulated, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
-//     Serial.print("  Dewasa ESP-NOW Latency (Simulated, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
-//     #endif
-
-//     if (mqttManager->publish(payload)) {
-//       #if DEBUG_REMAJA_MASTER
-//       // Serial.println("[RemajaNode_Master] Data published to MQTT successfully"); // Already logged by MQTTManager
-//       #endif
-//     } else {
-//       Serial.println("[RemajaNode_Master] ERROR: Failed to publish data to MQTT");
-//     }
-//   }
-
-//   mqttManager->loop(); 
-//   yield(); 
-// }
 
 
 void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool &averagesValid, int &tempCount, int &humidityCount, int &lightCount) {

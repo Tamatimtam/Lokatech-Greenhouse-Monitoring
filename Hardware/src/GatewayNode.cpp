@@ -284,6 +284,14 @@ void processSerialCommandFromRemajaMaster() {
             Serial.printf("[Gateway] Received Serial from Remaja Master: %s\n", line.c_str());
             #endif
 
+            // Check for and remove "CMD:" prefix
+            if (line.startsWith("CMD:")) {
+                line = line.substring(4); // Remove "CMD:"
+                #if DEBUG_GATEWAY
+                Serial.printf("[Gateway] Removed 'CMD:' prefix. Parsing: %s\n", line.c_str());
+                #endif
+            }
+
             StaticJsonDocument<192> doc; // Increased size slightly for command ID
             DeserializationError error = deserializeJson(doc, line);
 
@@ -341,33 +349,20 @@ void processSerialCommandFromRemajaMaster() {
 void loop() {
     unsigned long currentTime = millis();
 
-    // if (newPenyemaianDataFlag || newDewasaDataFlag || (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
-    //     #if DEBUG_GATEWAY
-    //     if (newPenyemaianDataFlag) Serial.println("[GatewayNode] Processing new Penyemaian data for forwarding.");
-    //     if (newDewasaDataFlag) Serial.println("[GatewayNode] Processing new Dewasa data for forwarding.");
-    //     if (!newPenyemaianDataFlag && !newDewasaDataFlag) Serial.println("[GatewayNode] Serial forward interval reached.");
-    //     #endif
+    if (newPenyemaianDataFlag || newDewasaDataFlag || (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
+        #if DEBUG_GATEWAY
+        if (newPenyemaianDataFlag) Serial.println("[GatewayNode] Processing new Penyemaian data for forwarding.");
+        if (newDewasaDataFlag) Serial.println("[GatewayNode] Processing new Dewasa data for forwarding.");
+        if (!newPenyemaianDataFlag && !newDewasaDataFlag) Serial.println("[GatewayNode] Serial forward interval reached.");
+        #endif
         
-    //     forwardDataToRemajaMaster();
-    //     lastSerialForwardTime = currentTime;
-    // }
-
-    // processSerialCommandFromRemajaMaster(); 
-
-    if (SERIAL_TO_REMAJA_MASTER.available()) {
-        String line = SERIAL_TO_REMAJA_MASTER.readStringUntil('\n');
-        line.trim();
-        Serial.print("[GatewayNode] Received on Serial2: >>>");
-        Serial.print(line);
-        Serial.println("<<<");
-    } else {
-        if (!SERIAL_TO_REMAJA_MASTER) {
-            Serial.println("[GatewayNode] Serial2 not initialized or unavailable.");
-        } else {
-            Serial.println("[GatewayNode] No data available on Serial2.");
-              delay(500); 
-        }
+        forwardDataToRemajaMaster();
+        lastSerialForwardTime = currentTime;
     }
+
+    processSerialCommandFromRemajaMaster(); 
+
+   
 
 
     yield();
