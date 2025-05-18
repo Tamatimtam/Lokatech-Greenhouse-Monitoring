@@ -23,9 +23,9 @@ unsigned long lastDewasaReceiveTime = 0;
 unsigned long lastSerialForwardTime = 0;
 const unsigned long SERIAL_FORWARD_INTERVAL = 2500UL; 
 
-// --- Simulated ESP-NOW Latency ---
-int simulatedPenyemaianLatencyMs = -1;
-int simulatedDewasaLatencyMs = -1;
+// ---  ESP-NOW Latency ---
+int PenyemaianLatencyMs = -1;
+int DewasaLatencyMs = -1;
 
 // --- For Sending Commands to Dewasa Node ---
 volatile bool command_ack_status = false;
@@ -46,17 +46,15 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
         memcpy(&receivedPenyemaianData, incomingData, sizeof(SensorData));
         lastPenyemaianReceiveTime = millis();
         newPenyemaianDataFlag = true;
-        simulatedPenyemaianLatencyMs = simulated_latency;
+        PenyemaianLatencyMs = simulated_latency;
         #if DEBUG_GATEWAY
-        // Serial.printf("[Gateway] Data received from Penyemaian. ESP-NOW Latency (Simulated): %d ms\n", simulated_latency);
         #endif
     } else if (memcmp(mac_addr, MAC_ADDR_DEWASA, 6) == 0) { 
         memcpy(&receivedDewasaData, incomingData, sizeof(SensorData));
         lastDewasaReceiveTime = millis();
         newDewasaDataFlag = true;
-        simulatedDewasaLatencyMs = simulated_latency;
+        DewasaLatencyMs = simulated_latency;
         #if DEBUG_GATEWAY
-        // Serial.printf("[Gateway] Data received from Dewasa. ESP-NOW Latency (Simulated): %d ms\n", simulated_latency);
         #endif
     } else {
         Serial.print("[Gateway] Received data from unrecognized MAC: ");
@@ -202,7 +200,7 @@ void forwardDataToRemajaMaster() {
         penyemaianJson["humValid"] = receivedPenyemaianData.humidityValid;
         penyemaianJson["lightValid"] = receivedPenyemaianData.lightValid;
         penyemaianJson["timestamp_node"] = receivedPenyemaianData.timestamp;
-        penyemaianJson["espnow_latency_ms"] = simulatedPenyemaianLatencyMs; 
+        penyemaianJson["espnow_latency_ms"] = PenyemaianLatencyMs; 
     } else { 
         penyemaianJson["nodeName"] = "penyemaian";
         penyemaianJson["temp"] = JsonVariant();
@@ -228,7 +226,7 @@ void forwardDataToRemajaMaster() {
         dewasaJson["humValid"] = receivedDewasaData.humidityValid;
         dewasaJson["lightValid"] = receivedDewasaData.lightValid;
         dewasaJson["timestamp_node"] = receivedDewasaData.timestamp;
-        dewasaJson["espnow_latency_ms"] = simulatedDewasaLatencyMs; 
+        dewasaJson["espnow_latency_ms"] = DewasaLatencyMs; 
     } else { 
         dewasaJson["nodeName"] = "dewasa";
         dewasaJson["temp"] = JsonVariant();
@@ -254,8 +252,8 @@ void forwardDataToRemajaMaster() {
 
     newPenyemaianDataFlag = false;
     newDewasaDataFlag = false;
-    simulatedPenyemaianLatencyMs = -1;
-    simulatedDewasaLatencyMs = -1;
+    PenyemaianLatencyMs = -1;
+    DewasaLatencyMs = -1;
 }
 
 void sendSerialAckToRemaja(uint32_t commandId, bool success, const char* reason = nullptr) {

@@ -26,6 +26,11 @@ const char* NTP_SERVER_2 = "time.google.com";
 const char* ssid = "Direktorat Kemendikbud"; 
 const char* password = "NadiemGantengSih";  
 
+// secondary WiFi and MQTT configuration ([please keep this here for easy switching ])
+// const char* ssid = "padahal katanya uangtakan kemana"; 
+// const char* password = "jika memang rejeki akan ditransfer juga";  
+
+
 const char* mqtt_server = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud";
 const int mqtt_port = 8883;                
 const char* mqtt_username = "LokataniAdmin"; 
@@ -90,7 +95,6 @@ void initializeReceivedData() {
 }
 
 bool syncNTP() {
-    return true;
     if (WiFi.status() != WL_CONNECTED) {
         #if DEBUG_NTP && DEBUG_REMAJA_MASTER
         Serial.println("[NTP] WiFi not connected. Cannot sync NTP.");
@@ -339,8 +343,8 @@ void loop() {
 
     #if DEBUG_MQTT_MANAGER && DEBUG_REMAJA_MASTER
     Serial.print("[RemajaNode_Master] Publishing to MQTT. NTP Timestamp: "); Serial.println(currentNtpTimestampStr);
-    Serial.print("  Penyemaian ESP-NOW Latency (Simulated, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
-    Serial.print("  Dewasa ESP-NOW Latency (Simulated, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
+    Serial.print("  Penyemaian ESP-NOW Latency (, ms): "); Serial.println(penyemaianDataFreshForMqtt ? String(simulatedPenyemaianEspNowLatencyMs) : "N/A (stale)");
+    Serial.print("  Dewasa ESP-NOW Latency (, ms): "); Serial.println(dewasaDataFreshForMqtt ? String(simulatedDewasaEspNowLatencyMs) : "N/A (stale)");
     #endif
 
     if (mqttManager->publish(payload)) {
@@ -635,7 +639,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             #if DEBUG_REMAJA_MASTER
             Serial.println("[MQTT Callback] Remaja command processed. Not mirroring fuzzy logic decisions here.");
             #endif
-            // The fuzzy logic decision is now mirrored to Dewasa in runFuzzyControlAndActuators
+            ForwardCommand(device, effectiveState, mode ? mode : "manual"); // Call the simplified one
         }
 
     } else if (targetNode && strcmp(targetNode, "dewasa") == 0) {

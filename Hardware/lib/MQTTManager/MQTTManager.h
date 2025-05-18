@@ -48,7 +48,7 @@ private:
     WiFiClientSecure _wifiClientSecure;  
     PubSubClient _mqttClient;
     unsigned long _lastReconnectAttempt;
-    const unsigned long RECONNECT_INTERVAL = 5000; 
+    const unsigned long RECONNECT_INTERVAL = 30 * 1000; 
     std::function<void(char*, uint8_t*, unsigned int)> _callback;  
     
     bool connectWiFi();

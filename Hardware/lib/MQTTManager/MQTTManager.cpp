@@ -31,12 +31,21 @@ bool MQTTManager::connectWiFi() {
     WiFi.begin(_ssid, _password);
     // Connection status will be checked in loop() or connect()
     unsigned long startTime = millis();
+    const int ledPin = 2;  // Most ESP32 boards use GPIO 2 for onboard LED
+    pinMode(ledPin, OUTPUT);
+    bool ledState = false;
+    
     while (WiFi.status() != WL_CONNECTED && millis() - startTime < 15000) { // 15 sec timeout for WiFi
+        ledState = !ledState;  // Toggle LED state
+        digitalWrite(ledPin, ledState);
         delay(500);
         #if DEBUG_MQTT_MANAGER
         Serial.print(".");
         #endif
     }
+    
+    // Turn off LED when done connecting
+    digitalWrite(ledPin, LOW);
     if (WiFi.status() == WL_CONNECTED) {
         #if DEBUG_MQTT_MANAGER
         Serial.println("\n[MQTTManager] WiFi connected.");
