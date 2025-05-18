@@ -56,6 +56,10 @@ unsigned long lastGatewaySerialTime = 0;
 bool remajaFanManual = false;    
 bool remajaLightManual = false;  
 
+// Previous states for fuzzy logic change detection
+static bool prevFuzzyFanState = false;
+static bool prevFuzzyLightState = false;
+
 // --- Serial Command ACK ---
 static uint32_t currentSerialCommandId = 0;
 volatile uint32_t expectedSerialAckId = 0;
@@ -73,6 +77,7 @@ bool sendControlCommandToGatewayForDewasaWithRetries(const char* device, bool st
 bool syncNTP();
 String getFormattedTimestamp();
 void processSerialFromGateway(); // New function to handle all serial input
+bool ForwardCommand(const char* device, bool state, const char* mode); // Function prototype for fuck
 
 void initializeReceivedData() {
      memset(&receivedPenyemaianData, 0, sizeof(SensorData));
@@ -417,6 +422,27 @@ void runFuzzyControlAndActuators() {
         finalLightState = remajaLightManual ? (digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH) : false;
     }
 
+    // Check for changes in fuzzy logic output and send command if in auto mode
+    if (averagesValid) { // Only send fuzzy logic decisions if averages are valid
+        if (!remajaFanManual && finalFanState != prevFuzzyFanState) {
+            #if DEBUG_REMAJA_MASTER
+            Serial.printf("[RemajaNode_Master] Fuzzy Fan state changed from %s to %s. Sending command to Dewasa.\n", prevFuzzyFanState ? "ON" : "OFF", finalFanState ? "ON" : "OFF");
+            #endif
+            ForwardCommand("fan", finalFanState, "auto");
+        }
+        if (!remajaLightManual && finalLightState != prevFuzzyLightState) {
+             #if DEBUG_REMAJA_MASTER
+            Serial.printf("[RemajaNode_Master] Fuzzy Light state changed from %s to %s. Sending command to Dewasa.\n", prevFuzzyLightState ? "ON" : "OFF", finalLightState ? "ON" : "OFF");
+            #endif
+            ForwardCommand("light", finalLightState, "auto");
+        }
+
+        // Update previous states *after* checking for changes
+        prevFuzzyFanState = finalFanState;
+        prevFuzzyLightState = finalLightState;
+    }
+
+
     digitalWrite(REMAJA_FAN_LED_PIN, finalFanState ? HIGH : LOW);
     digitalWrite(REMAJA_LIGHT_LED_PIN, finalLightState ? HIGH : LOW);
 }
@@ -488,7 +514,7 @@ bool sendControlCommandToGatewayForDewasaWithRetries(const char* device, bool st
     return false;
 }
 
-bool fuck(const char* device, bool state, const char* mode) {
+bool ForwardCommand(const char* device, bool state, const char* mode) {
     currentSerialCommandId++;
     if (currentSerialCommandId == 0) currentSerialCommandId = 1; 
 
@@ -516,9 +542,6 @@ bool fuck(const char* device, bool state, const char* mode) {
 
     Serial.println("[Remaja->Gateway] AFTER Serial2.println and flush in sendControlCommand.");
     
-    // FOR THIS TEST, WE ARE NOT WAITING FOR ACK OR RETRYING.
-    // WE JUST WANT TO SEE IF THIS SINGLE SEND WORKS.
-    // The function will always return false for now, or true, doesn't matter for this test.
     return false; 
 };
 
@@ -610,17 +633,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             // If mode is manual and no state, use current manual state (which is `state` already)
 
             #if DEBUG_REMAJA_MASTER
-            Serial.println("[MQTT Callback] Mirroring Remaja command to Dewasa node");
+            Serial.println("[MQTT Callback] Remaja command processed. Not mirroring fuzzy logic decisions here.");
             #endif
-            // sendControlCommandToGatewayForDewasaWithRetries(device, effectiveState, mode ? mode : "manual");
-            fuck(device, effectiveState, mode ? mode : "manual"); // Call the simplified one
+            // The fuzzy logic decision is now mirrored to Dewasa in runFuzzyControlAndActuators
         }
 
     } else if (targetNode && strcmp(targetNode, "dewasa") == 0) {
         // Command is specifically for Dewasa Node, forward it via Serial to Gateway
         bool stateCmd = doc["state"] | false; // Default to false if not present
         // sendControlCommandToGatewayForDewasaWithRetries(device, stateCmd, mode ? mode : "manual");
-            fuck(device, stateCmd, mode ? mode : "manual"); // Call the simplified one
+            ForwardCommand(device, stateCmd, mode ? mode : "manual"); // Call the simplified one
     } else {
         Serial.printf("[MQTT Callback] Command for unhandled node '%s' or missing node field. Ignoring.\n", targetNode ? targetNode : "N/A");
     }
