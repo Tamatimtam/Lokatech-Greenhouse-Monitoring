@@ -68,7 +68,7 @@ const ControlsManager = {
     },
 
     // Helper function to send command multiple times
-    async sendControlCommandWithRetries(device, state, mode = "manual", attempts = 8, delayMs = 300) {
+    async sendControlCommandWithRetries(device, state, mode = "manual", attempts = 1, delayMs = 300) {
         let lastSuccess = false;
         for (let i = 0; i < attempts; i++) {
             console.log(`Attempt ${i + 1}/${attempts} for device ${device}, state ${state}, mode ${mode}`);
