@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Existing logs.js code for Performance Logs
     const socket = io();
     const logTableBody = document.getElementById('log-table-body');
     const maxLogsInput = document.getElementById('maxLogs');

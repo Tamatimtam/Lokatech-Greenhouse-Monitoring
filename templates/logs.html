@@ -5,6 +5,7 @@
 {% block title %}System Logs - Lokatani.id{% endblock %}
 
 {% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
 {% endblock %}
@@ -22,13 +23,17 @@
   <!-- Tabs Navigation -->
   <div class="tabs">
     <div class="tab-header">
-      <button class="tab-link" data-tab="tab-system-user">System & User Logs</button>
-      <button class="tab-link active" data-tab="tab-performance">Performance Logs</button>
+      <button class="tab-link" data-tab="tab-system"><i class="fas fa-cogs"></i> System Logs</button>
+      <button class="tab-link" data-tab="tab-user"><i class="fas fa-users"></i> User Logs</button>
+      <button class="tab-link active" data-tab="tab-performance"><i class="fas fa-chart-line"></i> Performance Logs</button>
     </div>
 
     <!-- Tab Content -->
-    <div id="tab-system-user" class="tab-content">
-      <p style="text-align: center; padding: 20px; font-style: italic; color: var(--text-secondary);">This section is under development.</p>
+    <div id="tab-system" class="tab-content">
+      <!-- Content will be populated by logs-system.js -->
+    </div>
+    <div id="tab-user" class="tab-content">
+      <!-- Content will be populated by logs-user.js -->
     </div>
 
     <div id="tab-performance" class="tab-content active">
@@ -110,4 +115,6 @@
 {% block scripts %}
 <!-- Socket.IO client already included in base.html -->
 <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+<script src="{{ url_for('static', filename='js/logs-system.js') }}"></script>
+<script src="{{ url_for('static', filename='js/logs-user.js') }}"></script>
 {% endblock %}
