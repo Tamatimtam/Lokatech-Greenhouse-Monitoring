@@ -83,23 +83,77 @@
     display: block;
 }
 
-/* Log Summary Styles */
+/* Updated Log Summary Styles */
 .log-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
     margin-bottom: var(--spacing-lg);
 }
 
-.summary-item {
+.summary-section {
     background-color: var(--surface-light, #f8f9fa);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color-light, #eee);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    padding: var(--spacing-md);
+}
+
+.summary-section-title {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--border-color-light, #eee);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.summary-section-title i {
+    color: var(--primary);
+}
+
+.summary-items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-sm);
+}
+
+.summary-item {
+    background-color: white;
     padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--radius-sm);
     display: flex;
     justify-content: space-between;
     align-items: center;
     border: 1px solid var(--border-color-light, #eee);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.summary-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.04);
+}
+
+.summary-item--latency {
+    border-left: 3px solid var(--primary-light); /* Use primary theme color */
+}
+
+.summary-item--jitter {
+    border-left: 3px solid #e74c3c; /* Keep red for jitter */
+}
+
+.summary-item--throughput {
+    border-left: 3px solid #f39c12; /* Orange for throughput section */
+}
+
+.summary-item--highlight {
+    background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.05);
+    border: 1px solid var(--primary-light);
+    font-weight: bold;
 }
 
 .summary-label {
@@ -110,10 +164,25 @@
 
 .summary-value {
     font-weight: 600;
-    color: var(--primary);
     font-size: 0.95rem;
 }
 
+.summary-item--latency .summary-value {
+    color: var(--primary); /* Use primary theme color */
+}
+
+.summary-item--jitter .summary-value {
+    color: #e74c3c; /* Keep red for jitter values */
+}
+
+.summary-item--throughput .summary-value {
+    color: #f39c12; /* Orange for throughput values */
+}
+
+.summary-item--highlight .summary-value {
+    color: var(--primary-dark);
+    font-size: 1.1rem;
+}
 
 /* Log Controls */
 .log-controls {

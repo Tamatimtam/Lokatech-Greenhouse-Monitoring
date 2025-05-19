@@ -39,37 +39,77 @@
     <div id="tab-performance" class="tab-content active">
       {% call card.card('SUMMARY STATISTICS') %}
         <div id="log-summary-container" class="log-summary">
-            <div class="summary-item">
-                <span class="summary-label">Avg. ESP-NOW Latency (Penyemaian):</span>
-                <span class="summary-value" id="avg-espnow-penyemaian">-- ms</span>
+            <!-- Latency Metrics Section -->
+            <div class="summary-section">
+                <h3 class="summary-section-title"><i class="fas fa-bolt"></i> Latency Metrics</h3>
+                <div class="summary-items-grid">
+                    <div class="summary-item summary-item--latency">
+                        <span class="summary-label">Avg. ESP-NOW Latency (Penyemaian):</span>
+                        <span class="summary-value" id="avg-espnow-penyemaian">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--latency">
+                        <span class="summary-label">Avg. ESP-NOW Latency (Dewasa):</span>
+                        <span class="summary-value" id="avg-espnow-dewasa">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--latency">
+                        <span class="summary-label">Avg. MQTT Latency:</span>
+                        <span class="summary-value" id="avg-mqtt-latency">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--latency">
+                        <span class="summary-label">Avg. WebSocket Latency:</span>
+                        <span class="summary-value" id="avg-websocket-latency">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--latency summary-item--highlight">
+                        <span class="summary-label">Avg. Total Latency:</span>
+                        <span class="summary-value" id="avg-total-latency">-- ms</span>
+                    </div>
+                </div>
             </div>
-            <div class="summary-item">
-                <span class="summary-label">Avg. ESP-NOW Latency (Dewasa):</span>
-                <span class="summary-value" id="avg-espnow-dewasa">-- ms</span>
+            
+            <!-- Jitter Metrics Section -->
+            <div class="summary-section">
+                <h3 class="summary-section-title"><i class="fas fa-random"></i> Jitter Metrics</h3>
+                <div class="summary-items-grid">
+                    <div class="summary-item summary-item--jitter">
+                        <span class="summary-label">Avg. ESP-NOW Jitter (Penyemaian):</span>
+                        <span class="summary-value" id="avg-espnow-p-jitter">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--jitter">
+                        <span class="summary-label">Avg. ESP-NOW Jitter (Dewasa):</span>
+                        <span class="summary-value" id="avg-espnow-d-jitter">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--jitter">
+                        <span class="summary-label">Avg. MQTT Jitter:</span>
+                        <span class="summary-value" id="avg-mqtt-jitter">-- ms</span>
+                    </div>
+                    <div class="summary-item summary-item--jitter">
+                        <span class="summary-label">Avg. WebSocket Jitter:</span>
+                        <span class="summary-value" id="avg-websocket-jitter">-- ms</span>
+                    </div>
+                </div>
             </div>
-            <div class="summary-item">
-                <span class="summary-label">Avg. MQTT Latency:</span>
-                <span class="summary-value" id="avg-mqtt-latency">-- ms</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Avg. WebSocket Latency:</span>
-                <span class="summary-value" id="avg-websocket-latency">-- ms</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Avg. Total Latency:</span>
-                <span class="summary-value" id="avg-total-latency">-- ms</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Avg. MQTT Jitter:</span>
-                <span class="summary-value" id="avg-mqtt-jitter">-- ms</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Avg. WebSocket Jitter:</span>
-                <span class="summary-value" id="avg-websocket-jitter">-- ms</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Packets Received:</span>
-                <span class="summary-value" id="packets-received">0</span>
+            
+            <!-- Throughput & Packet Loss Section -->
+            <div class="summary-section">
+                <h3 class="summary-section-title"><i class="fas fa-tachometer-alt"></i> Throughput & Packet Loss</h3>
+                <div class="summary-items-grid">
+                    <div class="summary-item summary-item--throughput">
+                        <span class="summary-label">Packets Received:</span>
+                        <span class="summary-value" id="packets-received">0</span>
+                    </div>
+                    <div class="summary-item summary-item--throughput">
+                        <span class="summary-label">Expected Packets:</span>
+                        <span class="summary-value" id="packets-expected">0</span>
+                    </div>
+                    <div class="summary-item summary-item--throughput">
+                        <span class="summary-label">Throughput:</span>
+                        <span class="summary-value" id="throughput-percentage">0%</span>
+                    </div>
+                    <div class="summary-item summary-item--throughput">
+                        <span class="summary-label">Packet Loss:</span>
+                        <span class="summary-value" id="packet-loss-percentage">0%</span>
+                    </div>
+                </div>
             </div>
         </div>
       {% endcall %}

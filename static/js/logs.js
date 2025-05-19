@@ -56,13 +56,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const avgTotalLatencyEl = document.getElementById('avg-total-latency');
     const avgMqttJitterEl = document.getElementById('avg-mqtt-jitter');
     const avgWebsocketJitterEl = document.getElementById('avg-websocket-jitter');
+    const avgEspnowPJitterEl = document.getElementById('avg-espnow-p-jitter');
+    const avgEspnowDJitterEl = document.getElementById('avg-espnow-d-jitter');
     const packetsReceivedEl = document.getElementById('packets-received');
 
+    // New elements for throughput stats
+    const packetsExpectedEl = document.getElementById('packets-expected');
+    const throughputPercentageEl = document.getElementById('throughput-percentage');
+    const packetLossPercentageEl = document.getElementById('packet-loss-percentage');
+    
     let logEntries = [];
     let maxLogEntries = parseInt(maxLogsInput.value, 10);
 
     let prevMqttLatency = null;
     let prevWebsocketLatency = null;
+    let prevEspnowPLatency = null;
+    let prevEspnowDLatency = null;
 
     // Stats for averages
     let totalEspnowP = 0, countEspnowP = 0;
@@ -72,6 +81,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let totalOverall = 0, countOverall = 0;
     let totalMqttJitter = 0, countMqttJitter = 0;
     let totalWsJitter = 0, countWsJitter = 0;
+    let totalEspnowPJitter = 0, countEspnowPJitter = 0;
+    let totalEspnowDJitter = 0, countEspnowDJitter = 0;
+
+    // Tracking variables for throughput calculation
+    let connectionStartTime = null;
+    let expectedPacketsPerSecond = 0.5; // 1 packet every 2 seconds
 
     maxLogsInput.addEventListener('change', function() {
         maxLogEntries = parseInt(this.value, 10);
@@ -82,6 +97,8 @@ document.addEventListener('DOMContentLoaded', function() {
         logEntries = [];
         prevMqttLatency = null;
         prevWebsocketLatency = null;
+        prevEspnowPLatency = null;
+        prevEspnowDLatency = null;
         totalEspnowP = 0; countEspnowP = 0;
         totalEspnowD = 0; countEspnowD = 0;
         totalMqtt = 0; countMqtt = 0;
@@ -89,6 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
         totalOverall = 0; countOverall = 0;
         totalMqttJitter = 0; countMqttJitter = 0;
         totalWsJitter = 0; countWsJitter = 0;
+        totalEspnowPJitter = 0; countEspnowPJitter = 0;
+        totalEspnowDJitter = 0; countEspnowDJitter = 0;
         
         renderLogTable();
         updateSummaryStats();
@@ -97,11 +116,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (logEntries.length === 0) {
              logTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Log dibersihkan. Menunggu data baru...</td></tr>';
         }
+
+        // Reset throughput tracking
+        connectionStartTime = new Date();
     });
 
 
     socket.on('connect', () => {
         console.log('Logs.js: Connected to WebSocket');
+        connectionStartTime = new Date();
         if (logEntries.length === 0 && logTableBody.firstChild && logTableBody.firstChild.cells[0].textContent.includes("Menunggu")) {
              logTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Terhubung. Menunggu data log...</td></tr>';
         }
@@ -154,13 +177,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
 
-        // Calculate Jitter
+        // Calculate Jitter for ESP-NOW Penyemaian
+        let espnowPJitterMs = null;
+        if (espnowLatencyPenyemaianMs !== null && espnowLatencyPenyemaianMs !== -1 && prevEspnowPLatency !== null && prevEspnowPLatency !== -1) {
+            espnowPJitterMs = Math.abs(espnowLatencyPenyemaianMs - prevEspnowPLatency);
+        }
+        prevEspnowPLatency = espnowLatencyPenyemaianMs !== -1 ? espnowLatencyPenyemaianMs : prevEspnowPLatency;
+
+        // Calculate Jitter for ESP-NOW Dewasa
+        let espnowDJitterMs = null;
+        if (espnowLatencyDewasaMs !== null && espnowLatencyDewasaMs !== -1 && prevEspnowDLatency !== null && prevEspnowDLatency !== -1) {
+            espnowDJitterMs = Math.abs(espnowLatencyDewasaMs - prevEspnowDLatency);
+        }
+        prevEspnowDLatency = espnowLatencyDewasaMs !== -1 ? espnowLatencyDewasaMs : prevEspnowDLatency;
+
+        // Calculate Jitter for MQTT
         let mqttJitterMs = null;
         if (mqttLatencyMs !== null && prevMqttLatency !== null) {
             mqttJitterMs = Math.abs(mqttLatencyMs - prevMqttLatency);
         }
         prevMqttLatency = mqttLatencyMs;
 
+        // Calculate Jitter for WebSocket
         let wsJitterMs = null;
         if (websocketLatencyMs !== null && prevWebsocketLatency !== null) {
             wsJitterMs = Math.abs(websocketLatencyMs - prevWebsocketLatency);
@@ -180,6 +218,8 @@ document.addEventListener('DOMContentLoaded', function() {
             total: totalLatencyMs !== null ? totalLatencyMs.toFixed(2) : '--',
             jitterMqtt: mqttJitterMs !== null ? mqttJitterMs.toFixed(2) : '--',
             jitterWs: wsJitterMs !== null ? wsJitterMs.toFixed(2) : '--',
+            jitterEspP: espnowPJitterMs !== null ? espnowPJitterMs.toFixed(2) : '--',
+            jitterEspD: espnowDJitterMs !== null ? espnowDJitterMs.toFixed(2) : '--',
         };
 
         logEntries.unshift(entry); // Add to the beginning of the array
@@ -237,6 +277,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (entry.total !== '--') { totalOverall += parseFloat(entry.total); countOverall++; }
         if (entry.jitterMqtt !== '--') { totalMqttJitter += parseFloat(entry.jitterMqtt); countMqttJitter++; }
         if (entry.jitterWs !== '--') { totalWsJitter += parseFloat(entry.jitterWs); countWsJitter++; }
+        if (entry.jitterEspP !== '--') { totalEspnowPJitter += parseFloat(entry.jitterEspP); countEspnowPJitter++; }
+        if (entry.jitterEspD !== '--') { totalEspnowDJitter += parseFloat(entry.jitterEspD); countEspnowDJitter++; }
     }
 
     function updateSummaryStats() {
@@ -247,7 +289,28 @@ document.addEventListener('DOMContentLoaded', function() {
         avgTotalLatencyEl.textContent = countOverall > 0 ? (totalOverall / countOverall).toFixed(2) + ' ms' : '-- ms';
         avgMqttJitterEl.textContent = countMqttJitter > 0 ? (totalMqttJitter / countMqttJitter).toFixed(2) + ' ms' : '-- ms';
         avgWebsocketJitterEl.textContent = countWsJitter > 0 ? (totalWsJitter / countWsJitter).toFixed(2) + ' ms' : '-- ms';
+        avgEspnowPJitterEl.textContent = countEspnowPJitter > 0 ? (totalEspnowPJitter / countEspnowPJitter).toFixed(2) + ' ms' : '-- ms';
+        avgEspnowDJitterEl.textContent = countEspnowDJitter > 0 ? (totalEspnowDJitter / countEspnowDJitter).toFixed(2) + ' ms' : '-- ms';
         packetsReceivedEl.textContent = logEntries.length;
+        
+        // Calculate throughput statistics
+        if (connectionStartTime) {
+            const elapsedTimeSeconds = (new Date() - connectionStartTime) / 1000;
+            let expectedPackets = Math.max(1, Math.floor(elapsedTimeSeconds * expectedPacketsPerSecond));
+            const receivedPackets = logEntries.length;
+            
+            // If received packets exceeds expected packets, adjust expected packets to match
+            if (receivedPackets > expectedPackets) {
+                expectedPackets = receivedPackets;
+            }
+            
+            const throughputPercentage = Math.min(100, ((receivedPackets / expectedPackets) * 100)).toFixed(1);
+            const packetLossPercentage = Math.max(0, (100 - throughputPercentage)).toFixed(1);
+            
+            packetsExpectedEl.textContent = expectedPackets;
+            throughputPercentageEl.textContent = throughputPercentage + '%';
+            packetLossPercentageEl.textContent = packetLossPercentage + '%';
+        }
     }
 
     // Initial render in case there are no logs yet
