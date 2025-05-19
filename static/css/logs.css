@@ -56,6 +56,13 @@
     margin-bottom: -2px; /* Align with parent border to make the active border look like part of the main border */
     transition: color 0.2s ease, border-color 0.2s ease;
     outline: none; /* Remove default focus outline if not desired, or style it */
+    display: inline-flex; /* Use flex to align icon and text */
+    align-items: center; /* Vertically align icon and text */
+    gap: var(--spacing-xs); /* Space between icon and text */
+}
+
+.tab-link i {
+    margin-right: 6px; /* Space between icon and text, if gap is not supported or for fine-tuning */
 }
 
 .tab-link:hover {
