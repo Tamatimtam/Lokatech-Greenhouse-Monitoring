@@ -23,12 +23,12 @@ const char* NTP_SERVER_1 = "pool.ntp.org";
 const char* NTP_SERVER_2 = "time.google.com";
 
 // WiFi and MQTT configuration
-const char* ssid = "Direktorat Kemendikbud"; 
-const char* password = "NadiemGantengSih";  
+// const char* ssid = "Direktorat Kemendikbud"; 
+// const char* password = "NadiemGantengSih";  
 
 // secondary WiFi and MQTT configuration ([please keep this here for easy switching ])
-// const char* ssid = "padahal katanya uangtakan kemana"; 
-// const char* password = "jika memang rejeki akan ditransfer juga";  
+const char* ssid = "padahal katanya uangtakan kemana"; 
+const char* password = "jika memang rejeki akan ditransfer juga";  
 
 
 const char* mqtt_server = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud";
@@ -58,31 +58,26 @@ bool isDewasaDataValidSerial = false;
 unsigned long lastGatewaySerialTime = 0; 
 
 // Actuator Control Mode for Remaja's actuators
+// These pins (REMAJA_FAN_LED_PIN, REMAJA_LIGHT_LED_PIN) will also signal Gateway for Dewasa's state
 bool remajaFanManual = false;    
 bool remajaLightManual = false;  
 
-// Previous states for fuzzy logic change detection
-static bool prevFuzzyFanState = false;
-static bool prevFuzzyLightState = false;
+// Previous states for fuzzy logic change detection (for Remaja's local actuators)
+static bool prevFuzzyFanStateRemaja = false;
+static bool prevFuzzyLightStateRemaja = false;
 
-// --- Serial Command ACK ---
-static uint32_t currentSerialCommandId = 0;
-volatile uint32_t expectedSerialAckId = 0;
-volatile bool serialCommandAckReceived = false;
-volatile bool serialCommandAckStatusOk = false;
-
+// REMOVED: Serial Command ACK variables
 
 // Function Prototypes
 void initializeReceivedData();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
-void runFuzzyControlAndActuators();
+void runFuzzyControlAndActuators(); // Controls Remaja's local actuators (pins 18, 19)
 void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool &averagesValid, int &tempCount, int &humidityCount, int &lightCount);
-// void sendControlCommandToGatewayForDewasa(const char* device, bool state, const char* mode); // Old declaration
-bool sendControlCommandToGatewayForDewasaWithRetries(const char* device, bool state, const char* mode); // New declaration
+// REMOVED: sendControlCommandToGatewayForDewasaWithRetries
+// REMOVED: ForwardCommand
 bool syncNTP();
 String getFormattedTimestamp();
-void processSerialFromGateway(); // New function to handle all serial input
-bool ForwardCommand(const char* device, bool state, const char* mode); // Function prototype for fuck
+void processSerialFromGateway(); 
 
 void initializeReceivedData() {
      memset(&receivedPenyemaianData, 0, sizeof(SensorData));
@@ -171,7 +166,7 @@ void setup() {
   Serial.println("\n\n[RemajaNode_Master] Starting Remaja Node (Master)...");
 
   Serial2.begin(SERIAL_BAUD_RATE, SERIAL_8N1, 16, 17); 
-  Serial.println("[RemajaNode_Master] Serial2 initialized for Gateway communication.");
+  Serial.println("[RemajaNode_Master] Serial2 initialized for Gateway communication (receiving sensor data).");
 
   initializeReceivedData();
 
@@ -192,11 +187,13 @@ void setup() {
   fuzzyController->begin();
   Serial.println("[RemajaNode_Master] FuzzyController initialized.");
 
+  // REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN are outputs for local Remaja actuators
+  // AND signals to Gateway for Dewasa actuators.
   pinMode(REMAJA_FAN_LED_PIN, OUTPUT);
   pinMode(REMAJA_LIGHT_LED_PIN, OUTPUT);
   digitalWrite(REMAJA_FAN_LED_PIN, LOW); 
   digitalWrite(REMAJA_LIGHT_LED_PIN, LOW);
-  Serial.println("[RemajaNode_Master] Remaja actuator LED pins initialized.");
+  Serial.println("[RemajaNode_Master] Remaja actuator/signal pins initialized.");
 
   Serial.println("[RemajaNode_Master] Setup completed.");
 }
@@ -211,71 +208,55 @@ void processSerialFromGateway() {
             // Serial.printf("[RemajaNode_Master] Raw Serial2 input: %s\n", line.c_str());
             #endif
 
-            StaticJsonDocument<1024> doc; // Large enough for sensor data or ACK
+            StaticJsonDocument<1024> doc; 
             DeserializationError error = deserializeJson(doc, line);
 
             if (!error) {
-                const char* msgType = doc["type"];
-                if (msgType && strcmp(msgType, "ack") == 0) {
-                    #if DEBUG_REMAJA_MASTER
-                    Serial.printf("[RemajaNode_Master] Received ACK from Gateway: %s\n", line.c_str());
-                    #endif
-                    uint32_t ackId = doc["id"] | 0;
-                    if (ackId != 0 && ackId == expectedSerialAckId) {
-                        serialCommandAckStatusOk = (strcmp(doc["status"], "ok") == 0);
-                        serialCommandAckReceived = true;
-                        // expectedSerialAckId is reset by the sender function after processing
-                    } else {
-                        #if DEBUG_REMAJA_MASTER
-                        Serial.printf("[RemajaNode_Master] Stray/unexpected ACK. ID: %u, Expected: %u\n", ackId, expectedSerialAckId);
-                        #endif
-                    }
-                } else { // Assume it's sensor data from Gateway
-                    #if DEBUG_REMAJA_MASTER
-                    Serial.println("[RemajaNode_Master] Parsed Sensor JSON from Gateway. Content:");
-                    serializeJsonPretty(doc, Serial); 
-                    Serial.println();
-                    #endif
-                    unsigned long currentParseTime = millis(); 
+                // Assuming all serial data from Gateway is sensor data now
+                #if DEBUG_REMAJA_MASTER
+                Serial.println("[RemajaNode_Master] Parsed Sensor JSON from Gateway. Content:");
+                serializeJsonPretty(doc, Serial); 
+                Serial.println();
+                #endif
+                unsigned long currentParseTime = millis(); 
 
-                    JsonObject penyemaianJson = doc["penyemaian"];
-                    bool gatewayReportedPenyemaianValid = penyemaianJson["isValid"].as<bool>() | false; 
-                    
-                    if (gatewayReportedPenyemaianValid) {
-                        strncpy(receivedPenyemaianData.nodeName, penyemaianJson["nodeName"] | "penyemaian", sizeof(receivedPenyemaianData.nodeName)-1);
-                        receivedPenyemaianData.temperature = penyemaianJson["temp"] | -999.0f;
-                        receivedPenyemaianData.humidity = penyemaianJson["hum"] | -999.0f;
-                        receivedPenyemaianData.lightIntensity = penyemaianJson["light"] | -999.0f;
-                        receivedPenyemaianData.temperatureValid = penyemaianJson["tempValid"].as<bool>() | false;
-                        receivedPenyemaianData.humidityValid = penyemaianJson["humValid"].as<bool>() | false;
-                        receivedPenyemaianData.lightValid = penyemaianJson["lightValid"].as<bool>() | false;
-                        isPenyemaianDataValidSerial = true;
-                    } else {
-                        receivedPenyemaianData.temperatureValid = false; 
-                        receivedPenyemaianData.humidityValid = false;
-                        receivedPenyemaianData.lightValid = false;
-                        isPenyemaianDataValidSerial = false;
-                    }
-                    
-                    JsonObject dewasaJson = doc["dewasa"];
-                    bool gatewayReportedDewasaValid = dewasaJson["isValid"].as<bool>() | false;
-                    if (gatewayReportedDewasaValid) {
-                        strncpy(receivedDewasaData.nodeName, dewasaJson["nodeName"] | "dewasa", sizeof(receivedDewasaData.nodeName)-1);
-                        receivedDewasaData.temperature = dewasaJson["temp"] | -999.0f;
-                        receivedDewasaData.humidity = dewasaJson["hum"] | -999.0f;
-                        receivedDewasaData.lightIntensity = dewasaJson["light"] | -999.0f;
-                        receivedDewasaData.temperatureValid = dewasaJson["tempValid"].as<bool>() | false;
-                        receivedDewasaData.humidityValid = dewasaJson["humValid"].as<bool>() | false;
-                        receivedDewasaData.lightValid = dewasaJson["lightValid"].as<bool>() | false;
-                        isDewasaDataValidSerial = true;
-                    } else {
-                        receivedDewasaData.temperatureValid = false; 
-                        receivedDewasaData.humidityValid = false;
-                        receivedDewasaData.lightValid = false;
-                        isDewasaDataValidSerial = false;
-                    }
-                    lastGatewaySerialTime = currentParseTime; 
+                JsonObject penyemaianJson = doc["penyemaian"];
+                bool gatewayReportedPenyemaianValid = penyemaianJson["isValid"].as<bool>() | false; 
+                
+                if (gatewayReportedPenyemaianValid) {
+                    strncpy(receivedPenyemaianData.nodeName, penyemaianJson["nodeName"] | "penyemaian", sizeof(receivedPenyemaianData.nodeName)-1);
+                    receivedPenyemaianData.temperature = penyemaianJson["temp"] | -999.0f;
+                    receivedPenyemaianData.humidity = penyemaianJson["hum"] | -999.0f;
+                    receivedPenyemaianData.lightIntensity = penyemaianJson["light"] | -999.0f;
+                    receivedPenyemaianData.temperatureValid = penyemaianJson["tempValid"].as<bool>() | false;
+                    receivedPenyemaianData.humidityValid = penyemaianJson["humValid"].as<bool>() | false;
+                    receivedPenyemaianData.lightValid = penyemaianJson["lightValid"].as<bool>() | false;
+                    isPenyemaianDataValidSerial = true;
+                } else {
+                    receivedPenyemaianData.temperatureValid = false; 
+                    receivedPenyemaianData.humidityValid = false;
+                    receivedPenyemaianData.lightValid = false;
+                    isPenyemaianDataValidSerial = false;
                 }
+                
+                JsonObject dewasaJson = doc["dewasa"];
+                bool gatewayReportedDewasaValid = dewasaJson["isValid"].as<bool>() | false;
+                if (gatewayReportedDewasaValid) {
+                    strncpy(receivedDewasaData.nodeName, dewasaJson["nodeName"] | "dewasa", sizeof(receivedDewasaData.nodeName)-1);
+                    receivedDewasaData.temperature = dewasaJson["temp"] | -999.0f;
+                    receivedDewasaData.humidity = dewasaJson["hum"] | -999.0f;
+                    receivedDewasaData.lightIntensity = dewasaJson["light"] | -999.0f;
+                    receivedDewasaData.temperatureValid = dewasaJson["tempValid"].as<bool>() | false;
+                    receivedDewasaData.humidityValid = dewasaJson["humValid"].as<bool>() | false;
+                    receivedDewasaData.lightValid = dewasaJson["lightValid"].as<bool>() | false;
+                    isDewasaDataValidSerial = true;
+                } else {
+                    receivedDewasaData.temperatureValid = false; 
+                    receivedDewasaData.humidityValid = false;
+                    receivedDewasaData.lightValid = false;
+                    isDewasaDataValidSerial = false;
+                }
+                lastGatewaySerialTime = currentParseTime; 
             } else {
                 #if DEBUG_REMAJA_MASTER
                 Serial.print("[RemajaNode_Master] ERROR: Failed to parse JSON from Gateway: "); Serial.println(error.c_str());
@@ -297,7 +278,7 @@ void loop() {
       }
   }
 
-  processSerialFromGateway(); // Process any incoming Serial data from Gateway
+  processSerialFromGateway(); 
 
   if (currentTime - lastSensorReadTime >= SENSOR_READ_INTERVAL) { 
     lastSensorReadTime = currentTime;
@@ -307,7 +288,7 @@ void loop() {
     sensorManager->readSensors(); 
   }
 
-  runFuzzyControlAndActuators();
+  runFuzzyControlAndActuators(); // This will set REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN
 
   if (currentTime - lastMqttPublishTime >= MQTT_PUBLISH_INTERVAL) {
     lastMqttPublishTime = currentTime;
@@ -330,6 +311,7 @@ void loop() {
         simulatedDewasaEspNowLatencyMs = 18 + random(5); 
     }
 
+    // The state of REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN reflects Remaja's (and thus Dewasa's) actuator state
     mqttManager->generateJsonPayload( 
       payload, 
       currentNtpTimestampStr, 
@@ -349,7 +331,7 @@ void loop() {
 
     if (mqttManager->publish(payload)) {
       #if DEBUG_REMAJA_MASTER
-      // Serial.println("[RemajaNode_Master] Data published to MQTT successfully"); // Already logged by MQTTManager
+      // Serial.println("[RemajaNode_Master] Data published to MQTT successfully"); 
       #endif
     } else {
       Serial.println("[RemajaNode_Master] ERROR: Failed to publish data to MQTT");
@@ -426,128 +408,27 @@ void runFuzzyControlAndActuators() {
         finalLightState = remajaLightManual ? (digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH) : false;
     }
 
-    // Check for changes in fuzzy logic output and send command if in auto mode
-    if (averagesValid) { // Only send fuzzy logic decisions if averages are valid
-        if (!remajaFanManual && finalFanState != prevFuzzyFanState) {
-            #if DEBUG_REMAJA_MASTER
-            Serial.printf("[RemajaNode_Master] Fuzzy Fan state changed from %s to %s. Sending command to Dewasa.\n", prevFuzzyFanState ? "ON" : "OFF", finalFanState ? "ON" : "OFF");
-            #endif
-            ForwardCommand("fan", finalFanState, "auto");
-        }
-        if (!remajaLightManual && finalLightState != prevFuzzyLightState) {
-             #if DEBUG_REMAJA_MASTER
-            Serial.printf("[RemajaNode_Master] Fuzzy Light state changed from %s to %s. Sending command to Dewasa.\n", prevFuzzyLightState ? "ON" : "OFF", finalLightState ? "ON" : "OFF");
-            #endif
-            ForwardCommand("light", finalLightState, "auto");
-        }
-
-        // Update previous states *after* checking for changes
-        prevFuzzyFanState = finalFanState;
-        prevFuzzyLightState = finalLightState;
-    }
-
-
-    digitalWrite(REMAJA_FAN_LED_PIN, finalFanState ? HIGH : LOW);
-    digitalWrite(REMAJA_LIGHT_LED_PIN, finalLightState ? HIGH : LOW);
-}
-
-bool sendControlCommandToGatewayForDewasaWithRetries(const char* device, bool state, const char* mode) {
-    currentSerialCommandId++;
-    if (currentSerialCommandId == 0) currentSerialCommandId = 1; // Avoid ID 0, which is default for expectedSerialAckId
-
-    #if DEBUG_REMAJA_MASTER
-    Serial.printf("[Remaja->Gateway] Attempting to send command for Dewasa: Device='%s', State=%s, Mode='%s', ID=%u\n", device, state ? "ON" : "OFF", mode, currentSerialCommandId);
-    #endif
-
-    for (int attempt = 0; attempt < MAX_SERIAL_COMMAND_RETRIES; ++attempt) {
-        StaticJsonDocument<128> doc;
-        doc["type"] = "control_dewasa";
-        doc["device"] = device;
-        doc["state"] = state;
-        doc["id"] = currentSerialCommandId;
-
-        String outputJson;
-        serializeJson(doc, outputJson);
-
-        serialCommandAckReceived = false; 
-        serialCommandAckStatusOk = false;
-        expectedSerialAckId = currentSerialCommandId; 
-
-        Serial2.println(outputJson);
-        Serial2.println("FUCK");
+    // Control Remaja's local actuators (pins 18, 19)
+    // These pins also act as signals to the Gateway for Dewasa's actuators
+    if (digitalRead(REMAJA_FAN_LED_PIN) != finalFanState) {
+        digitalWrite(REMAJA_FAN_LED_PIN, finalFanState ? HIGH : LOW);
         #if DEBUG_REMAJA_MASTER
-        Serial.printf("[Remaja->Gateway] Sent command (Attempt %d/%d), ID %u: %s\n", attempt + 1, MAX_SERIAL_COMMAND_RETRIES, currentSerialCommandId, outputJson.c_str());
+        Serial.printf("[RemajaNode_Master] Remaja/Dewasa Fan (Pin %d) set to %s (Mode: %s)\n", REMAJA_FAN_LED_PIN, finalFanState ? "ON" : "OFF", remajaFanManual ? "Manual" : "Auto");
         #endif
-
-        unsigned long ackWaitStart = millis();
-        while (!serialCommandAckReceived && (millis() - ackWaitStart < SERIAL_COMMAND_ACK_TIMEOUT_MS)) {
-            processSerialFromGateway(); // Allow ACK processing
-            mqttManager->loop();        // Keep MQTT alive
-            yield();                    // Allow other tasks
-        }
-        
-        // No longer expecting this specific ACK ID after timeout or reception
-        // Keep expectedSerialAckId as is, it will be overwritten by next command send or naturally ignored if an old ACK arrives.
-        // If we reset it to 0 here, a late ACK for this ID might be ignored by processSerialFromGateway.
-        // The check `ackId == expectedSerialAckId` in processSerialFromGateway is key.
-
-        if (serialCommandAckReceived) {
-            if (serialCommandAckStatusOk) {
-                #if DEBUG_REMAJA_MASTER
-                Serial.printf("[Remaja->Gateway] Command ID %u ACKed successfully by Gateway on attempt %d.\n", currentSerialCommandId, attempt + 1);
-                #endif
-                expectedSerialAckId = 0; // Successfully processed, clear expectation
-                return true; 
-            } else {
-                #if DEBUG_REMAJA_MASTER
-                Serial.printf("[Remaja->Gateway] Command ID %u NACKed by Gateway on attempt %d. Retrying...\n", currentSerialCommandId, attempt + 1);
-                #endif
-            }
-        } else {
-            #if DEBUG_REMAJA_MASTER
-            Serial.printf("[Remaja->Gateway] Timeout waiting for ACK for command ID %u on attempt %d. Retrying...\n", currentSerialCommandId, attempt + 1);
-            #endif
-        }
-
-        if (attempt < MAX_SERIAL_COMMAND_RETRIES - 1) {
-            delay(SERIAL_COMMAND_RETRY_DELAY_MS);
-        }
     }
-    Serial.printf("[Remaja->Gateway] ERROR: Failed to send command ID %u to Gateway for Dewasa after all retries.\n", currentSerialCommandId);
-    expectedSerialAckId = 0; // Failed all retries, clear expectation
-    return false;
+    if (digitalRead(REMAJA_LIGHT_LED_PIN) != finalLightState) {
+        digitalWrite(REMAJA_LIGHT_LED_PIN, finalLightState ? HIGH : LOW);
+        #if DEBUG_REMAJA_MASTER
+        Serial.printf("[RemajaNode_Master] Remaja/Dewasa Light (Pin %d) set to %s (Mode: %s)\n", REMAJA_LIGHT_LED_PIN, finalLightState ? "ON" : "OFF", remajaLightManual ? "Manual" : "Auto");
+        #endif
+    }
+
+    // No need to send commands to Gateway via Serial anymore for Dewasa.
+    // The Gateway will read the state of REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN.
+    prevFuzzyFanStateRemaja = finalFanState; // Update previous states for Remaja's local logic if needed
+    prevFuzzyLightStateRemaja = finalLightState;
 }
 
-bool ForwardCommand(const char* device, bool state, const char* mode) {
-    currentSerialCommandId++;
-    if (currentSerialCommandId == 0) currentSerialCommandId = 1; 
-
-    #if DEBUG_REMAJA_MASTER
-    Serial.printf("[Remaja->Gateway] INSIDE sendControlCommand... ID=%u, Device='%s', State=%s\n", 
-                  currentSerialCommandId, device, state ? "ON" : "OFF");
-    #endif
-
-    StaticJsonDocument<128> doc;
-    doc["type"] = "control_dewasa";
-    doc["device"] = device;
-    doc["state"] = state;
-    doc["id"] = currentSerialCommandId;
-
-    String outputJson;
-    serializeJson(doc, outputJson);
-
-    String fullCommandString = "CMD:" + outputJson; // Using the prefix method
-
-    Serial.println("[Remaja->Gateway] BEFORE Serial2.println in sendControlCommand...");
-    Serial.print("   Sending: "); Serial.println(fullCommandString);
-
-    Serial2.println(fullCommandString);
-    Serial2.flush(); // Make sure it's sent out
-
-    Serial.println("[Remaja->Gateway] AFTER Serial2.println and flush in sendControlCommand.");
-    
-    return false; 
-};
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.printf("\n[RemajaNode_Master][MQTT Callback] Message arrived on topic: %s\n", topic);
@@ -576,80 +457,59 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     const char* device = doc["device"]; 
     const char* mode = doc["mode"];     
     
-    if (targetNode && strcmp(targetNode, "remaja") == 0) {
-        if (!device) {
-            Serial.println("[MQTT Callback] ERROR: Missing 'device' for 'remaja' node in command.");
-            return;
-        }
-
-        bool state = false; // Default state
-        if (doc.containsKey("state")) {
-            state = doc["state"].as<bool>();
-        } else if (!mode) { // If no mode and no state, it's an incomplete command for direct state change
-            Serial.println("[MQTT Callback] Command for 'remaja' missing 'state' for direct control.");
-            return;
-        }
-
-
-        if (mode) { 
-            Serial.printf("[MQTT Callback] Processing mode switch for Remaja: device='%s', mode='%s'\n", device, mode);
-            if (strcmp(device, "fan") == 0) {
-                remajaFanManual = (strcmp(mode, "manual") == 0);
-                if (remajaFanManual && doc.containsKey("state")) { 
-                    digitalWrite(REMAJA_FAN_LED_PIN, state ? HIGH : LOW);
-                } // If auto, fuzzy logic will handle it
-                Serial.printf("[Control] Remaja Fan mode set to %s. Current state: %s\n", 
-                              remajaFanManual ? "Manual" : "Auto", 
-                              digitalRead(REMAJA_FAN_LED_PIN) ? "ON" : "OFF");
-            } else if (strcmp(device, "light") == 0) {
-                remajaLightManual = (strcmp(mode, "manual") == 0);
-                 if (remajaLightManual && doc.containsKey("state")) {
-                    digitalWrite(REMAJA_LIGHT_LED_PIN, state ? HIGH : LOW);
-                } // If auto, fuzzy logic will handle it
-                Serial.printf("[Control] Remaja Light mode set to %s. Current state: %s\n", 
-                              remajaLightManual ? "Manual" : "Auto",
-                              digitalRead(REMAJA_LIGHT_LED_PIN) ? "ON" : "OFF");
-            }
-        } else if (doc.containsKey("state")) { // Direct state command (implies manual)
-            Serial.printf("[MQTT Callback] Processing state change for Remaja: device='%s', state=%s\n", device, state ? "ON" : "OFF");
-            if (strcmp(device, "fan") == 0) {
-                remajaFanManual = true; 
-                digitalWrite(REMAJA_FAN_LED_PIN, state ? HIGH : LOW);
-                Serial.printf("[Control] Remaja Fan (Manual) set to %s\n", state ? "ON" : "OFF");
-            } else if (strcmp(device, "light") == 0) {
-                remajaLightManual = true; 
-                digitalWrite(REMAJA_LIGHT_LED_PIN, state ? HIGH : LOW);
-                Serial.printf("[Control] Remaja Light (Manual) set to %s\n", state ? "ON" : "OFF");
-            }
-        } else {
-             // This case should ideally not be reached if logic above is correct
-            Serial.println("[MQTT Callback] Command for 'remaja' missing 'mode' or 'state'.");
-            return; 
-        }
-        
-        // Mirror the command to Dewasa Node if a state was determined/present
-        if (doc.containsKey("state") || mode) { // If mode is set (even to auto), or state is set
-            bool effectiveState = state; // Use state from MQTT if present
-            if (strcmp(mode, "auto")==0 && !doc.containsKey("state")) { // If mode is auto and no explicit state, use current fuzzy state
-                 if (strcmp(device, "fan") == 0) effectiveState = fuzzyController->getFanOutput();
-                 else if (strcmp(device, "light") == 0) effectiveState = fuzzyController->getLightOutput();
-            }
-            // If mode is manual and no state, use current manual state (which is `state` already)
-
-            #if DEBUG_REMAJA_MASTER
-            Serial.println("[MQTT Callback] Remaja command processed. Not mirroring fuzzy logic decisions here.");
-            #endif
-            ForwardCommand(device, effectiveState, mode ? mode : "manual"); // Call the simplified one
-        }
-
-    } else if (targetNode && strcmp(targetNode, "dewasa") == 0) {
-        // Command is specifically for Dewasa Node, forward it via Serial to Gateway
-        bool stateCmd = doc["state"] | false; // Default to false if not present
-        // sendControlCommandToGatewayForDewasaWithRetries(device, stateCmd, mode ? mode : "manual");
-            ForwardCommand(device, stateCmd, mode ? mode : "manual"); // Call the simplified one
-    } else {
-        Serial.printf("[MQTT Callback] Command for unhandled node '%s' or missing node field. Ignoring.\n", targetNode ? targetNode : "N/A");
+    // If targetNode is "dewasa", the command will effectively control Remaja's output pins,
+    // which are then read by the Gateway to control Dewasa.
+    // So, all commands effectively target Remaja's output pins.
+    if (!device) {
+        Serial.println("[MQTT Callback] ERROR: Missing 'device' in command.");
+        return;
     }
+
+    bool state = false; 
+    if (doc.containsKey("state")) {
+        state = doc["state"].as<bool>();
+    } else if (!mode) { 
+        Serial.println("[MQTT Callback] Command missing 'state' for direct control or 'mode' for mode switch.");
+        return;
+    }
+
+    if (mode) { 
+        Serial.printf("[MQTT Callback] Processing mode switch for Remaja/Dewasa: device='%s', mode='%s'\n", device, mode);
+        if (strcmp(device, "fan") == 0) {
+            remajaFanManual = (strcmp(mode, "manual") == 0);
+            if (remajaFanManual && doc.containsKey("state")) { 
+                digitalWrite(REMAJA_FAN_LED_PIN, state ? HIGH : LOW);
+            } 
+            Serial.printf("[Control] Remaja/Dewasa Fan mode set to %s. Current pin %d state: %s\n", 
+                          remajaFanManual ? "Manual" : "Auto", REMAJA_FAN_LED_PIN,
+                          digitalRead(REMAJA_FAN_LED_PIN) ? "ON" : "OFF");
+        } else if (strcmp(device, "light") == 0) {
+            remajaLightManual = (strcmp(mode, "manual") == 0);
+             if (remajaLightManual && doc.containsKey("state")) {
+                digitalWrite(REMAJA_LIGHT_LED_PIN, state ? HIGH : LOW);
+            }
+            Serial.printf("[Control] Remaja/Dewasa Light mode set to %s. Current pin %d state: %s\n", 
+                          remajaLightManual ? "Manual" : "Auto", REMAJA_LIGHT_LED_PIN,
+                          digitalRead(REMAJA_LIGHT_LED_PIN) ? "ON" : "OFF");
+        }
+    } else if (doc.containsKey("state")) { 
+        Serial.printf("[MQTT Callback] Processing state change for Remaja/Dewasa: device='%s', state=%s\n", device, state ? "ON" : "OFF");
+        if (strcmp(device, "fan") == 0) {
+            remajaFanManual = true; 
+            digitalWrite(REMAJA_FAN_LED_PIN, state ? HIGH : LOW);
+            Serial.printf("[Control] Remaja/Dewasa Fan (Pin %d, Manual) set to %s\n", REMAJA_FAN_LED_PIN, state ? "ON" : "OFF");
+        } else if (strcmp(device, "light") == 0) {
+            remajaLightManual = true; 
+            digitalWrite(REMAJA_LIGHT_LED_PIN, state ? HIGH : LOW);
+            Serial.printf("[Control] Remaja/Dewasa Light (Pin %d, Manual) set to %s\n", REMAJA_LIGHT_LED_PIN, state ? "ON" : "OFF");
+        }
+    } else {
+        Serial.println("[MQTT Callback] Command missing 'mode' or 'state'.");
+        return; 
+    }
+    // The runFuzzyControlAndActuators() in the main loop will ensure the pins are correctly set
+    // based on the new manual/auto mode and state if manual.
+    // No need to call sendControlCommandToGatewayForDewasaWithRetries or ForwardCommand.
   } else {
       Serial.printf("[MQTT Callback] Message on unhandled topic: %s\n", topic);
   }

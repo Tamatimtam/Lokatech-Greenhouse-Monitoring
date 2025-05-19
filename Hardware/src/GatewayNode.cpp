@@ -6,7 +6,7 @@
 #include "../lib/Common/SensorData.h" 
 #include "../lib/Common/NodeConfig.h" 
 
-// --- Serial Communication with Remaja Node (Master) ---
+// --- Serial Communication with Remaja Node (Master) for SENSOR DATA ONLY ---
 #define SERIAL_TO_REMAJA_MASTER Serial2 
 
 // --- Data Storage ---
@@ -19,11 +19,11 @@ volatile bool newDewasaDataFlag = false;
 unsigned long lastPenyemaianReceiveTime = 0;
 unsigned long lastDewasaReceiveTime = 0;
 
-// --- Timing for Forwarding Data ---
+// --- Timing for Forwarding Sensor Data ---
 unsigned long lastSerialForwardTime = 0;
 const unsigned long SERIAL_FORWARD_INTERVAL = 2500UL; 
 
-// ---  ESP-NOW Latency ---
+// --- ESP-NOW Latency ---
 int PenyemaianLatencyMs = -1;
 int DewasaLatencyMs = -1;
 
@@ -31,7 +31,12 @@ int DewasaLatencyMs = -1;
 volatile bool command_ack_status = false;
 volatile bool command_callback_processed = false;
 
-// ESP-NOW Receive Callback
+// --- For Reading Commands from Remaja Master via GPIO ---
+bool lastKnownFanCmdState = false;
+bool lastKnownLightCmdState = false;
+
+
+// ESP-NOW Receive Callback for SENSOR DATA from Penyemaian/Dewasa
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
     if (len != sizeof(SensorData)) {
         Serial.print("[Gateway] Received data with incorrect size. MAC: ");
@@ -48,6 +53,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
         newPenyemaianDataFlag = true;
         PenyemaianLatencyMs = simulated_latency;
         #if DEBUG_GATEWAY
+        Serial.println("[Gateway] Received data from Penyemaian Node.");
         #endif
     } else if (memcmp(mac_addr, MAC_ADDR_DEWASA, 6) == 0) { 
         memcpy(&receivedDewasaData, incomingData, sizeof(SensorData));
@@ -55,6 +61,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
         newDewasaDataFlag = true;
         DewasaLatencyMs = simulated_latency;
         #if DEBUG_GATEWAY
+        Serial.println("[Gateway] Received data from Dewasa Node.");
         #endif
     } else {
         Serial.print("[Gateway] Received data from unrecognized MAC: ");
@@ -84,7 +91,16 @@ void setup() {
     randomSeed(analogRead(0)); 
 
     SERIAL_TO_REMAJA_MASTER.begin(SERIAL_BAUD_RATE, SERIAL_8N1, 16, 17); 
-    Serial.println("[GatewayNode] Serial to Remaja Master initialized.");
+    Serial.println("[GatewayNode] Serial to Remaja Master initialized (for sensor data).");
+
+    // Initialize GPIO pins for reading commands from Remaja Master
+    pinMode(GATEWAY_CMD_FAN_INPUT_PIN, INPUT_PULLUP); // Use PULLUP if Remaja drives LOW for ON, or PULLDOWN if Remaja drives HIGH for ON. Assuming Remaja drives HIGH for ON, so PULLUP is fine.
+    pinMode(GATEWAY_CMD_LIGHT_INPUT_PIN, INPUT_PULLUP);
+    Serial.printf("[GatewayNode] Command input pins initialized: Fan (GPIO%d), Light (GPIO%d)\n", GATEWAY_CMD_FAN_INPUT_PIN, GATEWAY_CMD_LIGHT_INPUT_PIN);
+    // Initialize last known states from current pin readings
+    lastKnownFanCmdState = (digitalRead(GATEWAY_CMD_FAN_INPUT_PIN) == HIGH); 
+    lastKnownLightCmdState = (digitalRead(GATEWAY_CMD_LIGHT_INPUT_PIN) == HIGH);
+
 
     WiFi.mode(WIFI_STA);
     WiFi.disconnect(); 
@@ -103,9 +119,9 @@ void setup() {
         return; 
     }
     Serial.println("[GatewayNode] ESP-NOW Initialized.");
-    esp_now_register_recv_cb(OnDataRecv);
-    esp_now_register_send_cb(OnControlDataSentToDewasa); 
-    Serial.println("[GatewayNode] ESP-NOW Callbacks (Recv & Send) Registered.");
+    esp_now_register_recv_cb(OnDataRecv); // For sensor data from Penyemaian/Dewasa
+    esp_now_register_send_cb(OnControlDataSentToDewasa); // For command ACKs from Dewasa
+    Serial.println("[GatewayNode] ESP-NOW Callbacks (Recv Sensor, Send Command ACK) Registered.");
 
     esp_now_peer_info_t penyemaianPeer = {};
     memcpy(penyemaianPeer.peer_addr, MAC_ADDR_PENYEMAIAN, 6);
@@ -183,7 +199,7 @@ bool sendActuatorCommandToDewasaWithRetries(const ActuatorCommand& cmd) {
     return false;
 }
 
-void forwardDataToRemajaMaster() {
+void forwardSensorDataToRemajaMaster() {
     StaticJsonDocument<768 + 128> doc; 
     unsigned long currentTime = millis();
 
@@ -246,7 +262,7 @@ void forwardDataToRemajaMaster() {
 
     SERIAL_TO_REMAJA_MASTER.println(outputJson);
     #if DEBUG_GATEWAY
-    // Serial.println("[GatewayNode] Forwarded JSON via Serial to Remaja Master:");
+    // Serial.println("[GatewayNode] Forwarded SENSOR JSON via Serial to Remaja Master:");
     // Serial.println(outputJson);
     #endif
 
@@ -256,112 +272,62 @@ void forwardDataToRemajaMaster() {
     DewasaLatencyMs = -1;
 }
 
-void sendSerialAckToRemaja(uint32_t commandId, bool success, const char* reason = nullptr) {
-    StaticJsonDocument<128> ackDoc;
-    ackDoc["type"] = "ack";
-    ackDoc["id"] = commandId;
-    ackDoc["status"] = success ? "ok" : "error";
-    if (!success && reason) {
-        ackDoc["reason"] = reason;
+void processCommandInputs() {
+
+    bool currentFanCmdState = (digitalRead(GATEWAY_CMD_FAN_INPUT_PIN) == HIGH); // Assuming HIGH means ON
+    bool currentLightCmdState = (digitalRead(GATEWAY_CMD_LIGHT_INPUT_PIN) == HIGH);
+
+    if (currentFanCmdState != lastKnownFanCmdState) {
+        #if DEBUG_GATEWAY
+        Serial.printf("[Gateway] Fan command input changed from %s to %s. Sending to Dewasa.\n",
+                      lastKnownFanCmdState ? "ON" : "OFF", currentFanCmdState ? "ON" : "OFF");
+        #endif
+        ActuatorCommand cmd;
+        strcpy(cmd.device, "fan");
+        cmd.state = currentFanCmdState;
+        #if DEBUG_GATEWAY
+        Serial.printf("[Gateway] Fan command payload - Device: '%s', State: %s\n", cmd.device, cmd.state ? "ON" : "OFF");
+        #endif
+        sendActuatorCommandToDewasaWithRetries(cmd);
+        lastKnownFanCmdState = currentFanCmdState;
     }
-    String ackJson;
-    serializeJson(ackDoc, ackJson);
-    SERIAL_TO_REMAJA_MASTER.println(ackJson);
-    #if DEBUG_GATEWAY
-    Serial.printf("[Gateway->Remaja] Sent Serial ACK/NACK for ID %u: %s\n", commandId, ackJson.c_str());
-    #endif
-}
 
-void processSerialCommandFromRemajaMaster() {
-    if (SERIAL_TO_REMAJA_MASTER.available()) {
-        String line = SERIAL_TO_REMAJA_MASTER.readStringUntil('\n');
-        line.trim();
-
-        if (line.length() > 0) {
-            #if DEBUG_GATEWAY
-            Serial.printf("[Gateway] Received Serial from Remaja Master: %s\n", line.c_str());
-            #endif
-
-            // Check for and remove "CMD:" prefix
-            if (line.startsWith("CMD:")) {
-                line = line.substring(4); // Remove "CMD:"
-                #if DEBUG_GATEWAY
-                Serial.printf("[Gateway] Removed 'CMD:' prefix. Parsing: %s\n", line.c_str());
-                #endif
-            }
-
-            StaticJsonDocument<192> doc; // Increased size slightly for command ID
-            DeserializationError error = deserializeJson(doc, line);
-
-            uint32_t commandId = doc["id"] | 0; // Extract ID, default to 0 if not present
-
-            if (error) {
-                Serial.printf("[Gateway] ERROR: Failed to parse command JSON from Remaja Master: %s\n", error.c_str());
-                if (commandId != 0) { // Try to send NACK if ID was parsable
-                    sendSerialAckToRemaja(commandId, false, "json_parse_error");
-                }
-                return;
-            }
-
-            const char* type = doc["type"];
-            if (type && strcmp(type, "control_dewasa") == 0) {
-                if (commandId == 0) {
-                    Serial.println("[Gateway] ERROR: control_dewasa command missing 'id'. Cannot ACK.");
-                    // Optionally send a generic NACK if possible, but without ID it's hard to correlate
-                    return;
-                }
-
-                ActuatorCommand cmdToSend;
-                const char* device = doc["device"];
-                if (!device) {
-                     Serial.printf("[Gateway] ERROR: control_dewasa command ID %u missing 'device'.\n", commandId);
-                     sendSerialAckToRemaja(commandId, false, "missing_device");
-                     return;
-                }
-                strlcpy(cmdToSend.device, device, sizeof(cmdToSend.device));
-                
-                if (!doc.containsKey("state")) {
-                    Serial.printf("[Gateway] ERROR: control_dewasa command ID %u missing 'state'.\n", commandId);
-                    sendSerialAckToRemaja(commandId, false, "missing_state");
-                    return;
-                }
-                cmdToSend.state = doc["state"].as<bool>();
-
-                // Send ACK to Remaja Master first
-                sendSerialAckToRemaja(commandId, true);
-
-                // Then, attempt to send the command to Dewasa node
-                sendActuatorCommandToDewasaWithRetries(cmdToSend);
-            } else {
-                // Not a control_dewasa command, or type is missing.
-                // This could be other types of messages in the future, or an error.
-                // For now, we don't ACK non-control_dewasa messages.
-                #if DEBUG_GATEWAY
-                Serial.printf("[Gateway] Received non-control_dewasa type or unknown type: %s. Ignoring for ACK.\n", type ? type : "NULL");
-                #endif
-            }
-        }
+    if (currentLightCmdState != lastKnownLightCmdState) {
+        #if DEBUG_GATEWAY
+        Serial.printf("[Gateway] Light command input changed from %s to %s. Sending to Dewasa.\n",
+                      lastKnownLightCmdState ? "ON" : "OFF", currentLightCmdState ? "ON" : "OFF");
+        #endif
+        ActuatorCommand cmd;
+        strcpy(cmd.device, "light");
+        cmd.state = currentLightCmdState;
+        #if DEBUG_GATEWAY
+        Serial.printf("[Gateway] Light command payload - Device: '%s', State: %s\n", cmd.device, cmd.state ? "ON" : "OFF");
+        #endif
+        sendActuatorCommandToDewasaWithRetries(cmd);
+        lastKnownLightCmdState = currentLightCmdState;
     }
 }
+
 
 void loop() {
     unsigned long currentTime = millis();
 
+    // Forward sensor data if new data arrived or interval passed
     if (newPenyemaianDataFlag || newDewasaDataFlag || (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
         #if DEBUG_GATEWAY
         if (newPenyemaianDataFlag) Serial.println("[GatewayNode] Processing new Penyemaian data for forwarding.");
         if (newDewasaDataFlag) Serial.println("[GatewayNode] Processing new Dewasa data for forwarding.");
-        if (!newPenyemaianDataFlag && !newDewasaDataFlag) Serial.println("[GatewayNode] Serial forward interval reached.");
+        if (!newPenyemaianDataFlag && !newDewasaDataFlag && (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
+             // Serial.println("[GatewayNode] Sensor data forward interval reached (even if no new data).");
+        }
         #endif
         
-        forwardDataToRemajaMaster();
+        forwardSensorDataToRemajaMaster();
         lastSerialForwardTime = currentTime;
     }
 
-    processSerialCommandFromRemajaMaster(); 
-
-   
-
+    // Process command inputs from Remaja Master (via GPIO)
+    processCommandInputs(); 
 
     yield();
 }
