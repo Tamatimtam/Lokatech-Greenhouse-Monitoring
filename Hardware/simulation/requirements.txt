@@ -1,0 +1,6 @@
+Flask
+paho-mqtt
+firebase-admin
+gunicorn # For production deployment (optional for local dev)
+
+eventlet
