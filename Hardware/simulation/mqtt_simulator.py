@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 import time
 import random
+from datetime import datetime, timezone # Added for ISO timestamp
 
 # MQTT Configuration
 MQTT_SERVER = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"
@@ -14,17 +15,24 @@ MQTT_PUBLISH_TOPIC = "lokatech/greenhouse/sensors"
 PUBLISH_INTERVAL_SECONDS = 2 # Publish data every 2 seconds
 
 # --- Data Simulation Functions ---
-# Simple random simulation within realistic ranges
 def simulate_temperature():
-    return round(random.uniform(18.0, 32.0), 1) # Range 18-32 C
+    return round(random.uniform(18.0, 32.0), 1)
 
 def simulate_humidity():
-    return random.randint(40, 90) # Range 40-90 %
+    return random.randint(40, 90)
 
 def simulate_light():
-    # Simulate a wider range for light, as different sections might have different needs
-    # and the master node (Remaja) also has its own light sensor.
-    return random.randint(50, 15000) # Range 50-15000 lux
+    return random.randint(50, 15000)
+
+def simulate_espnow_latency():
+    # Simulate latency between 15ms and 80ms, or occasionally null
+    if random.random() < 0.05: # 5% chance of being null (simulating packet loss/timeout before aggregation)
+        return None
+    return random.randint(15, 80)
+
+def get_iso_timestamp():
+    # Generate ISO 8601 timestamp with milliseconds and 'Z' for UTC
+    return datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
 
 # --- Data Processing Functions ---
 def calculate_averages(sections_data):
@@ -35,8 +43,9 @@ def calculate_averages(sections_data):
     total_light = 0
     light_count = 0
 
-    for section_key in ["penyemaian", "remaja", "dewasa"]: # Iterate in defined order
-        data = sections_data.get(section_key, {}) # Get section data, or empty dict if not present
+    # Iterate through all defined sections for averaging
+    for section_key in ["penyemaian", "remaja", "dewasa"]:
+        data = sections_data.get(section_key, {})
         if data.get("temp") is not None:
             total_temp += data["temp"]
             temp_count += 1
@@ -58,62 +67,64 @@ def calculate_averages(sections_data):
     }
 
 # --- MQTT Client Setup ---
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc): # Reverted for paho-mqtt v1.x compatibility
     if rc == 0:
         print("Connected to MQTT Broker!")
     else:
         print(f"Failed to connect, return code {rc}")
 
-client = mqtt.Client(client_id="mqtt_simulator_client_py") # Added a client ID
+client = mqtt.Client(client_id="mqtt_simulator_client_py_v1") # Reverted for paho-mqtt v1.x
 client.on_connect = on_connect
 
 # --- Main Simulation Loop ---
 def run_simulator():
     try:
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-        client.tls_set() 
-        client.connect(MQTT_SERVER, MQTT_PORT, 60) # Added keepalive
+        client.tls_set()
+        client.connect(MQTT_SERVER, MQTT_PORT, 60)
         client.loop_start()
 
         print(f"MQTT Simulator started. Publishing to topic: {MQTT_PUBLISH_TOPIC}")
 
         while True:
-            # Simulate data for each section according to the new structure
+            current_iso_timestamp = get_iso_timestamp()
+
             sections_data = {
-                "penyemaian": { # Data that would come from Penyemaian node via Gateway
+                "penyemaian": {
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    "trends": {"temp": "equals", "humidity": "up", "light": "down"} # Example trends
+                    "espnow_latency_ms": simulate_espnow_latency(),
+                    "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 },
-                "remaja": { # Data from Remaja Master's local sensors
+                "remaja": { # Remaja is the master, no ESP-NOW latency from itself
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    "trends": {"temp": "up", "humidity": "equals", "light": "equals"}
+                    # "espnow_latency_ms": None, # Explicitly not present or null
+                    "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 },
-                "dewasa": { # Data that would come from the new Dewasa node (old Peremajaan) via Gateway
+                "dewasa": {
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    "trends": {"temp": "down", "humidity": "down", "light": "up"}
+                    "espnow_latency_ms": simulate_espnow_latency(),
+                    "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 }
             }
 
             averages_data = calculate_averages(sections_data)
 
-            # Simulate Remaja Master's actuator states
-            # These would be determined by its fuzzy logic or manual override
             remaja_fan_state = random.choice([True, False])
             remaja_fan_mode = random.choice(["auto", "manual"])
             remaja_light_state = random.choice([True, False])
             remaja_light_mode = random.choice(["auto", "manual"])
 
             payload = {
-                "timestamp": int(time.time()), # Unix timestamp in seconds
+                "hardware_send_timestamp_str": current_iso_timestamp,
                 "sections": sections_data,
                 "averages": averages_data,
-                "actuators": { # Actuators controlled by Remaja Master
+                "actuators": {
                     "fan": {"state": remaja_fan_state, "mode": remaja_fan_mode},
                     "light": {"state": remaja_light_state, "mode": remaja_light_mode}
                 }
@@ -121,12 +132,11 @@ def run_simulator():
 
             json_payload = json.dumps(payload)
             publish_result = client.publish(MQTT_PUBLISH_TOPIC, json_payload)
-            
+
             if publish_result.rc == mqtt.MQTT_ERR_SUCCESS:
                 print(f"Published: {json_payload}")
             else:
                 print(f"Failed to publish message: {mqtt.error_string(publish_result.rc)}")
-
 
             time.sleep(PUBLISH_INTERVAL_SECONDS)
 
