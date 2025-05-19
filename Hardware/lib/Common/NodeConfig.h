@@ -54,19 +54,23 @@ const unsigned long MQTT_PUBLISH_INTERVAL = 2000; // How often Remaja (Master) p
 
 // --- Serial Communication (Gateway <-> Remaja/Master) ---
 const long SERIAL_BAUD_RATE = 115200;
-// NEW: Serial Command ACK Configuration (Remaja Master <-> Gateway)
-const unsigned long SERIAL_COMMAND_ACK_TIMEOUT_MS = 500UL; // Timeout for Remaja Master to wait for ACK from Gateway
-const int MAX_SERIAL_COMMAND_RETRIES = 30;
-const unsigned long SERIAL_COMMAND_RETRY_DELAY_MS = 200UL;
+// REMOVED: Serial Command ACK Configuration (Remaja Master <-> Gateway)
 
 
 // --- Actuator Pins (for Remaja Node (Master) - Old Dewasa Hardware) ---
+// These pins on Remaja Master will ALSO be used as signals to Gateway for Dewasa's actuators
 const int REMAJA_FAN_LED_PIN = 18;
 const int REMAJA_LIGHT_LED_PIN = 19;
 
 // --- Actuator Pins (for Dewasa Node - Old Peremajaan Hardware) ---
 const int DEWASA_FAN_PIN = 18; // Example pin, adjust if different on that board
 const int DEWASA_LIGHT_PIN = 19; // Example pin
+
+// --- Gateway Input Pins (for reading commands from Remaja Master for Dewasa Node) ---
+// These pins on Gateway are connected to REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN respectively
+const int GATEWAY_CMD_FAN_INPUT_PIN = 18;   // Connected to Remaja's GPIO 18
+const int GATEWAY_CMD_LIGHT_INPUT_PIN = 19; // Connected to Remaja's GPIO 19
+
 
 // --- NTP Configuration (for Remaja Node (Master)) ---
 extern const char* NTP_SERVER_1;
