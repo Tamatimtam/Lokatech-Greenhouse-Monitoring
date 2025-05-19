@@ -1,4 +1,47 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching logic
+    const tabLinks = document.querySelectorAll('.tab-header .tab-link');
+    const tabContents = document.querySelectorAll('.container .tab-content');
+
+    // Function to activate a tab
+    function activateTab(tabId) {
+        tabLinks.forEach(link => {
+            if (link.getAttribute('data-tab') === tabId) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+        tabContents.forEach(content => {
+            if (content.id === tabId) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
+    }
+
+    // Set initial active tab based on HTML class
+    // This ensures the JS respects the server-rendered active tab
+    const initialActiveLink = document.querySelector('.tab-header .tab-link.active');
+    if (initialActiveLink) {
+        const initialTabId = initialActiveLink.getAttribute('data-tab');
+        activateTab(initialTabId); // Ensure consistency if JS loads after some interaction or if classes are misaligned
+    } else if (tabLinks.length > 0) {
+        // Fallback: if no tab is marked active in HTML, activate the first one
+        // Or, activate a specific default like 'tab-performance'
+        activateTab(tabLinks[0].getAttribute('data-tab'));
+    }
+
+
+    tabLinks.forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent any default button behavior if necessary
+            const tabId = this.getAttribute('data-tab');
+            activateTab(tabId);
+        });
+    });
+
     const socket = io();
     const logTableBody = document.getElementById('log-table-body');
     const maxLogsInput = document.getElementById('maxLogs');
