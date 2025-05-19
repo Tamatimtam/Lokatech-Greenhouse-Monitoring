@@ -14,32 +14,27 @@ def get_firestore_db():
     global _db
     if _db is None:
         try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_dir))) # Up to simpleLogin's parent
-            # Assuming simpleLogin is the root for secrets, adjust if secrets is outside simpleLogin
-            # For /simpleLogin/secrets/firebase-credentials.json
-            cred_path = os.path.join(project_root, 'simpleLogin', 'secrets', 'firebase-credentials.json')
-            
-            if not os.path.exists(cred_path):
-                 # Try alternative if running from within simpleLogin directory directly
-                alt_project_root = os.path.dirname(os.path.dirname(script_dir)) # Up to simpleLogin
-                cred_path = os.path.join(alt_project_root, 'secrets', 'firebase-credentials.json')
-
-            if not os.path.exists(cred_path):
-                print(f"ERROR: Firebase credentials file not found. Checked: {cred_path} and variations.")
-                # Fallback for cloud environment if GOOGLE_APPLICATION_CREDENTIALS is set
-                if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
-                    print("Attempting to initialize Firebase with GOOGLE_APPLICATION_CREDENTIALS.")
-                    if not firebase_admin._apps:
-                        firebase_admin.initialize_app()
+            # Simply check if Firebase was already initialized in app2.py
+            if firebase_admin._apps:
+                # If Firebase is already initialized, just get the client
+                _db = firestore.client()
+            else:
+                # As a fallback if this module is used independently, try a simpler path
+                local_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                         "secrets", "firebase-credentials.json")
+                
+                if os.path.exists(local_path):
+                    cred = credentials.Certificate(local_path)
+                    firebase_admin.initialize_app(cred)
                     _db = firestore.client()
-                    return _db
-                return None
-            
-            if not firebase_admin._apps:
-                cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred)
-            _db = firestore.client()
+                elif os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+                    # Cloud environment fallback
+                    print("Attempting to initialize Firebase with GOOGLE_APPLICATION_CREDENTIALS")
+                    firebase_admin.initialize_app()
+                    _db = firestore.client()
+                else:
+                    print("ERROR: Firebase not initialized and credentials file not found")
+                    return None
         except Exception as e:
             print(f"Error initializing Firestore: {e}")
             import traceback
