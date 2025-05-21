@@ -1,0 +1,174 @@
+/* System Logs specific styling */
+
+.system-log-controls {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background-color: var(--surface-light, #f8f9fa);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color-light, #eee);
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+/* Re-using .log-control-btn and .log-input styles from logs.css for consistency */
+
+/* Loading indicator */
+.loading-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--spacing-lg);
+    font-style: italic;
+    color: var(--text-secondary);
+    gap: var(--spacing-sm);
+}
+
+.loading-indicator i {
+    color: var(--primary);
+}
+
+/* Log count */
+.log-count {
+    margin-left: auto;
+    padding: 4px 8px;
+    background-color: var(--surface-ultralight, #f2f2f2);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.system-log-entries-table-container {
+    max-height: 600px; /* Or any height you prefer */
+    overflow-y: auto;
+    border: 1px solid var(--border-color-light, #ddd);
+    border-radius: var(--radius-sm);
+    background-color: #fff; /* Ensure background for the container */
+}
+
+.system-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem; /* Smaller font for more data */
+}
+
+.system-log-table th {
+  text-align: left;
+  padding: var(--spacing-sm) var(--spacing-xs); /* Reduced padding */
+  border-bottom: 2px solid var(--border-color-light, #ddd); /* Stronger header bottom border */
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--surface-ultralight, #f9f9f9); /* Light grey for header */
+  position: sticky; /* Make header sticky */
+  top: 0;
+  z-index: 1; /* Ensure header stays above scrolling content */
+}
+
+.system-log-table td {
+  padding: var(--spacing-xs); /* Reduced padding */
+  border-bottom: 1px solid var(--border-color-extralight, #eee);
+  /* white-space: nowrap; /* Consider removing for message/details if they can be long */
+}
+
+.system-log-table td.log-details {
+    white-space: pre-wrap; /* Allow wrapping for details */
+    word-break: break-all; /* Break long words if necessary */
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+/* Alert styling */
+.alert {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.alert.alert-danger {
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    color: #c62828;
+}
+
+.alert.alert-danger i {
+    color: #c62828;
+}
+
+.alert .log-control-btn {
+    margin-left: auto;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+}
+
+.system-log-table tr:nth-child(even) {
+  background-color: var(--surface-light-accent, #fdfdfd); /* Zebra striping for rows */
+}
+
+.system-log-table tr:hover {
+  background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.05);
+}
+
+/* Log level specific styling */
+.system-log-table .log-level-cell {
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: var(--radius-xs);
+    font-size: 0.75rem;
+    text-align: center;
+    display: inline-block; /* To allow padding and centering */
+    min-width: 60px; /* Ensure a minimum width for better visual */
+}
+
+.log-level-INFO {
+    color: #2962ff; /* Blue */
+    background-color: #e3f2fd;
+}
+.log-level-WARNING {
+    color: #ff8f00; /* Amber/Orange */
+    background-color: #fff8e1;
+}
+.log-level-ERROR {
+    color: #d50000; /* Red */
+    background-color: #ffebee;
+}
+.log-level-DEBUG {
+    color: #616161; /* Grey */
+    background-color: #f5f5f5;
+}
+.log-level-CRITICAL {
+    color: #ffffff; /* White text */
+    background-color: #c62828; /* Darker Red */
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .system-log-table {
+    font-size: 0.8rem; /* Even smaller on mobile */
+  }
+  
+  .system-log-table th,
+  .system-log-table td {
+    padding: var(--spacing-xs) 4px; /* Further reduce padding */
+  }
+  .system-log-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .system-log-controls label {
+    margin-top: var(--spacing-sm);
+  }
+  .system-log-controls input,
+  .system-log-controls select {
+    width: 100%;
+  }
+  .log-count {
+    width: 100%;
+    text-align: center;
+    margin-top: var(--spacing-sm);
+  }
+}

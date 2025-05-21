@@ -11,6 +11,27 @@ from firebase_admin import firestore   # For interacting with Firestore database
 import datetime                 # For generating timestamps for data records
 import statistics               # For calculating statistical measures (mean, median, etc.)
 import os                       # For path manipulation to locate credentials file
+import sys # Add sys for path manipulation
+
+# Add project root to sys.path to allow importing blueprints
+script_dir_for_import = os.path.dirname(os.path.abspath(__file__))
+project_root_for_import = os.path.dirname(os.path.dirname(script_dir_for_import))
+if project_root_for_import not in sys.path:
+    sys.path.insert(0, project_root_for_import)
+
+try:
+    from blueprints.logs.firestore_logger import log_event, LogType, LogLevel, log_sensor_error
+    logger_available = True
+except ImportError as e:
+    print(f"Warning: System logger (firestore_logger) not found due to ImportError: {e}. "
+          "Errors from this script will not be logged to the system_logs collection.")
+    logger_available = False
+    # Define dummy logger functions if the import fails
+    class LogType: SENSOR_ERROR = "SENSOR_ERROR"; CONNECTION_LOST = "CONNECTION_LOST"; CONNECTION_RESTORED = "CONNECTION_RESTORED" # Dummy
+    class LogLevel: ERROR = "ERROR"; WARNING = "WARNING"; INFO = "INFO" # Dummy
+    def log_event(log_type, level, node=None, sensor_type=None, details=None, source=None): print(f"[DUMMY_LOG] Type: {log_type}, Level: {level}, Node: {node}, Details: {details}, Source: {source}")
+    def log_sensor_error(node, sensor_type, details, source): print(f"[DUMMY_LOG_SENSOR_ERROR] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
+
 
 # --- Firebase Setup and Initialization ---
 # Construct the absolute path to the Firebase credentials JSON file.
@@ -65,8 +86,12 @@ def on_connect(client, userdata, flags, rc):
         # Once connected, subscribe to the topic to receive sensor data
         client.subscribe(MQTT_SUBSCRIBE_TOPIC)
         print(f"Subscribed to {MQTT_SUBSCRIBE_TOPIC}")
+        if logger_available:
+            log_event(LogType.CONNECTION_RESTORED, LogLevel.INFO, node="mqtt_aggregator_script", details="Successfully connected to MQTT Broker.", source="mqtt_to_firestore.py")
     else:
         print(f"Failed to connect, return code {rc}")
+        if logger_available:
+            log_event(LogType.CONNECTION_LOST, LogLevel.ERROR, node="mqtt_aggregator_script", details=f"Failed to connect to MQTT Broker. Return code: {rc}", source="mqtt_to_firestore.py")
         # Common return codes: 1 (incorrect protocol), 3 (server unavailable), 5 (unauthorized)
 
 def on_message(client, userdata, msg):
@@ -79,13 +104,25 @@ def on_message(client, userdata, msg):
     - msg: An object containing the topic and payload of the received message
     """
     try:
-        # Convert the raw bytes payload to a string, then parse as JSON
-        payload = json.loads(msg.payload.decode())
+        payload_str = msg.payload.decode()
+        payload = json.loads(payload_str)
         process_mqtt_data(payload) # Pass the parsed data for processing
-    except json.JSONDecodeError:
-        print(f"Error: Received invalid JSON data on topic {msg.topic}")
+    except json.JSONDecodeError as e:
+        err_details = f"Invalid JSON on topic {msg.topic}. Error: {e}. Payload: {msg.payload.decode(errors='ignore')[:200]}"
+        print(f"Error: {err_details}")
+        if logger_available:
+            log_sensor_error(node="mqtt_aggregator_script", sensor_type="json_payload", details=err_details, source="mqtt_to_firestore.py")
+    except UnicodeDecodeError as e:
+        err_details = f"Unicode decode error on topic {msg.topic}. Error: {e}. Raw Payload: {str(msg.payload)[:200]}"
+        print(f"Error: {err_details}")
+        if logger_available:
+            log_sensor_error(node="mqtt_aggregator_script", sensor_type="payload_encoding", details=err_details, source="mqtt_to_firestore.py")
     except Exception as e:
-        print(f"Error in on_message: {e}")
+        err_details = f"Generic error in on_message: {e}"
+        print(f"Error: {err_details}")
+        if logger_available:
+            log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py")
+
 
 # --- Data Processing Functions ---
 
@@ -98,6 +135,7 @@ def process_mqtt_data(payload):
     - payload: JSON data containing sensor readings from the greenhouse
     """
     global collection_data, last_save_time # Access these variables from global scope
+    source_script = "mqtt_to_firestore.py"
 
     try:
         # Extract sensor data for each greenhouse section from the payload
@@ -106,16 +144,44 @@ def process_mqtt_data(payload):
                 section_payload = payload["sections"][section_name]
                 
                 # Extract and store temperature readings if available
-                if "temp" in section_payload and section_payload["temp"] is not None:
-                    collection_data[section_name]["temps"].append(float(section_payload["temp"]))
+                temp_val = section_payload.get("temp")
+                if temp_val is not None:
+                    try:
+                        collection_data[section_name]["temps"].append(float(temp_val))
+                    except (ValueError, TypeError) as e:
+                        if logger_available:
+                            log_sensor_error(node=section_name, sensor_type="temp", details=f"Invalid temp value: '{temp_val}'. Error: {e}", source=source_script)
+                else:
+                    if logger_available:
+                         log_sensor_error(node=section_name, sensor_type="temp", details="Temp data missing or null.", source=source_script)
                 
                 # Extract and store humidity readings if available
-                if "humidity" in section_payload and section_payload["humidity"] is not None:
-                    collection_data[section_name]["humidities"].append(float(section_payload["humidity"]))
+                humidity_val = section_payload.get("humidity")
+                if humidity_val is not None:
+                    try:
+                        collection_data[section_name]["humidities"].append(float(humidity_val))
+                    except (ValueError, TypeError) as e:
+                        if logger_available:
+                            log_sensor_error(node=section_name, sensor_type="humidity", details=f"Invalid humidity value: '{humidity_val}'. Error: {e}", source=source_script)
+                else:
+                    if logger_available:
+                        log_sensor_error(node=section_name, sensor_type="humidity", details="Humidity data missing or null.", source=source_script)
                 
                 # Extract and store light intensity readings if available
-                if "light" in section_payload and section_payload["light"] is not None:
-                    collection_data[section_name]["lights"].append(float(section_payload["light"]))
+                light_val = section_payload.get("light")
+                if light_val is not None:
+                    try:
+                        collection_data[section_name]["lights"].append(float(light_val))
+                    except (ValueError, TypeError) as e:
+                        if logger_available:
+                            log_sensor_error(node=section_name, sensor_type="light", details=f"Invalid light value: '{light_val}'. Error: {e}", source=source_script)
+                else:
+                    if logger_available:
+                        log_sensor_error(node=section_name, sensor_type="light", details="Light data missing or null.", source=source_script)
+            else:
+                if logger_available:
+                    log_event(LogType.SENSOR_ERROR, LogLevel.WARNING, node=section_name, details=f"Section data missing in payload for '{section_name}'.", source=source_script)
+
 
         # Also process overall average values if provided in the payload
         if "averages" in payload:
@@ -136,7 +202,10 @@ def process_mqtt_data(payload):
             reset_collection_data()     # Clear collected data for next interval
             last_save_time = current_time # Reset the timer
     except Exception as e:
-        print(f"Error processing MQTT data payload: {e}")
+        err_details = f"Error processing MQTT data payload: {e}"
+        print(err_details)
+        if logger_available:
+            log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node="mqtt_aggregator_script", details=err_details, source=source_script)
 
 def calculate_stats(values):
     """
@@ -251,9 +320,15 @@ def run_collector():
     except KeyboardInterrupt: 
         print("Collector stopped by user.")
     except ConnectionRefusedError:
-        print(f"Connection refused. Check MQTT broker address, port, and firewall.")
+        err_details = "Connection refused. Check MQTT broker address, port, and firewall."
+        print(err_details)
+        if logger_available:
+            log_event(LogType.CONNECTION_LOST, LogLevel.CRITICAL, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        err_details = f"An unexpected error occurred in run_collector: {e}"
+        print(err_details)
+        if logger_available:
+            log_event(LogType.CONNECTION_LOST, LogLevel.CRITICAL, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py")
     finally:
         # Ensure clean disconnection in all cases
         print("Disconnecting MQTT client...")

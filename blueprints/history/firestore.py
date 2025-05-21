@@ -8,38 +8,70 @@ import os
 import pytz
 
 _db = None
+_history_initialized_project_id = None # Track initialized project for history
 wib_timezone = pytz.timezone('Asia/Jakarta')
 
 def get_firestore_db():
-    global _db
+    global _db, _history_initialized_project_id
     if _db is None:
+        expected_project_id = "codenameamber-7b92a" # From your credentials
         try:
-            # Simply check if Firebase was already initialized in app2.py
-            if firebase_admin._apps:
-                # If Firebase is already initialized, just get the client
-                _db = firestore.client()
-            else:
-                # As a fallback if this module is used independently, try a simpler path
-                local_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                                         "secrets", "firebase-credentials.json")
-                
-                if os.path.exists(local_path):
-                    cred = credentials.Certificate(local_path)
-                    firebase_admin.initialize_app(cred)
-                    _db = firestore.client()
-                elif os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
-                    # Cloud environment fallback
-                    print("Attempting to initialize Firebase with GOOGLE_APPLICATION_CREDENTIALS")
-                    firebase_admin.initialize_app()
-                    _db = firestore.client()
+            cred_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                'secrets',
+                'firebase-credentials.json'
+            )
+            if not os.path.exists(cred_path):
+                print(f"ERROR (History DB): Credentials file not found at {cred_path}")
+                if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+                    print("INFO (History DB): Attempting GCP default credentials for Firebase.")
+                    # If history uses default app, it should be initialized by main app.py or once.
+                    # For safety, let's try to initialize a named one if no default, or get default.
+                    try:
+                        default_app = firebase_admin.get_app()
+                        app_to_use = default_app
+                        print(f"INFO (History DB): Using existing DEFAULT Firebase app.")
+                    except ValueError:
+                        print(f"INFO (History DB): Initializing new Firebase app 'lokatech-history-gcp' via GCP default.")
+                        firebase_admin.initialize_app(name='lokatech-history-gcp')
+                        app_to_use = firebase_admin.get_app(name='lokatech-history-gcp')
+                    
+                    _db = firestore.client(app=app_to_use)
+                    _history_initialized_project_id = app_to_use.project_id
+                    print(f"INFO (History DB): Firebase initialized via GCP default for project: {_history_initialized_project_id}")
+
                 else:
-                    print("ERROR: Firebase not initialized and credentials file not found")
+                    print("ERROR (History DB): No local credentials and GOOGLE_APPLICATION_CREDENTIALS not set.")
                     return None
+            else:
+                cred = credentials.Certificate(cred_path)
+                if cred.project_id != expected_project_id:
+                    print(f"WARNING (History DB): Credentials file project_id '{cred.project_id}' does not match expected '{expected_project_id}'")
+
+                # History typically uses the default app, ensure it's initialized
+                try:
+                    app_to_use = firebase_admin.get_app() # Try to get default app
+                    print(f"INFO (History DB): Using existing DEFAULT Firebase app.")
+                except ValueError:
+                    print(f"INFO (History DB): Initializing DEFAULT Firebase app for history.")
+                    firebase_admin.initialize_app(cred) # Initialize default app
+                    app_to_use = firebase_admin.get_app()
+                
+                _db = firestore.client(app=app_to_use) # Client from default app
+                _history_initialized_project_id = app_to_use.project_id
+                print(f"INFO (History DB): Firebase (default app) initialized for project: {_history_initialized_project_id}")
+
+            if _history_initialized_project_id != expected_project_id:
+                print(f"CRITICAL WARNING (History DB): Connected to project '{_history_initialized_project_id}' BUT EXPECTED '{expected_project_id}'!")
+
         except Exception as e:
-            print(f"Error initializing Firestore: {e}")
+            print(f"ERROR (History DB): Error initializing Firestore: {e}")
             import traceback
             traceback.print_exc()
+            _db = None # Ensure db is None if init fails
             return None
+    elif _history_initialized_project_id != "codenameamber-7b92a":
+        print(f"WARNING (History DB): Re-checked. Still connected to project '{_history_initialized_project_id}' instead of 'codenameamber-7b92a'.")
     return _db
 
 def get_historical_data(section=None, days=7, data_type=None):

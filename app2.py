@@ -7,7 +7,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 import re
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit # Added emit for completeness
 from flask_cors import CORS # Import CORS
 from blueprints.sensor.mqtt import sensor_manager # Import the globally managed instance
 
@@ -21,6 +21,17 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger('GreenhouseApp')
+
+# Attempt to import system logger for SocketIO events
+try:
+    from blueprints.logs.firestore_logger import log_event as system_log_event, LogType as SystemLogType, LogLevel as SystemLogLevel
+    app_system_logger_available = True
+except ImportError:
+    app_system_logger_available = False
+    class SystemLogType: CONNECTION_LOST="CONNECTION_LOST"; CONNECTION_RESTORED="CONNECTION_RESTORED" # Dummy
+    class SystemLogLevel: INFO="INFO"; WARNING="WARNING" # Dummy
+    def system_log_event(log_type, level, node=None, sensor_type=None, details=None, source=None): logger.warning(f"[DUMMY_APP_SYS_LOG] Type: {log_type}, Level: {level}, Node: {node}, Details: {details}, Source: {source}")
+
 
 # INIT FLASK
 app = Flask(__name__)
@@ -91,6 +102,30 @@ app.register_blueprint(plants_bp)
 app.register_blueprint(profile_bp)
 app.register_blueprint(history_bp)
 app.register_blueprint(logs_bp, url_prefix='/logs')
+
+# SocketIO Event Handlers
+@socketio.on('connect')
+def handle_connect():
+    logger.info(f"Client connected: {request.sid}")
+    if app_system_logger_available:
+        system_log_event(SystemLogType.CONNECTION_RESTORED, SystemLogLevel.INFO, node="socketio_client", details=f"Client connected with SID: {request.sid}", source="flask_socketio_server")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logger.info(f"Client disconnected: {request.sid}")
+    if app_system_logger_available:
+        system_log_event(SystemLogType.CONNECTION_LOST, SystemLogLevel.WARNING, node="socketio_client", details=f"Client disconnected with SID: {request.sid}", source="flask_socketio_server")
+
+# Placeholder for where automated actuator control logic might reside and log
+# def perform_automated_control():
+#     # ... your automation logic (e.g., based on fuzzy.py output or sensor thresholds) ...
+#     if fan_should_turn_on_auto:
+#         # ... code to turn fan on ...
+#         if app_system_logger_available:
+#             from blueprints.logs.firestore_logger import log_fan_auto # Specific import if needed
+#             log_fan_auto(node="specific_section_if_applicable", state=True, details="Automated by server logic due to high temperature.", source="automation_service")
+#     # Similar for other automated actions (fan off, light on/off)
+
 
 # Root route for login page
 @app.route("/")

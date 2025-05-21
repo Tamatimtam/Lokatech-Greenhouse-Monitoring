@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/logs-system.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -23,20 +24,20 @@
   <!-- Tabs Navigation -->
   <div class="tabs">
     <div class="tab-header">
-      <button class="tab-link" data-tab="tab-system"><i class="fas fa-cogs"></i> System Logs</button>
+      <button class="tab-link active" data-tab="tab-system"><i class="fas fa-cogs"></i> System Logs</button>
       <button class="tab-link" data-tab="tab-user"><i class="fas fa-users"></i> User Logs</button>
-      <button class="tab-link active" data-tab="tab-performance"><i class="fas fa-chart-line"></i> Performance Logs</button>
+      <button class="tab-link" data-tab="tab-performance"><i class="fas fa-chart-line"></i> Performance Logs</button>
     </div>
 
     <!-- Tab Content -->
-    <div id="tab-system" class="tab-content">
+    <div id="tab-system" class="tab-content active">
       <!-- Content will be populated by logs-system.js -->
     </div>
     <div id="tab-user" class="tab-content">
       <!-- Content will be populated by logs-user.js -->
     </div>
 
-    <div id="tab-performance" class="tab-content active">
+    <div id="tab-performance" class="tab-content">
       {% call card.card('SUMMARY STATISTICS') %}
         <div id="log-summary-container" class="log-summary">
             <!-- Latency Metrics Section -->
