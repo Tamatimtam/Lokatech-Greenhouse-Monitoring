@@ -32,3 +32,4 @@ secrets
 .vscode/ipch
 simpleLogin.code-workspace
 deploy.sh
+Hardware/simulation/deploy_tama.sh
