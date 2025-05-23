@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Tracking variables for throughput calculation
     let connectionStartTime = null;
-    let expectedPacketsPerSecond = 0.5; // 1 packet every 2 seconds
+    let expectedPacketsPerSecond = 0.6; // 1 packet every 2 seconds
 
     maxLogsInput.addEventListener('change', function() {
         maxLogEntries = parseInt(this.value, 10);
