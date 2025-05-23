@@ -23,12 +23,12 @@ const char* NTP_SERVER_1 = "pool.ntp.org";
 const char* NTP_SERVER_2 = "time.google.com";
 
 // WiFi and MQTT configuration
-// const char* ssid = "Direktorat Kemendikbud"; 
-// const char* password = "NadiemGantengSih";  
+const char* ssid = "Direktorat Kemendikbud"; 
+const char* password = "NadiemGantengSih";  
 
 // secondary WiFi and MQTT configuration ([please keep this here for easy switching ])
-const char* ssid = "padahal katanya uangtakan kemana"; 
-const char* password = "jika memang rejeki akan ditransfer juga";  
+// const char* ssid = "padahal katanya uangtakan kemana"; 
+// const char* password = "jika memang rejeki akan ditransfer juga";  
 
 
 const char* mqtt_server = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud";
@@ -311,12 +311,23 @@ void loop() {
         simulatedDewasaEspNowLatencyMs = 18 + random(5); 
     }
 
+    // Get Remaja's local temperature and apply offset
+    float localRemajaTemp = sensorManager->getTemperature();
+    bool localRemajaTempValid = sensorManager->isTemperatureValid();
+    if (localRemajaTempValid) {
+        localRemajaTemp -= 2.0f; // Apply -2.0 C offset
+        #if DEBUG_REMAJA_MASTER
+        // Serial.printf("[RemajaNode_Master] Original Remaja Temp: %.1fC, Adjusted Remaja Temp: %.1fC\n", sensorManager->getTemperature(), localRemajaTemp);
+        #endif
+    }
+
+
     // The state of REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN reflects Remaja's (and thus Dewasa's) actuator state
     mqttManager->generateJsonPayload( 
       payload, 
       currentNtpTimestampStr, 
-      sensorManager->getTemperature(), sensorManager->getHumidity(), sensorManager->getLightIntensity(),
-      sensorManager->isTemperatureValid(), sensorManager->isHumidityValid(), sensorManager->isLightValid(),
+      localRemajaTemp, sensorManager->getHumidity(), sensorManager->getLightIntensity(), // Use adjusted temp
+      localRemajaTempValid, sensorManager->isHumidityValid(), sensorManager->isLightValid(), // Use original validity for temp
       receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
       receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
       digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
@@ -352,8 +363,15 @@ void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool
     lightCount = 0;
     unsigned long currentMillis = millis();
 
-    if (sensorManager->isTemperatureValid()) {
-        tempSum += sensorManager->getTemperature(); tempCount++;
+    // Get Remaja's local temperature and apply offset for average calculation
+    float localRemajaTempForAvg = sensorManager->getTemperature();
+    bool localRemajaTempValidForAvg = sensorManager->isTemperatureValid();
+    if (localRemajaTempValidForAvg) {
+        localRemajaTempForAvg -= 2.0f; // Apply -2.0 C offset
+    }
+
+    if (localRemajaTempValidForAvg) {
+        tempSum += localRemajaTempForAvg; tempCount++;
     }
     if (sensorManager->isHumidityValid()) {
         humiditySum += sensorManager->getHumidity(); humidityCount++;
