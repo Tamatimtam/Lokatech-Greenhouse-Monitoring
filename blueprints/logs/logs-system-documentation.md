@@ -20,7 +20,8 @@ This module is the core of the logging system on the backend.
 **Key Components:**
 
 *   **`LogType` Enum**: Defines the types of events that can be logged:
-    *   `SENSOR_ERROR`: An error related to a sensor reading or sensor malfunction.
+    *   `SENSOR_ERROR`: An error related to a sensor reading or sensor malfunction (e.g., sensor reporting 0).
+    *   `SENSOR_OPERATIONAL`: A sensor that was previously in an error state (reporting 0) is now working correctly and reporting a valid value.
     *   `CONNECTION_LOST`: The server lost connection to a critical component (e.g., MQTT broker).
     *   `CONNECTION_RESTORED`: The server re-established a lost connection.
     *   `FAN_ON_AUTO`: A fan was turned on automatically by the system.
@@ -34,7 +35,13 @@ This module is the core of the logging system on the backend.
     *   `CRITICAL`: Severe errors that might impact system functionality.
 *   **`get_firestore_db()`**: Handles the initialization of the Firebase Admin SDK and returns a Firestore client instance. It ensures that Firebase is initialized only once, using unique application names to prevent conflicts if other parts of the application also initialize Firebase.
 *   **`log_event()`**: The main function for writing log entries to Firestore. It takes `log_type`, `level`, and optional `node`, `sensor_type`, `details`, and `source` as arguments.
-*   **Convenience Functions**: Wrapper functions around `log_event` for common log types, simplifying logging calls from other parts of the application (e.g., `log_sensor_error()`, `log_fan_auto()`).
+*   **Convenience Functions**: Wrapper functions around `log_event` for common log types, simplifying logging calls from other parts of the application. These include:
+    *   `log_sensor_error()`: For logging sensor errors.
+    *   `log_sensor_operational()`: **NEW!** For logging when a sensor becomes operational after an error.
+    *   `log_connection_lost()`: For logging lost connections.
+    *   `log_connection_restored()`: For logging restored connections.
+    *   `log_fan_auto()`: For logging automated fan actions.
+    *   `log_light_auto()`: For logging automated light actions.
 *   **`get_system_logs()`**: Retrieves logs from Firestore. It supports filtering by the number of `days` of history, `log_type_filter`, `level_filter`, `node_filter`, and can `limit` the number of results. Logs are ordered by timestamp.
 
 **Firestore Collection:**
@@ -47,7 +54,7 @@ This module is the core of the logging system on the backend.
     *   `type`: (String) The type of log event (from `LogType` enum, e.g., "SENSOR_ERROR").
     *   `level`: (String) The severity level of the log (from `LogLevel` enum, e.g., "ERROR").
     *   `node`: (String, optional) The specific greenhouse section or component related to the log (e.g., "penyemaian", "server", "dewasa").
-    *   `sensor_type`: (String, optional) For `SENSOR_ERROR` logs, the type of sensor (e.g., "temp", "humidity").
+    *   `sensor_type`: (String, optional) For `SENSOR_ERROR` and `SENSOR_OPERATIONAL` logs, the type of sensor (e.g., "temp", "humidity").
     *   `details`: (String, optional) Additional descriptive information about the event.
     *   `source`: (String) The module or component that generated the log (e.g., "mqtt_processor", "actuator_control").
 
@@ -70,14 +77,15 @@ Key points:
 ### 2.1.5 Main Application (`app2.py`)
 
 - Initializes Flask, CORS, Socket.IO, and the default Firebase Admin app.
-- **Socket.IO handlers** log connection events:
+- **Socket.IO handlers**:
+  - **BIG CHANGE**: The logging of client connection (`CONNECTION_RESTORED`) and disconnection (`CONNECTION_LOST`) events via Socket.IO handlers has been **removed (commented out)**.
+  - **Why was it removed?** These logs were very frequent and often filled up the system logs with non-critical information, making it harder to find important events like sensor errors or actuator actions. By removing them, the logs become much cleaner and more focused on actionable system events.
   ```python
   @socketio.on('connect')
   def handle_connect():
-      system_log_event(SystemLogType.CONNECTION_RESTORED, SystemLogLevel.INFO,
-                       node="socketio_client",
-                       details=f"Client connected: {request.sid}",
-                       source="flask_socketio_server")
+      logger.info(f"Client connected: {request.sid}")
+      # if app_system_logger_available: # Disabled WebSocket connection logging
+          # system_log_event(SystemLogType.CONNECTION_RESTORED, SystemLogLevel.INFO, node="socketio_client", details=f"Client connected with SID: {request.sid}", source="flask_socketio_server")
   ```
 - Registers the `logs_bp` blueprint under `/logs`.
 - Ensures `firestore_logger` is imported after Firebase init to avoid circular imports.
@@ -101,7 +109,7 @@ Key points:
 ### 2.1.7 Sensor Manager (`blueprints/sensor/mqtt.py`)
 
 - Manages real-time sensor updates via MQTT in the Flask app.
-- Imports `log_event` and `log_sensor_error` from `firestore_logger`.
+- Imports `log_event`, `log_sensor_error`, and **NEW!** `log_sensor_operational` from `firestore_logger`.
 - Logs:
   - **MQTT connect/disconnect**:  
     ```python
@@ -116,6 +124,29 @@ Key points:
               node="all_sections",
               details="Fan ON in auto mode",
               source="sensor_manager_hardware_report")
+    ```
+  - **NEW! Sensor Error/Operational Logging**:
+    -   The `validate_and_store_data` function now actively monitors sensor values (temperature, humidity, light) for "penyemaian", "remaja", and "dewasa" sections.
+    -   If a sensor's value **transitions from a non-zero (working) state to 0 (error state)**, a `SENSOR_ERROR` log is created using `log_sensor_error`.
+    -   If a sensor's value **transitions from 0 (error state) to a non-zero (working) state**, a `SENSOR_OPERATIONAL` log is created using `log_sensor_operational`.
+    -   It also logs a `SENSOR_ERROR` if a sensor appears in the data for the first time and is already reporting 0.
+    -   This provides much better visibility into sensor health and recovery.
+    ```python
+    # Example of new sensor logging logic in validate_and_store_data
+    if new_value_is_error and not old_value_was_error:
+        log_sensor_error(
+            node=section_name,
+            sensor_type=sensor_key,
+            details=f"Sensor {sensor_key} in {section_name} started reporting 0 (error state).",
+            source=self.source_identifier + "_data_monitor"
+        )
+    elif not new_value_is_error and old_value_was_error:
+        log_sensor_operational(
+            node=section_name,
+            sensor_type=sensor_key,
+            details=f"Sensor {sensor_key} in {section_name} is now operational. Value: {new_value}",
+            source=self.source_identifier + "_data_monitor"
+        )
     ```
 
 ### 2.2. API Endpoint (`blueprints/logs/routes.py`)
@@ -150,15 +181,24 @@ This script manages the "System Logs" tab.
         *   Constructs the API request URL with the specified `filters` (days, type, level, node, limit).
         *   Handles successful API responses by updating the `systemLogs` array and calling `displaySystemLogs()` and `restoreFilterSelections()`.
         *   Manages API errors by displaying an alert message with a retry button.
-    *   **`displaySystemLogs()`**:
+    *   **`displaySystemLogsUI()`**:
         *   Dynamically generates the HTML for the filter controls (dropdowns for type, level, node; input for days) and the log table.
-        *   Populates the table with log entries using `createLogRow()`.
+        *   Populates the table with log entries using `populateTableBody()`.
         *   Displays a "No system logs found" message if the `systemLogs` array is empty.
         *   Attaches event listeners to filter controls and the refresh button.
         *   Displays the count of currently displayed logs.
-    *   **`applyFilters()`**: Collects current values from filter controls and calls `loadSystemLogs()` to refresh the data.
-    *   **`createLogRow(log)`**: Takes a single log object and returns an HTML table row string (`<tr>...</tr>`) with formatted data (timestamp, level badge, type, node, details).
-    *   **`formatLogType(type)`**: Converts `LogType` enum string values (e.g., "SENSOR_ERROR") into more human-readable text (e.g., "Sensor Error").
+    *   **`populateTableBody()`**:
+        *   **NEW! 10-Minute Interval Separators**: This function now iterates through the `systemLogs` and determines if a log entry marks the start of a new 10-minute interval (or a new hour/day).
+        *   If it's a new interval, it adds the `log-interval-start` class to the table row (`<tr>`). This class is then used by the CSS to add a visual separator.
+        *   It also adds a `time-group-header` row to visually group logs by 10-minute intervals, making it easier to scan through logs chronologically.
+    *   **`createLogRow(log, isNewIntervalStart)`**: Takes a single log object and returns an HTML table row string (`<tr>...</tr>`).
+        *   **NEW! Visual Enhancements**:
+            *   It now accepts an `isNewIntervalStart` boolean to apply the `log-interval-start` class.
+            *   It uses `getLogTypeIcon()` to display a relevant icon next to the log type.
+            *   It uses `formatDetails()` to format the log details, including highlighting numbers and attempting to pretty-print JSON, making the details easier to read.
+    *   **`getLogTypeIcon(type, sensorType)`**: **NEW!** This function maps log types and sensor types to appropriate Font Awesome icons and CSS classes. It provides specific icons for sensor errors (grayscale, pulsing effect) and operational sensors, as well as general icons for connection, fan, and light events.
+    *   **`formatDetails(details)`**: **NEW!** This function takes the raw log details string and formats it for better readability in the UI. It escapes HTML, attempts to pretty-print JSON strings, and highlights numerical values.
+    *   **`formatLogType(type)`**: Converts `LogType` enum string values (e.g., "SENSOR_ERROR") into more human-readable text (e.g., "Sensor Error") and makes "ON AUTO" / "OFF AUTO" more concise.
     *   **`restoreFilterSelections(filters)`**: Ensures that after data is reloaded, the filter controls reflect the currently active filters.
 *   **Features**:
     *   **Auto-Refresh**: Logs are automatically refreshed every 30 seconds using `setInterval`. The interval is cleared when the user navigates away from the page.
@@ -177,6 +217,18 @@ This file contains the styles specific to the "System Logs" tab.
     *   Distinct visual styles for different log levels (`.log-level-INFO`, `.log-level-WARNING`, etc.) using colored badges.
     *   Styles for loading indicators and error alerts.
     *   Responsive adjustments for smaller screens (`@media (max-width: 768px)`).
+    *   **NEW! 10-Minute Interval Separator Styles**:
+        *   `.system-log-table tr.log-interval-start td`: Adds a dashed top border to rows that start a new 10-minute interval, visually separating log groups.
+        *   `.system-log-table tr.log-interval-start:first-child td`: Prevents the top border from appearing on the very first row of the table.
+        *   `.time-group-header`: Styles for the new time group header rows, providing a clear visual marker for time intervals.
+    *   **NEW! Log Type Icon Styles**:
+        *   `.log-type-icon`: Base styling for the new icons, including circular background and basic alignment.
+        *   `.log-type-icon.sensor-error`: Specific styles for sensor error icons (grayscale, pulsing animation) to make them stand out.
+        *   `.log-type-icon.sensor-operational`: Styles for operational sensor icons.
+        *   Type-specific background and icon colors (e.g., `connection-lost`, `fan`, `light`, `sensor-temp`, `sensor-humidity`, etc.) for quick visual identification.
+    *   **NEW! Log Details Formatting**:
+        *   `.log-details`: Styles for the details column, including `pre-wrap` for multi-line content, a monospace font, and a subtle background/border.
+        *   `:hover` effect on `.log-details` to show full content if truncated and change background.
 
 ### 3.3. Logs Page HTML (`templates/logs.html`)
 
@@ -193,13 +245,15 @@ This is the main HTML file for the logs section, including all tabs.
 While the framework for storing and viewing logs is in place, the actual generation of log entries occurs in other parts of the application. Log events are triggered by:
 
 *   **Sensor Data Processing**:
-    *   `SENSOR_ERROR`: Logged if sensor data is missing, invalid, or indicates a sensor malfunction. This would typically be integrated into the MQTT message handler or data validation logic.
+    *   `SENSOR_ERROR`: Logged if sensor data is missing, invalid, or indicates a sensor malfunction (e.g., value 0).
+    *   `SENSOR_OPERATIONAL`: **NEW!** Logged when a sensor recovers from an error state (value 0 to non-zero).
+    *   (These are now specifically integrated into `blueprints/sensor/mqtt.py`'s data validation logic).
 *   **Connection Monitoring**:
     *   `CONNECTION_LOST`: Logged when the server detects a disconnection from a critical service (e.g., MQTT broker).
     *   `CONNECTION_RESTORED`: Logged when a previously lost connection is re-established.
-    *   (These are often handled in MQTT client callbacks or WebSocket event handlers).
+    *   (These are handled in MQTT client callbacks in `blueprints/sensor/mqtt.py`).
 *   **Automated Actuator Control**:
-    *   `FAN_ON_AUTO`, `FAN_OFF_AUTO`, `LIGHT_ON_AUTO`, `LIGHT_OFF_AUTO`: Logged when the system's automation logic changes the state of fans or lights. This would be integrated into the control scripts that manage these actuators.
+    *   `FAN_ON_AUTO`, `FAN_OFF_AUTO`, `LIGHT_ON_AUTO`, `LIGHT_OFF_AUTO`: Logged when the system's automation logic changes the state of fans or lights. This is integrated into the `SensorDataManager` in `blueprints/sensor/mqtt.py` based on hardware reports.
 *   **Crucial Levels/Thresholds**:
     *   (Future) Could be logged as `INFO`, `WARNING`, or `CRITICAL` events if certain sensor readings cross predefined critical thresholds, requiring attention.
 
@@ -209,9 +263,10 @@ While the framework for storing and viewing logs is in place, the actual generat
 2.  **View Logs**: The table will display the most recent system logs.
     *   **Timestamp**: Shows the time of the event in local time (WIB).
     *   **Level**: Indicates the severity (INFO, WARNING, ERROR, CRITICAL) with a colored badge.
-    *   **Type**: Describes the kind of event (e.g., Sensor Error, Fan On (Auto)).
+    *   **Type**: Describes the kind of event (e.g., Sensor Error, Fan On (Auto)), now with a relevant icon.
     *   **Node**: Specifies the relevant greenhouse section or component.
-    *   **Details**: Provides more specific information about the log entry.
+    *   **Source**: The module or component that generated the log.
+    *   **Details**: Provides more specific information about the log entry, now formatted for better readability. Hover over details to see the full text if truncated.
 3.  **Filtering**:
     *   **Days**: Enter a number to see logs from the last N days.
     *   **Type**: Select a specific log type from the dropdown.
