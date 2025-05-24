@@ -9,6 +9,6 @@ export const CONNECTION_TIMEOUT_DURATION = 8000; // ms to detect connection loss
 // Optimal environmental thresholds based on fuzzy logic definitions
 export const THRESHOLDS = {
     temp: { low: 9, high: 31, name: "Suhu" }, 
-    humidity: { low: 50, high: 95, name: "Kelembapan" }, 
+    humidity: { low: 50, high: 85, name: "Kelembapan" }, 
     light: { dark: 150, name: "Cahaya" } 
 };
