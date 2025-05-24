@@ -91,20 +91,31 @@ export const SystemMonitor = {
 
             const sectionPayload = data.sections[section];
             // Node is online if the section key exists in payload and has at least one non-null sensor value
-            const hasValidData = sectionPayload && 
-                                 (sectionPayload.temp !== null || sectionPayload.humidity !== null || sectionPayload.light !== null);
+            // AND that value is not 0 for temp/humidity
+            let nodeHasAnyValidData = false;
 
-            this.status.nodes[section].online = hasValidData;
-
-            if (hasValidData) {
+            if (sectionPayload) {
                 SENSOR_TYPES.forEach(type => {
-                    this.status.nodes[section].sensors[type] = sectionPayload[type] !== null && sectionPayload[type] !== undefined;
+                    const sensorValue = sectionPayload[type];
+                    let isSensorWorking = sensorValue !== null && sensorValue !== undefined;
+
+                    if (type === 'temp' || type === 'humidity' || type === 'light') { // Added 'light'
+                        if (sensorValue === 0) {
+                            isSensorWorking = false; // Treat 0 as not working for temp, humidity, and light
+                        }
+                    }
+                    
+                    this.status.nodes[section].sensors[type] = isSensorWorking;
+                    if (isSensorWorking) {
+                        nodeHasAnyValidData = true;
+                    }
                 });
             } else {
-                SENSOR_TYPES.forEach(type => {
+                 SENSOR_TYPES.forEach(type => {
                     this.status.nodes[section].sensors[type] = false;
                 });
             }
+            this.status.nodes[section].online = nodeHasAnyValidData;
         });
 
         this.status.masterNode = this.status.nodes.remaja.online && this.status.connected;
