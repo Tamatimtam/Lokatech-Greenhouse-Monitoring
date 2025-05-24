@@ -1,3 +1,4 @@
+// File: /simpleLogin/static/js/dashboard/ui.js
 // Manages all UI updates and interactions for the dashboard
 
 import { SECTIONS, SENSOR_TYPES, ANIMATION_DURATION, THRESHOLDS } from './config.js'; 
@@ -152,25 +153,33 @@ export const UI = {
         const circle = gaugeElement.querySelector('.svg-circle');
         const valueDisplay = gaugeElement.querySelector('.value'); // Ensure this class exists in your gauge HTML
 
+        // Explicitly treat 0 as null for temp/humidity/light gauges at the UI update stage
+        let gaugeDisplayValue = value;
+        if ((id === 'temperature-gauge' || id === 'humidity-gauge' || id === 'light-gauge') && value === 0) { // Added 'light-gauge'
+            gaugeDisplayValue = null;
+        }
+
+
         const formatOptions = (id === 'light-gauge')
             ? { format: (val) => (val !== null && val !== undefined) ? Math.round(val).toLocaleString() : '--' }
             : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' };
-        this.animateValue(valueDisplay, value, formatOptions);
+        this.animateValue(valueDisplay, gaugeDisplayValue, formatOptions);
 
-        if (value !== null && value !== undefined && circle) {
+
+        if (gaugeDisplayValue !== null && gaugeDisplayValue !== undefined && circle) {
             circle.style.stroke = color;
             const radius = parseFloat(circle.getAttribute('r'));
             const circumference = 2 * Math.PI * radius;
-            const clampedValue = Math.max(0, Math.min(value, max)); // Clamp value to be within 0-max
+            const clampedValue = Math.max(0, Math.min(gaugeDisplayValue, max)); 
             const offset = circumference - ((clampedValue / max) * circumference);
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
             circle.style.strokeDashoffset = offset;
         } else if (circle) {
-            circle.style.stroke = '#ccc'; // Default color for null value
+            circle.style.stroke = '#ccc'; 
             const radius = parseFloat(circle.getAttribute('r'));
             const circumference = 2 * Math.PI * radius;
             circle.style.strokeDasharray = `${circumference} ${circumference}`;
-            circle.style.strokeDashoffset = circumference; // Empty gauge
+            circle.style.strokeDashoffset = circumference; 
         }
     },
 
@@ -180,18 +189,25 @@ export const UI = {
             const valueElement = el.querySelector('.section-value');
             const indicatorElement = el.querySelector('.section-indicator i');
 
+            let displayValue = value; 
+            // Explicitly treat 0 as null for temp/humidity/light sections at the UI update stage
+            if ((type === 'temp' || type === 'humidity' || type === 'light') && value === 0) { // Added 'light'
+                displayValue = null;
+            }
+
             const formatOptions = (type === 'light')
                 ? { format: (val) => (val !== null && val !== undefined) ? Math.round(val).toLocaleString() : '--' }
                 : { format: (val) => (val !== null && val !== undefined) ? val.toFixed(1) : '--' };
-            this.animateValue(valueElement, value, formatOptions);
+            
+            this.animateValue(valueElement, displayValue, formatOptions);
 
-            if (value !== null && value !== undefined && trend && indicatorElement) {
+            if (displayValue !== null && displayValue !== undefined && trend && indicatorElement) {
                 indicatorElement.className = `fas fa-${trend || 'minus'}`;
                 el.classList.remove('sensor-error', 'sensor-offline');
-            } else if (indicatorElement) {
-                indicatorElement.className = 'fas fa-circle-exclamation'; // Or 'fa-power-off' for offline
-                el.classList.add('sensor-error'); // Or 'sensor-offline' if that's more appropriate
-                el.classList.remove('sensor-offline'); // Ensure only one state class
+            } else if (indicatorElement) { 
+                indicatorElement.className = 'fas fa-circle-exclamation'; 
+                el.classList.add('sensor-error'); 
+                el.classList.remove('sensor-offline'); 
             }
         });
     },
@@ -279,6 +295,8 @@ export const UI = {
                         }
 
                         SENSOR_TYPES.forEach(type => {
+                            // Use nodeStatus.sensors[type] to check if sensor is working
+                            // This already incorporates the "0 for temp/hum is error" logic from state.js
                             if (nodeStatus.sensors[type] && sectionValues[type] !== null && sectionValues[type] !== undefined) {
                                 const value = sectionValues[type];
                                 const threshold = THRESHOLDS[type];
@@ -290,6 +308,7 @@ export const UI = {
 
                                 const formattedValue = type === 'light' ? Math.round(value) : parseFloat(value).toFixed(1);
                                 
+                                // Check against thresholds only if the sensor is working and has a value
                                 if (type === 'temp' && threshold.low !== undefined && value < threshold.low) {
                                     detailMessages.push({ type: 'temp', text: `${sensorName} ${sectionName} terlalu dingin (${formattedValue}${unit})`, icon: 'fa-temperature-low'});
                                     allOkOverall = false;
@@ -303,6 +322,7 @@ export const UI = {
                                     detailMessages.push({ type: 'humidity', text: `${sensorName} ${sectionName} terlalu lembap (${formattedValue}${unit})`, icon: 'fa-droplet'});
                                     allOkOverall = false;
                                 } else if (type === 'light' && threshold.dark !== undefined && value < threshold.dark) {
+                                    // For light, 0 is a valid reading but can be "too dark"
                                     detailMessages.push({ type: 'light', text: `${sensorName} ${sectionName} terlalu gelap (${formattedValue}${unit})`, icon: 'fa-moon'});
                                     allOkOverall = false;
                                 }
