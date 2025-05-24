@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List, Union
 # Constants for log types
 class LogType(Enum):
     SENSOR_ERROR = "SENSOR_ERROR"
+    SENSOR_OPERATIONAL = "SENSOR_OPERATIONAL"
     CONNECTION_LOST = "CONNECTION_LOST"
     CONNECTION_RESTORED = "CONNECTION_RESTORED"
     FAN_ON_AUTO = "FAN_ON_AUTO"
@@ -189,6 +190,9 @@ def log_event(
 # --- Convenience functions for specific log types ---
 def log_sensor_error(node: str, sensor_type: str, details: str, source: str = "sensor_monitor"):
     log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node=node, sensor_type=sensor_type, details=details, source=source)
+
+def log_sensor_operational(node: str, sensor_type: str, details: str, source: str = "sensor_monitor"):
+    log_event(LogType.SENSOR_OPERATIONAL, LogLevel.INFO, node=node, sensor_type=sensor_type, details=details, source=source)
 
 def log_connection_lost(details: str, source: str = "connection_monitor", node: Optional[str] = "server"):
     log_event(LogType.CONNECTION_LOST, LogLevel.WARNING, details=details, source=source, node=node)

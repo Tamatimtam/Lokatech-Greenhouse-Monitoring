@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone # Added timezone
 # Import system logger
 try:
-    from ..logs.firestore_logger import log_event, LogType, LogLevel, log_sensor_error
+    from ..logs.firestore_logger import log_event, LogType, LogLevel, log_sensor_error, log_sensor_operational
     system_logger_available = True
 except ImportError:
     system_logger_available = False
@@ -13,6 +13,7 @@ except ImportError:
     class LogLevel: ERROR = "ERROR"; WARNING = "WARNING"; INFO = "INFO" # Dummy
     def log_event(log_type, level, node=None, sensor_type=None, details=None, source=None): logging.warning(f"[DUMMY_SYS_LOG] Type: {log_type}, Level: {level}, Node: {node}, Details: {details}, Source: {source}")
     def log_sensor_error(node, sensor_type, details, source): logging.warning(f"[DUMMY_SYS_LOG_SENSOR_ERROR] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
+    def log_sensor_operational(node, sensor_type, details, source): logging.warning(f"[DUMMY_SYS_LOG_SENSOR_OPERATIONAL] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
 
 
 logger = logging.getLogger(__name__)
@@ -191,6 +192,48 @@ class SensorDataManager:
                           details=f"Light state reported as {'ON' if new_light_state else 'OFF'} in AUTO mode by hardware.",
                           source=self.source_identifier + "_hardware_report")
 
+        # --- Sensor Error/Fix Logging ---
+        if system_logger_available:
+            expected_sections_for_sensor_check = ["penyemaian", "remaja", "dewasa"]
+            for section_name in expected_sections_for_sensor_check:
+                new_section_data = data.get("sections", {}).get(section_name, {})
+                # Ensure self.latest_data["sections"] exists and has the section_name key
+                old_section_data = self.latest_data.get("sections", {}).get(section_name, {})
+
+                for sensor_key in ['temp', 'humidity', 'light']:
+                    new_value = new_section_data.get(sensor_key)
+                    old_value = old_section_data.get(sensor_key)
+                    
+                    new_value_is_error = (new_value == 0)
+                    old_value_was_error = (old_value == 0)
+                    
+                    new_value_exists = new_value is not None
+                    old_value_exists = old_value is not None
+
+                    if new_value_exists and old_value_exists:
+                        if new_value_is_error and not old_value_was_error:
+                            log_sensor_error(
+                                node=section_name,
+                                sensor_type=sensor_key,
+                                details=f"Sensor {sensor_key} in {section_name} started reporting 0 (error state).",
+                                source=self.source_identifier + "_data_monitor"
+                            )
+                        elif not new_value_is_error and old_value_was_error:
+                            log_sensor_operational(
+                                node=section_name,
+                                sensor_type=sensor_key,
+                                details=f"Sensor {sensor_key} in {section_name} is now operational. Value: {new_value}",
+                                source=self.source_identifier + "_data_monitor"
+                            )
+                    elif new_value_exists and not old_value_exists and new_value_is_error:
+                        # Sensor just appeared in payload and is already in error state
+                        log_sensor_error(
+                            node=section_name,
+                            sensor_type=sensor_key,
+                            details=f"Sensor {sensor_key} in {section_name} reported 0 (error state) upon first valid data.",
+                            source=self.source_identifier + "_data_monitor"
+                        )
+ 
 
         # Store core data
         self.latest_data["timestamp"] = data.get("hardware_send_timestamp_str") # Use hardware ts as main ts
