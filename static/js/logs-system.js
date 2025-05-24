@@ -224,8 +224,49 @@ document.addEventListener('DOMContentLoaded', function() {
         tbody.innerHTML = ''; // Clear existing rows
         if (systemLogs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No system logs found for the selected criteria.</td></tr>';
-        } else {
-            systemLogs.forEach(log => tbody.appendChild(createLogRow(log)));
+        } else {            
+            let previousLogTimestampWIB = null;
+            let currentTimeGroup = null;
+            
+            systemLogs.forEach((log, index) => {
+                const currentLogTimestampWIB = log.timestamp_wib ? new Date(log.timestamp_wib) : (log.timestamp ? new Date(log.timestamp) : null);
+                
+                // Check if we need a new time group header
+                if (currentLogTimestampWIB) {
+                    const logHour = currentLogTimestampWIB.getHours();
+                    const logDate = currentLogTimestampWIB.getDate();
+                    const logMonth = currentLogTimestampWIB.getMonth();
+                    const logYear = currentLogTimestampWIB.getFullYear();
+                    const minuteGroup = Math.floor(currentLogTimestampWIB.getMinutes() / 10) * 10; // Round to nearest 10 minutes
+                    
+                    // Format: "YYYY-MM-DD HH:MM" with the minute rounded to the nearest 10
+                    const timeGroupKey = `${logYear}-${logMonth+1}-${logDate} ${logHour}:${minuteGroup.toString().padStart(2, '0')}`;
+                    
+                    // If this is a new time group, add a header
+                    if (currentTimeGroup !== timeGroupKey) {
+                        currentTimeGroup = timeGroupKey;
+                        
+                        // Create time group header
+                        const formatter = new Intl.DateTimeFormat('id-ID', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        const headerRow = document.createElement('tr');
+                        headerRow.innerHTML = `<td colspan="6" class="time-group-header">
+                            <i class="fas fa-clock"></i> ${formatter.format(currentLogTimestampWIB)} - ${formatter.format(new Date(currentLogTimestampWIB.getTime() + 10*60000))}
+                        </td>`;
+                        tbody.appendChild(headerRow);
+                    }
+                }
+                
+                // Add the log row (no need for isNewIntervalStart flag anymore)
+                tbody.appendChild(createLogRow(log));
+                previousLogTimestampWIB = currentLogTimestampWIB;
+            });
         }
         updateLogCount();
     }
@@ -265,23 +306,120 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function createLogRow(log) {
         const tr = document.createElement('tr');
+        
+        const timestampWIB = log.timestamp_wib 
+            ? new Date(log.timestamp_wib).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) 
+            : (log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) : 'N/A');
 
-        const timestampWIB = log.timestamp_wib ? new Date(log.timestamp_wib).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) : (log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) : 'N/A');
-
+        // Get icon based on log type and sensor type if applicable
+        const { icon, iconClass } = getLogTypeIcon(log.type, log.sensor_type);
+        
+        // Format details for better display
+        const formattedDetails = log.details ? formatDetails(log.details) : '—';
+        
         tr.innerHTML = `
-            <td>${timestampWIB}</td>
+            <td class="log-timestamp">${timestampWIB}</td>
             <td><span class="log-level-cell log-level-${log.level || 'UNKNOWN'}">${log.level || 'UNKNOWN'}</span></td>
-            <td>${formatLogType(log.type)}</td>
+            <td>
+                <div class="log-type-cell">
+                    <span class="log-type-icon ${iconClass}"><i class="${icon}"></i></span>
+                    ${formatLogType(log.type)}${log.sensor_type ? ` (${log.sensor_type})` : ''}
+                </div>
+            </td>
             <td>${log.node || '—'}</td>
             <td>${log.source || 'system'}</td>
-            <td class="log-details">${log.details || '—'}</td>
+            <td class="log-details" title="${log.details || '—'}">${formattedDetails}</td>
         `;
         return tr;
     }
 
+    // Format details to improve readability
+    function formatDetails(details) {
+        // Escape HTML entities to prevent XSS
+        const escapeHtml = (text) => {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        };
+        
+        // Try to detect if it's JSON and format it nicely
+        if (details.trim().startsWith('{') && details.trim().endsWith('}')) {
+            try {
+                const jsonObj = JSON.parse(details);
+                return `<span class="json-formatted">${escapeHtml(JSON.stringify(jsonObj, null, 2))}</span>`;
+            } catch (e) {
+                // Not valid JSON, continue with normal formatting
+            }
+        }
+        
+        // Highlight numbers for better readability
+        return escapeHtml(details).replace(/(\d+(\.\d+)?)/g, '<span style="color: var(--primary);">$1</span>');
+    }
+
+    function getLogTypeIcon(type, sensorType) {
+        if (!type) return { icon: 'fas fa-question-circle', iconClass: '' };
+        
+        // Special handling for sensor errors and operational logs
+        if ((type === 'SENSOR_ERROR' || type === 'SENSOR_OPERATIONAL') && sensorType) {
+            const sensorIcons = {
+                'temp': { icon: 'fas fa-thermometer-half', iconClass: 'sensor-temp' },
+                'temperature': { icon: 'fas fa-thermometer-half', iconClass: 'sensor-temp' },
+                'humidity': { icon: 'fas fa-tint', iconClass: 'sensor-humidity' },
+                'light': { icon: 'fas fa-sun', iconClass: 'sensor-light' },
+                'water': { icon: 'fas fa-water', iconClass: 'sensor-water' },
+                'soil': { icon: 'fas fa-seedling', iconClass: 'sensor-soil' },
+                'ph': { icon: 'fas fa-flask', iconClass: 'sensor-ph' },
+                'ec': { icon: 'fas fa-bolt', iconClass: 'sensor-ec' },
+                'co2': { icon: 'fas fa-cloud', iconClass: 'sensor-co2' }
+                // Add more sensor types as needed
+            };
+            
+            // Check if the sensor type is in our mapping
+            for (const [key, value] of Object.entries(sensorIcons)) {
+                if (sensorType.toLowerCase().includes(key)) {
+                    // Create more explicit state classes for clarity
+                    const stateClass = type === 'SENSOR_ERROR' ? 'sensor-error' : 'sensor-operational';
+                    return {
+                        icon: value.icon,
+                        iconClass: `${stateClass} ${value.iconClass}`
+                    };
+                }
+            }
+        }
+        
+        // Fall back to general type mapping if no sensor type match
+        const typeMap = {
+            'SENSOR_ERROR': { icon: 'fas fa-exclamation-triangle', iconClass: 'sensor-error' },
+            'SENSOR_OPERATIONAL': { icon: 'fas fa-check-circle', iconClass: 'sensor-operational' },
+            'CONNECTION_LOST': { icon: 'fas fa-plug', iconClass: 'connection-lost' },
+            'CONNECTION_RESTORED': { icon: 'fas fa-wifi', iconClass: 'connection-restored' },
+            'FAN_ON_AUTO': { icon: 'fas fa-fan', iconClass: 'fan' },
+            'FAN_OFF_AUTO': { icon: 'fas fa-fan', iconClass: 'fan' },
+            'LIGHT_ON_AUTO': { icon: 'fas fa-lightbulb', iconClass: 'light' },
+            'LIGHT_OFF_AUTO': { icon: 'fas fa-lightbulb', iconClass: 'light' },
+            // Add more mappings as needed
+        };
+        
+        return typeMap[type] || { icon: 'fas fa-info-circle', iconClass: '' };
+    }
+
     function formatLogType(type) {
         if (!type) return 'UNKNOWN';
-        return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Prettify type
+        
+        // Make log type more readable by replacing underscores with spaces and capitalizing each word
+        const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        
+        // For on/off states, make them more concise
+        if (formattedType.includes('ON AUTO')) {
+            return formattedType.replace('ON AUTO', '(ON)');
+        } else if (formattedType.includes('OFF AUTO')) {
+            return formattedType.replace('OFF AUTO', '(OFF)');
+        }
+        
+        return formattedType;
     }
 
     // Clean up on page unload (though tab deactivation handles interval now)
