@@ -205,7 +205,7 @@ void forwardSensorDataToRemajaMaster() {
 
     JsonObject penyemaianJson = doc.createNestedObject("penyemaian");
     bool isPenyemaianFresh = (currentTime - lastPenyemaianReceiveTime) < PENYEMAIAN_ESP_NOW_TIMEOUT;
-    penyemaianJson["isValid"] = isPenyemaianFresh && receivedPenyemaianData.temperatureValid; 
+    penyemaianJson["isValid"] = isPenyemaianFresh && (receivedPenyemaianData.temperatureValid || receivedPenyemaianData.lightValid); 
     
     if (isPenyemaianFresh) {
         penyemaianJson["nodeName"] = receivedPenyemaianData.nodeName;
@@ -231,7 +231,7 @@ void forwardSensorDataToRemajaMaster() {
 
     JsonObject dewasaJson = doc.createNestedObject("dewasa");
     bool isDewasaFresh = (currentTime - lastDewasaReceiveTime) < DEWASA_ESP_NOW_TIMEOUT;
-    dewasaJson["isValid"] = isDewasaFresh && receivedDewasaData.temperatureValid; 
+    dewasaJson["isValid"] = isDewasaFresh && (receivedDewasaData.temperatureValid || receivedDewasaData.lightValid); 
 
     if (isDewasaFresh) {
         dewasaJson["nodeName"] = receivedDewasaData.nodeName;
@@ -311,7 +311,6 @@ void processCommandInputs() {
 
 void loop() {
     unsigned long currentTime = millis();
-
     // Forward sensor data if new data arrived or interval passed
     if (newPenyemaianDataFlag || newDewasaDataFlag || (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
         #if DEBUG_GATEWAY
@@ -319,6 +318,26 @@ void loop() {
         if (newDewasaDataFlag) Serial.println("[GatewayNode] Processing new Dewasa data for forwarding.");
         if (!newPenyemaianDataFlag && !newDewasaDataFlag && (currentTime - lastSerialForwardTime >= SERIAL_FORWARD_INTERVAL)) {
              // Serial.println("[GatewayNode] Sensor data forward interval reached (even if no new data).");
+        }
+        #endif
+        
+        // Print payload to Serial for debugging - easy to comment out
+        #if 1 == 0
+        {
+            StaticJsonDocument<768 + 128> debugDoc;
+            JsonObject penyemaianJson = debugDoc.createNestedObject("penyemaian");
+            penyemaianJson["temp"] = receivedPenyemaianData.temperatureValid ? receivedPenyemaianData.temperature : 0;
+            penyemaianJson["hum"] = receivedPenyemaianData.humidityValid ? receivedPenyemaianData.humidity : 0;
+            penyemaianJson["light"] = receivedPenyemaianData.lightValid ? receivedPenyemaianData.lightIntensity : 0;
+            
+            JsonObject dewasaJson = debugDoc.createNestedObject("dewasa");
+            dewasaJson["temp"] = receivedDewasaData.temperatureValid ? receivedDewasaData.temperature : 0;
+            dewasaJson["hum"] = receivedDewasaData.humidityValid ? receivedDewasaData.humidity : 0;
+            dewasaJson["light"] = receivedDewasaData.lightValid ? receivedDewasaData.lightIntensity : 0;
+            
+            String debugJson;
+            serializeJson(debugDoc, debugJson);
+            Serial.println("[PAYLOAD] " + debugJson);
         }
         #endif
         
