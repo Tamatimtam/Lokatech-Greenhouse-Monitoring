@@ -66,8 +66,9 @@
 }
 
 .system-log-table td {
-  padding: var(--spacing-xs); /* Reduced padding */
+  padding: var(--spacing-sm, 0.5rem) var(--spacing-xs, 0.25rem);
   border-bottom: 1px solid var(--border-color-extralight, #eee);
+  vertical-align: middle;
   /* white-space: nowrap; /* Consider removing for message/details if they can be long */
 }
 
@@ -76,6 +77,147 @@
     word-break: break-all; /* Break long words if necessary */
     font-size: 0.8rem;
     color: var(--text-tertiary);
+}
+
+/* Enhance styles for 10-minute interval separators */
+.system-log-table tr.log-interval-start {
+    border-top: 4px solid rgba(var(--primary-rgb, 40, 98, 71), 0.1);
+}
+
+.system-log-table tr.log-interval-start td {
+    position: relative;
+    padding-top: var(--spacing-md, 1rem);
+}
+
+.system-log-table tr.log-interval-start td:first-child::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.1);
+}
+
+.time-group-header {
+    background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.05);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-weight: 500;
+    text-align: left;
+    border-bottom: 1px solid rgba(var(--primary-rgb, 40, 98, 71), 0.1);
+}
+
+/* Improve row styling for better readability */
+.system-log-table tr:hover {
+    background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.08);
+    cursor: default;
+}
+
+/* Base icon styling */
+.log-type-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: var(--spacing-xs, 0.25rem);
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-secondary);
+}
+
+/* Error and operational states - these take precedence */
+.log-type-icon.sensor-error {
+    background-color: #f5f5f5; /* Light gray background */
+    color: #757575 !important; /* Gray icon color */
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    filter: grayscale(100%); /* Make sure everything is grayscale */
+}
+
+/* Remove or override any :after pseudo-element that might be adding an exclamation mark */
+.log-type-icon.sensor-error:after {
+    content: none !important;
+    display: none !important;
+}
+
+/* Fix for any other elements that might have a sensor-error class */
+.sensor-error:after {
+    content: none !important;
+    display: none !important;
+}
+
+.log-type-icon.sensor-operational {
+    background-color: rgba(255, 255, 255, 0.8); /* Simple white background */
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    /* Remove the forced green color */
+    color: inherit !important; /* Let the sensor-specific colors show naturally */
+}
+
+/* Type-specific icon background colors - for visual differentiation */
+.log-type-icon.connection-lost { background-color: #fff8e1; color: #ff8f00; }
+.log-type-icon.connection-restored { background-color: #e3f2fd; color: #1565c0; }
+.log-type-icon.fan { background-color: #e0f7fa; color: #00838f; }
+.log-type-icon.light { background-color: #fffde7; color: #f9a825; }
+
+/* Sensor-specific colors - these will be seen for operational sensors, but ignored for error sensors due to grayscale filter */
+.log-type-icon.sensor-temp { background-color: #fff3e0; color: #e65100; }
+.log-type-icon.sensor-humidity { background-color: #e1f5fe; color: #0277bd; }
+.log-type-icon.sensor-light { background-color: #fffde7; color: #fbc02d; }
+.log-type-icon.sensor-water { background-color: #e0f7fa; color: #00acc1; }
+.log-type-icon.sensor-soil { background-color: #f1f8e9; color: #689f38; }
+.log-type-icon.sensor-ph { background-color: #f3e5f5; color: #7b1fa2; }
+.log-type-icon.sensor-ec { background-color: #e8f5e9; color: #2e7d32; }
+.log-type-icon.sensor-co2 { background-color: #fbe9e7; color: #d84315; }
+
+/* Add a pulsing effect to error icons for more attention */
+@keyframes pulse-error {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.log-type-icon.sensor-error i {
+    animation: pulse-error 1.5s infinite;
+}
+
+/* Type column with icon and text layout */
+.log-type-cell {
+    display: flex;
+    align-items: center;
+    white-space: normal;
+    font-size: 0.85rem;
+}
+
+/* Additional styling to make log details more readable */
+.log-details {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: var(--radius-xs, 2px);
+    padding: var(--spacing-xs, 0.25rem) var(--spacing-sm, 0.5rem);
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    border-left: 3px solid rgba(var(--primary-rgb, 40, 98, 71), 0.2);
+}
+
+/* Tooltip for full details on hover */
+.log-details:hover {
+    white-space: normal;
+    word-wrap: break-word;
+    cursor: help;
+    background-color: rgba(var(--primary-rgb, 40, 98, 71), 0.05);
+    transition: all 0.2s ease;
+}
+
+/* Timestamp styling */
+.log-timestamp {
+    white-space: nowrap;
+    font-size: 0.85rem;
 }
 
 /* Alert styling */
@@ -171,4 +313,13 @@
     text-align: center;
     margin-top: var(--spacing-sm);
   }
+}
+
+/* Styles for 10-minute interval separators */
+.system-log-table tr.log-interval-start td {
+    border-top: 1px dashed #cccccc; /* A light grey dashed line */
+}
+
+.system-log-table tr.log-interval-start:first-child td { /* Don't apply to the very first row in the table */
+    border-top: none;
 }
