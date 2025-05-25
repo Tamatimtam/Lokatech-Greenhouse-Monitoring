@@ -157,7 +157,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Check if export button already exists to avoid duplicating it
+        const currentExportBtn = systemLogContent.querySelector('#exportSystemLogsCsvBtn');
+
+        const exportBtnHtml = `
+        <div style="margin-bottom: var(--spacing-md); text-align: right;">
+            <button id="exportSystemLogsCsvBtn" class="log-control-btn" title="Export current view of system logs to CSV">
+                <i class="fas fa-file-csv"></i> Export System Logs to CSV
+            </button>
+        </div>`;
+
         systemLogContent.innerHTML = `
+            ${currentExportBtn ? '' : exportBtnHtml} 
             <div class="system-log-controls">
                 <button id="refreshLogsBtn" class="log-control-btn">
                     <i class="fas fa-sync-alt"></i> Refresh
@@ -168,12 +179,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 <select id="logTypeFilter" class="log-input">
                     <option value="">All Types</option>
                     <option value="SENSOR_ERROR">Sensor Error</option>
+                    <option value="SENSOR_OPERATIONAL">Sensor Operational</option>
                     <option value="CONNECTION_LOST">Connection Lost</option>
                     <option value="CONNECTION_RESTORED">Connection Restored</option>
                     <option value="FAN_ON_AUTO">Fan On (Auto)</option>
                     <option value="FAN_OFF_AUTO">Fan Off (Auto)</option>
                     <option value="LIGHT_ON_AUTO">Light On (Auto)</option>
                     <option value="LIGHT_OFF_AUTO">Light Off (Auto)</option>
+                    <option value="NODE_OFFLINE">Node Offline</option>
+                    <option value="NODE_ONLINE">Node Online</option>
+                    <option value="USER_FAN_ON">User Fan On</option>
+                    <option value="USER_FAN_OFF">User Fan Off</option>
+                    <option value="USER_LIGHT_ON">User Light On</option>
+                    <option value="USER_LIGHT_OFF">User Light Off</option>
+                    <option value="USER_CONTROL_ACTION">User Control Action (Other)</option>
                 </select>
                 <label for="logLevelFilter">Level: </label>
                 <select id="logLevelFilter" class="log-input">
@@ -203,6 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <th>Type</th>
                             <th>Node</th>
                             <th>Source</th>
+                            <th>User</th>
                             <th>Details</th>
                         </tr>
                     </thead>
@@ -284,6 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const typeFilterEl = document.getElementById('logTypeFilter');
         const levelFilterEl = document.getElementById('logLevelFilter');
         const nodeFilterEl = document.getElementById('logNodeFilter');
+        const exportCsvBtn = document.getElementById('exportSystemLogsCsvBtn');
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
@@ -302,6 +323,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+
+        if (exportCsvBtn) {
+            exportCsvBtn.addEventListener('click', () => {
+                const filters = getCurrentFilters();
+                const params = new URLSearchParams({
+                    days: filters.days || 7,
+                    limit: 5000
+                });
+                if (filters.type) params.append('type', filters.type);
+                if (filters.level) params.append('level', filters.level);
+                if (filters.node) params.append('node', filters.node);
+                
+                window.location.href = `/logs/export-system-logs-csv?${params.toString()}`;
+            });
+        }
     }
 
     function createLogRow(log) {
@@ -312,11 +348,12 @@ document.addEventListener('DOMContentLoaded', function() {
             : (log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) : 'N/A');
 
         // Get icon based on log type and sensor type if applicable
-        const { icon, iconClass } = getLogTypeIcon(log.type, log.sensor_type);
+        const { icon, iconClass } = getLogTypeIcon(log.type, log.sensor_type, log.level);
         
         // Format details for better display
         const formattedDetails = log.details ? formatDetails(log.details) : '—';
-        
+        const username = log.username || '—';
+
         tr.innerHTML = `
             <td class="log-timestamp">${timestampWIB}</td>
             <td><span class="log-level-cell log-level-${log.level || 'UNKNOWN'}">${log.level || 'UNKNOWN'}</span></td>
@@ -328,6 +365,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </td>
             <td>${log.node || '—'}</td>
             <td>${log.source || 'system'}</td>
+            <td>${username}</td>
             <td class="log-details" title="${log.details || '—'}">${formattedDetails}</td>
         `;
         return tr;
@@ -359,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return escapeHtml(details).replace(/(\d+(\.\d+)?)/g, '<span style="color: var(--primary);">$1</span>');
     }
 
-    function getLogTypeIcon(type, sensorType) {
+    function getLogTypeIcon(type, sensorType, level) {
         if (!type) return { icon: 'fas fa-question-circle', iconClass: '' };
         
         // Special handling for sensor errors and operational logs
@@ -400,6 +438,13 @@ document.addEventListener('DOMContentLoaded', function() {
             'FAN_OFF_AUTO': { icon: 'fas fa-fan', iconClass: 'fan' },
             'LIGHT_ON_AUTO': { icon: 'fas fa-lightbulb', iconClass: 'light' },
             'LIGHT_OFF_AUTO': { icon: 'fas fa-lightbulb', iconClass: 'light' },
+            'NODE_OFFLINE': { icon: 'fas fa-server', iconClass: `node-offline ${level === 'CRITICAL' ? 'critical-alert-icon' : ''}`.trim() },
+            'NODE_ONLINE': { icon: 'fas fa-server', iconClass: 'node-online' },
+            'USER_FAN_ON': { icon: 'fas fa-fan', iconClass: 'user-action fan-on' },
+            'USER_FAN_OFF': { icon: 'fas fa-fan', iconClass: 'user-action fan-off' },
+            'USER_LIGHT_ON': { icon: 'fas fa-lightbulb', iconClass: 'user-action light-on' },
+            'USER_LIGHT_OFF': { icon: 'fas fa-lightbulb', iconClass: 'user-action light-off' },
+            'USER_CONTROL_ACTION': { icon: 'fas fa-user-cog', iconClass: 'user-action' }
             // Add more mappings as needed
         };
         
@@ -408,6 +453,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function formatLogType(type) {
         if (!type) return 'UNKNOWN';
+        
+        // Handle specific user action types
+        const userActionTypes = {
+            'USER_FAN_ON': 'User Fan On',
+            'USER_FAN_OFF': 'User Fan Off',
+            'USER_LIGHT_ON': 'User Light On',
+            'USER_LIGHT_OFF': 'User Light Off',
+            'USER_CONTROL_ACTION': 'User Control Action'
+        };
+        
+        if (userActionTypes[type]) {
+            return userActionTypes[type];
+        }
         
         // Make log type more readable by replacing underscores with spaces and capitalizing each word
         const formattedType = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
