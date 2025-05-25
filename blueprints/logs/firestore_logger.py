@@ -1,17 +1,17 @@
-"""
-Module for handling system logs in Firestore.
-Provides functions to log various system events and query log history.
-"""
-import firebase_admin
-from firebase_admin import credentials, firestore
+# File: /simpleLogin/blueprints/logs/firestore_logger.py
+import firebase_admin # Keep for LogType, LogLevel if they are here
+from firebase_admin import firestore # Keep for type hinting if needed
 import datetime
 import os
 import pytz
 from enum import Enum
-from typing import Optional, Dict, Any, List, Union
+import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from typing import Optional  # Add this import
 
-# Constants for log types
+# Constants for log types (keep as is)
 class LogType(Enum):
+    # ... your LogType enum ...
     SENSOR_ERROR = "SENSOR_ERROR"
     SENSOR_OPERATIONAL = "SENSOR_OPERATIONAL"
     CONNECTION_LOST = "CONNECTION_LOST"
@@ -19,150 +19,57 @@ class LogType(Enum):
     FAN_ON_AUTO = "FAN_ON_AUTO"
     FAN_OFF_AUTO = "FAN_OFF_AUTO"
     LIGHT_ON_AUTO = "LIGHT_ON_AUTO"
-    LIGHT_OFF_AUTO = "LIGHT_OFF_AUTO" # Ensure this is present
-    # Add more types as needed, e.g., CRITICAL_LEVEL for future use
+    LIGHT_OFF_AUTO = "LIGHT_OFF_AUTO"
 
 class LogLevel(Enum):
+    # ... your LogLevel enum ...
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
 
 # Global variables
-_db = None
-_initialized_project_id = None # Track initialized project
+_db = None  # This will be set by app2.py
+_initialized_project_id = None # This can also be set by app2.py if needed for checks
 wib_timezone = pytz.timezone('Asia/Jakarta')
 
 def get_firestore_db():
-    """Initialize and return the Firestore database instance."""
-    global _db, _initialized_project_id
+    """
+    Return the Firestore database instance. 
+    This instance is expected to be set by the main app (app2.py).
+    """
     if _db is None:
-        expected_project_id = "codenameamber-7b92a" # From your credentials
-        try:
-            cred_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                'secrets',
-                'firebase-credentials.json'
-            )
-            if not os.path.exists(cred_path):
-                print(f"ERROR (System Logger): Credentials file not found at {cred_path}")
-                # Attempt GCP default if no local creds
-                if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
-                    print("INFO (System Logger): Attempting GCP default credentials for Firebase.")
-                    firebase_admin.initialize_app(name='lokatech-system-logs-gcp')
-                    app_to_use = firebase_admin.get_app(name='lokatech-system-logs-gcp')
-                    _db = firestore.client(app=app_to_use)
-                    _initialized_project_id = app_to_use.project_id
-                    print(f"INFO (System Logger): Firebase initialized via GCP default for project: {_initialized_project_id}")
-                else:
-                    print("ERROR (System Logger): No local credentials and GOOGLE_APPLICATION_CREDENTIALS not set.")
-                    return None
-            else:
-                cred = credentials.Certificate(cred_path)
-                if cred.project_id != expected_project_id:
-                    print(f"WARNING (System Logger): Credentials file project_id '{cred.project_id}' does not match expected '{expected_project_id}'")
-
-                app_name_logs = 'lokatech-system-logs'
-                try:
-                    # Try to get app if already initialized (e.g. by main app.py)
-                    app_to_use = firebase_admin.get_app(name=app_name_logs)
-                    print(f"INFO (System Logger): Using existing Firebase app '{app_name_logs}'.")
-                except ValueError:
-                    # Initialize new app if specific one not found
-                    print(f"INFO (System Logger): Initializing new Firebase app '{app_name_logs}'.")
-                    firebase_admin.initialize_app(cred, name=app_name_logs)
-                    app_to_use = firebase_admin.get_app(name=app_name_logs)
-                
-                _db = firestore.client(app=app_to_use)
-                _initialized_project_id = app_to_use.project_id
-                print(f"INFO (System Logger): Firebase initialized for project: {_initialized_project_id} using app '{app_name_logs}'")
-
-            if _initialized_project_id != expected_project_id:
-                print(f"CRITICAL WARNING (System Logger): Connected to project '{_initialized_project_id}' BUT EXPECTED '{expected_project_id}'!")
-
-        except Exception as e:
-            print(f"ERROR (System Logger): Error initializing Firestore: {e}")
-            # Fallback to default app if one exists and is for the correct project
-            if firebase_admin._apps and "[DEFAULT]" in str(e) or not firebase_admin._apps.get(app_name_logs):
-                try:
-                    default_app = firebase_admin.get_app() # Get default app
-                    if default_app.project_id == expected_project_id:
-                        _db = firestore.client() # Use default app's client
-                        _initialized_project_id = default_app.project_id
-                        print(f"INFO (System Logger): Using DEFAULT Firebase app for project: {_initialized_project_id}")
-                        if _initialized_project_id != expected_project_id:
-                             print(f"CRITICAL WARNING (System Logger): Default app connected to project '{_initialized_project_id}' BUT EXPECTED '{expected_project_id}'!")
-                    else:
-                        print(f"ERROR (System Logger): Default Firebase app is for project '{default_app.project_id}', expected '{expected_project_id}'. Cannot use.")
-                        _db = None
-                except Exception as e_default:
-                    print(f"ERROR (System Logger): Could not initialize or use default Firebase app: {e_default}")
-                    _db = None
-            if _db is None:
-                import traceback
-                traceback.print_exc()
-                return None
-    elif _initialized_project_id != "codenameamber-7b92a": # Add this check on subsequent calls
-        print(f"WARNING (System Logger): Re-checked. Still connected to project '{_initialized_project_id}' instead of 'codenameamber-7b92a'.")
+        print("CRITICAL ERROR (System Logger): Firestore DB client (_db) was NOT SET by the main application. Logging will fail.")
     return _db
 
 def log_event(
-    log_type: LogType, 
-    level: LogLevel, 
-    node: Optional[str] = None,
-    sensor_type: Optional[str] = None,
-    details: Optional[str] = None,
-    source: Optional[str] = "system" # Default source
+    log_type: LogType,
+    level: LogLevel,
+    node: str = None,
+    sensor_type: str = None,
+    details: str = None,
+    source: str = "system"
 ) -> bool:
-    """
-    Log a system event to Firestore.
-    
-    Args:
-        log_type: Type of log event (from LogType enum).
-        level: Severity level (from LogLevel enum).
-        node: The greenhouse node (e.g., 'penyemaian', 'server') or component.
-        sensor_type: Type of sensor (e.g., 'temp', 'humidity') - for SENSOR_ERROR.
-        details: Additional information about the event.
-        source: The module or component generating the log.
-        
-    Returns:
-        bool: True if log was successfully created, False otherwise.
-    """
-    db = get_firestore_db()
-    if not db:
-        print(f"ERROR (log_event): Firestore DB not available. Log Type: {log_type.value}, Details: {details}")
+    db_client_instance = get_firestore_db()
+    if not db_client_instance:
+        print(f"FALLBACK_LOG (log_event): Firestore DB not available. Log Type: {log_type.value if isinstance(log_type, Enum) else log_type}, Level: {level.value if isinstance(level, Enum) else level}, Details: {details}, Source: {source}")
         return False
-    
-    # --- Add this check ---
-    try:
-        current_db_project = db.project # or db._client.project if db.project is not available
-        expected_project_id = "codenameamber-7b92a"
-        if current_db_project != expected_project_id:
-            print(f"CRITICAL WARNING (log_event): db client project is '{current_db_project}' BUT EXPECTED '{expected_project_id}'!")
-        else:
-            print(f"DEBUG (log_event): db client project is '{current_db_project}', which is correct.")
-    except Exception as e_proj_check:
-        print(f"ERROR (log_event): Could not check db.project: {e_proj_check}")
-    # --- End of added check ---
 
     try:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         now_wib = now_utc.astimezone(wib_timezone)
         
         log_data = {
-            "timestamp": now_utc, # Keep Firestore Timestamp for querying
-            "timestamp_wib": now_wib.isoformat(), 
-            "type": log_type.value,
-            "level": level.value,
+            "timestamp": now_utc,
+            "timestamp_wib": now_wib.isoformat(),
+            "type": log_type.value if isinstance(log_type, Enum) else log_type,
+            "level": level.value if isinstance(level, Enum) else level,
             "source": source
         }
         
-        if node:
-            log_data["node"] = node
-        if sensor_type:
-            log_data["sensor_type"] = sensor_type
-        if details:
-            log_data["details"] = details
+        if node: log_data["node"] = node
+        if sensor_type: log_data["sensor_type"] = sensor_type
+        if details: log_data["details"] = details
         
         # --- MODIFICATION: Create a custom document ID using WIB ---
         # Format: YYYY-MM-DD HH:MM:SS.ffffff (using WIB for visual consistency in console)
@@ -175,7 +82,7 @@ def log_event(
         print(f"DEBUG: log_data to be added: {log_data}")
         
         # --- MODIFICATION: Use .document(log_id).set() instead of .add() ---
-        db.collection('system_logs').document(log_id).set(log_data)
+        db_client_instance.collection('system_logs').document(log_id).set(log_data)
         # --- END MODIFICATION ---
         
         print(f"DEBUG: Log event successfully added/set to Firestore with ID '{log_id}'. Type={log_type.value}")
@@ -211,40 +118,66 @@ def log_light_auto(node: str, state: bool, details: Optional[str] = None, source
 # --- Function to retrieve logs (can be expanded later) ---
 def get_system_logs(
     days: int = 7, 
-    log_type_filter: Optional[str] = None,
-    level_filter: Optional[str] = None,
-    node_filter: Optional[str] = None,
+    log_type_filter: str = None,
+    level_filter: str = None,
+    node_filter: str = None,
     limit: int = 100
-) -> List[Dict[str, Any]]:
-    db = get_firestore_db()
-    if not db: return []
+):
+    db_client_instance = get_firestore_db()
+    if not db_client_instance: 
+        return []
+    
+    def _query_firestore():
+        """Inner function to execute the Firestore query."""
+        try:
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            start_date_utc = now_utc - datetime.timedelta(days=days)
 
+            # Start with a simple query
+            query = db_client_instance.collection('system_logs')
+            query = query.where('timestamp', '>=', start_date_utc)
+            
+            # Apply other filters only if specified
+            if log_type_filter:
+                query = query.where('type', '==', log_type_filter)
+            if level_filter:
+                query = query.where('level', '==', level_filter)
+            if node_filter:
+                query = query.where('node', '==', node_filter)
+            
+            # Reduce initial limit to prevent timeout
+            actual_limit = min(limit, 25)  # Even smaller limit
+            query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(actual_limit)
+            
+            print(f"DEBUG: Executing Firestore query with limit {actual_limit}")
+            docs = query.stream()
+            
+            results = []
+            for doc in docs:
+                log_entry = doc.to_dict()
+                log_entry['id'] = doc.id 
+                if isinstance(log_entry.get('timestamp'), datetime.datetime):
+                    log_entry['timestamp'] = log_entry['timestamp'].isoformat()
+                results.append(log_entry)
+            
+            return results
+            
+        except Exception as e:
+            print(f"Error in _query_firestore: {e}")
+            return []
+    
     try:
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
-        start_date_utc = now_utc - datetime.timedelta(days=days)
-
-        query = db.collection('system_logs').where('timestamp', '>=', start_date_utc)
-
-        if log_type_filter:
-            query = query.where('type', '==', log_type_filter)
-        if level_filter:
-            query = query.where('level', '==', level_filter)
-        if node_filter:
-            query = query.where('node', '==', node_filter)
-        
-        query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit)
-        
-        docs = query.stream()
-        results = []
-        for doc in docs:
-            log_entry = doc.to_dict()
-            log_entry['id'] = doc.id # Add document ID
-            # Ensure timestamp is stringified for JSON response
-            if isinstance(log_entry.get('timestamp'), datetime.datetime):
-                log_entry['timestamp'] = log_entry['timestamp'].isoformat()
-            # timestamp_wib is already stored as ISO string
-            results.append(log_entry)
-        return results
+        # Use ThreadPoolExecutor with timeout instead of signal
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_query_firestore)
+            try:
+                results = future.result(timeout=10)  # 10 second timeout
+                print(f"DEBUG: Successfully retrieved {len(results)} logs")
+                return results
+            except FutureTimeoutError:
+                print("ERROR: Firestore query timed out after 10 seconds")
+                return []
+                
     except Exception as e:
         print(f"Error retrieving system logs: {e}")
         import traceback
