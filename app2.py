@@ -18,12 +18,27 @@ CORS(app)
 app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
 
-# Extract Firebase API key (no changes needed here)
-# ... your API key extraction code ...
+# Extract Firebase API key from firebase-init.js for server-side use
+FIREBASE_API_KEY = None
+firebase_init_path = os.path.join(app.root_path, 'static', 'js', 'firebase-init.js')
+try:
+    with open(firebase_init_path, 'r') as f:
+        content = f.read()
+        match = re.search(r"apiKey:\s*\"([^\"]+)\"", content)
+        if match:
+            FIREBASE_API_KEY = match.group(1)
+            app.config['FIREBASE_API_KEY'] = FIREBASE_API_KEY
+            logger.info("Firebase API Key extracted successfully from firebase-init.js")
+        else:
+            logger.warning("Firebase API Key not found in firebase-init.js")
+except FileNotFoundError:
+    logger.error(f"firebase-init.js not found at {firebase_init_path}")
+except Exception as e:
+    logger.error(f"Error extracting Firebase API Key: {e}")
 
 # INIT FIREBASE (Default app)
 local_path = os.path.join(os.path.dirname(__file__), "secrets", "firebase-credentials.json")
-cloud_path = "/secrets/firebase-credentials.json"
+cloud_path = "/secrets/firebase-credentials.json" # For cloud deployment
 credentials_path = local_path if os.path.exists(local_path) else cloud_path
 
 db_client = None # Initialize
