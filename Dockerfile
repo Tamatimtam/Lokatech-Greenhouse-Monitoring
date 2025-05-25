@@ -19,4 +19,4 @@ EXPOSE $PORT
 
 # Run the application
 # Assuming app2.py is the main entry point and it runs a Flask app
-CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:8080", "app2:app"]
+CMD ["python", "app2.py"]
