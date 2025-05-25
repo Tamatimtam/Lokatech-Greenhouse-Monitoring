@@ -20,6 +20,8 @@ def get_system_logs_route(): # Renamed function to avoid conflict if any
         node = request.args.get('node', None)
         limit = request.args.get('limit', 100, type=int)
         
+        print(f"DEBUG: get_system_logs_route called with params - days: {days}, type: {log_type}, level: {level}, node: {node}, limit: {limit}")
+        
         logs = firestore_logger.get_system_logs(
             days=days,
             log_type_filter=log_type,
@@ -27,12 +29,17 @@ def get_system_logs_route(): # Renamed function to avoid conflict if any
             node_filter=node,
             limit=limit
         )
+        
+        print(f"DEBUG: Successfully retrieved {len(logs)} logs from firestore_logger")
+        print(f"DEBUG: Sample log entry: {logs[0] if logs else 'No logs found'}")
+        
         return jsonify(logs)
     except Exception as e:
-        print(f"Error in get_system_logs_route: {e}")
+        print(f"ERROR in get_system_logs_route: {e}")
         import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e), "details": traceback.format_exc()}), 500
+        error_trace = traceback.format_exc()
+        print(f"ERROR traceback: {error_trace}")
+        return jsonify({"error": str(e), "details": error_trace}), 500
 
 @logs_bp.route('/data')
 @isloggedin
