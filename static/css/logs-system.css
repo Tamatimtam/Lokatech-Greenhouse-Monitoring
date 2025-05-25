@@ -171,6 +171,52 @@
 .log-type-icon.sensor-ec { background-color: #e8f5e9; color: #2e7d32; }
 .log-type-icon.sensor-co2 { background-color: #fbe9e7; color: #d84315; }
 
+/* New node and user action icons */
+.log-type-icon.node-offline i { color: #e74c3c; }
+.log-type-icon.node-online i { color: #27ae60; }
+.log-type-icon.user-action i { color: #3498db; }
+
+.log-type-icon.critical-alert-icon i,
+.log-type-icon.node-offline.critical-alert-icon i {
+    animation: pulse-error 1s infinite;
+    color: #d50000 !important;
+}
+
+.system-log-table tr.log-level-CRITICAL-row {
+    background-color: #ffebee !important;
+    color: #c62828;
+    font-weight: bold;
+}
+
+.system-log-table tr.log-level-CRITICAL-row:hover {
+    background-color: #ffcdd2 !important;
+}
+
+.highlight-number {
+    font-weight: 500;
+    color: var(--primary-dark);
+}
+
+pre.json-formatted {
+    white-space: pre-wrap;
+    background-color: rgba(0,0,0,0.02);
+    padding: 5px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    border: 1px solid rgba(0,0,0,0.05);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.log-type-icon.node-offline.critical-alert-icon {
+    background-color: #ffebee;
+}
+
+.log-type-icon.node-offline.critical-alert-icon i {
+    color: #d50000 !important;
+    animation: pulse-error 1s infinite;
+}
+
 /* Add a pulsing effect to error icons for more attention */
 @keyframes pulse-error {
     0% { transform: scale(1); }
@@ -323,3 +369,16 @@
 .system-log-table tr.log-interval-start:first-child td { /* Don't apply to the very first row in the table */
     border-top: none;
 }
+
+/* User action specific styling */
+.log-type-icon.user-action i { color: #3498db; }
+.log-type-icon.user-action.fan-on i { color: #27ae60; }
+.log-type-icon.user-action.fan-off i { color: #e74c3c; }
+.log-type-icon.user-action.light-on i { color: #f39c12; }
+.log-type-icon.user-action.light-off i { color: #95a5a6; }
+
+/* Enhanced user action backgrounds */
+.log-type-icon.user-action.fan-on { background-color: #e8f5e8; }
+.log-type-icon.user-action.fan-off { background-color: #ffeaea; }
+.log-type-icon.user-action.light-on { background-color: #fff8e1; }
+.log-type-icon.user-action.light-off { background-color: #f5f5f5; }
