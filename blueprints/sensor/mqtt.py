@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone # Added timezone
 # Import system logger
 try:
-    from ..logs.firestore_logger import log_event, LogType, LogLevel, log_sensor_error, log_sensor_operational
+    from ..logs.firestore_logger import log_event, LogType, LogLevel, log_sensor_error, log_sensor_operational, log_node_offline, log_node_online
     system_logger_available = True
 except ImportError:
     system_logger_available = False
@@ -14,6 +14,8 @@ except ImportError:
     def log_event(log_type, level, node=None, sensor_type=None, details=None, source=None): logging.warning(f"[DUMMY_SYS_LOG] Type: {log_type}, Level: {level}, Node: {node}, Details: {details}, Source: {source}")
     def log_sensor_error(node, sensor_type, details, source): logging.warning(f"[DUMMY_SYS_LOG_SENSOR_ERROR] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
     def log_sensor_operational(node, sensor_type, details, source): logging.warning(f"[DUMMY_SYS_LOG_SENSOR_OPERATIONAL] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
+    def log_node_offline(node_name, details, level=LogLevel.WARNING, source="node_monitor"): logging.warning(f"[DUMMY_NODE_OFFLINE] Node: {node_name}, Details: {details}, Level: {level}, Source: {source}")
+    def log_node_online(node_name, details, source="node_monitor"): logging.warning(f"[DUMMY_NODE_ONLINE] Node: {node_name}, Details: {details}, Source: {source}")
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,11 @@ class SensorDataManager:
         self.socketio = None 
         self.packet_counter = 0
         self.source_identifier = "flask_sensor_manager" # For system logs
+        self.node_online_status = {
+            'penyemaian': True,
+            'remaja': True,
+            'dewasa': True
+        }
         
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
@@ -88,6 +95,12 @@ class SensorDataManager:
         logger.warning(f"Disconnected from MQTT broker with result code {rc}")
         if system_logger_available:
             log_event(LogType.CONNECTION_LOST, LogLevel.WARNING, node="server", details=f"Disconnected from MQTT Broker. Result code: {rc}", source=self.source_identifier)
+            if self.node_online_status.get("remaja", True):
+                self.node_online_status["remaja"] = False
+                log_node_offline(node_name="remaja", 
+                                 details="CRITICAL: Lost connection to MQTT broker. Remaja Master is considered offline.", 
+                                 level=LogLevel.CRITICAL, 
+                                 source=self.source_identifier)
 
     
     def on_message(self, client, userdata, msg):
@@ -102,6 +115,10 @@ class SensorDataManager:
                 logger.debug(f"Parsed MQTT data: {json.dumps(data, indent=2)}")
             
             self.validate_and_store_data(data, server_mqtt_recv_time)
+
+            if not self.node_online_status.get("remaja", False) and system_logger_available:
+                self.node_online_status["remaja"] = True
+                log_node_online(node_name="remaja", details="Remaja Master is back online and sending MQTT data.", source=self.source_identifier)
         except json.JSONDecodeError as e:
             err_details = f"Invalid JSON in MQTT message: {e}. Payload: {msg.payload.decode(errors='ignore')[:200]}"
             logger.error(err_details)
@@ -282,7 +299,43 @@ class SensorDataManager:
         
         # --- End Latency Processing ---
 
-        self.last_update = datetime.now() # Local server time for staleness check
+        expected_sections_in_payload = ["penyemaian", "remaja", "dewasa"]
+        for section_name in expected_sections_in_payload:
+            section_data = data.get("sections", {}).get(section_name, {})
+            section_data_present_and_valid = (
+                section_name in data.get("sections", {}) and 
+                isinstance(section_data, dict) and 
+                bool(section_data) and
+                # Check if at least one of the main sensor values is not null
+                any(section_data.get(key) is not None for key in ['temp', 'humidity', 'light'])
+            )
+
+            if section_data_present_and_valid:
+                if not self.node_online_status.get(section_name, False):
+                    self.node_online_status[section_name] = True
+                    if system_logger_available:
+                        log_node_online(node_name=section_name, details=f"Node {section_name} data received. Marking as online.")
+            else:
+                if self.node_online_status.get(section_name, True):
+                    self.node_online_status[section_name] = False
+                    level = LogLevel.CRITICAL if section_name == "remaja" else LogLevel.WARNING
+                    
+                    # Create more detailed message based on the issue
+                    if section_name not in data.get("sections", {}):
+                        details_msg = f"Node {section_name} data section is completely missing from MQTT payload."
+                    elif not isinstance(section_data, dict) or not section_data:
+                        details_msg = f"Node {section_name} data section is empty or invalid in MQTT payload."
+                    else:
+                        # All sensor values are null
+                        details_msg = f"Node {section_name} is sending null values for all sensors (temp, humidity, light). Node appears to be offline or malfunctioning."
+                    
+                    if section_name == "remaja" and level == LogLevel.CRITICAL:
+                         details_msg = f"CRITICAL: {details_msg} This indicates a problem on the Remaja Master itself."
+                    
+                    if system_logger_available:
+                        log_node_offline(node_name=section_name, details=details_msg, level=level)
+
+        self.last_update = datetime.now(timezone.utc) # Use timezone-aware datetime
         logger.info(f"Updated sensor data (Packet ID: {self.packet_counter}). MQTT Latency: {mqtt_lat if mqtt_lat is not None else 'N/A'} ms")
         if self.debug:
             logger.debug(f"Stored data (incl. log_data): {json.dumps(self.latest_data, indent=2)}")
@@ -298,6 +351,7 @@ class SensorDataManager:
         return True
     
     def get_data(self):
+        current_time = datetime.now(timezone.utc)
         if not self.latest_data or self.latest_data.get("timestamp") is None or not self.last_update:
             logger.warning("No data available or no updates received yet")
             # Return a structured None or default structure
@@ -322,12 +376,18 @@ class SensorDataManager:
             }
             
         # Check if data is stale (e.g., older than 15 seconds for MQTT)
-        if datetime.now() - self.last_update > timedelta(seconds=15):
+        if self.last_update and (current_time - self.last_update > timedelta(seconds=15)):
             logger.warning(f"Data is stale. Last update: {self.last_update}")
             # Return last known data but with a status message
             stale_data = self.latest_data.copy() # Create a shallow copy
             stale_data["status_message"] = "Data is stale" 
             # We might want to nullify sensor values here or let UI handle staleness
+            if self.node_online_status.get("remaja", True) and system_logger_available:
+                self.node_online_status["remaja"] = False
+                log_node_offline(node_name="remaja", 
+                                 details="CRITICAL: No MQTT data received from Remaja Master for over 15 seconds.", 
+                                 level=LogLevel.CRITICAL,
+                                 source=self.source_identifier + "_staleness_check")
             return stale_data
         
         if self.debug:

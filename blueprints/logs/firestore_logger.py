@@ -20,6 +20,13 @@ class LogType(Enum):
     FAN_OFF_AUTO = "FAN_OFF_AUTO"
     LIGHT_ON_AUTO = "LIGHT_ON_AUTO"
     LIGHT_OFF_AUTO = "LIGHT_OFF_AUTO"
+    NODE_OFFLINE = "NODE_OFFLINE"
+    NODE_ONLINE = "NODE_ONLINE"
+    USER_FAN_ON = "USER_FAN_ON"
+    USER_FAN_OFF = "USER_FAN_OFF"
+    USER_LIGHT_ON = "USER_LIGHT_ON"
+    USER_LIGHT_OFF = "USER_LIGHT_OFF"
+    USER_CONTROL_ACTION = "USER_CONTROL_ACTION"  # Keep as fallback for unknown devices
 
 class LogLevel(Enum):
     # ... your LogLevel enum ...
@@ -45,10 +52,11 @@ def get_firestore_db():
 def log_event(
     log_type: LogType,
     level: LogLevel,
-    node: str = None,
-    sensor_type: str = None,
-    details: str = None,
-    source: str = "system"
+    node: Optional[str] = None,
+    sensor_type: Optional[str] = None,
+    details: Optional[str] = None,
+    source: str = "system",
+    username: Optional[str] = None
 ) -> bool:
     db_client_instance = get_firestore_db()
     if not db_client_instance:
@@ -70,6 +78,7 @@ def log_event(
         if node: log_data["node"] = node
         if sensor_type: log_data["sensor_type"] = sensor_type
         if details: log_data["details"] = details
+        if username: log_data["username"] = username
         
         # --- MODIFICATION: Create a custom document ID using WIB ---
         # Format: YYYY-MM-DD HH:MM:SS.ffffff (using WIB for visual consistency in console)
@@ -115,12 +124,48 @@ def log_light_auto(node: str, state: bool, details: Optional[str] = None, source
     log_type = LogType.LIGHT_ON_AUTO if state else LogType.LIGHT_OFF_AUTO
     log_event(log_type, LogLevel.INFO, node=node, details=details, source=source)
 
+# New logging functions
+def log_node_offline(node_name: str, details: str, level: LogLevel = LogLevel.WARNING, source: str = "node_monitor"):
+    log_event(LogType.NODE_OFFLINE, level, node=node_name, details=details, source=source)
+
+def log_node_online(node_name: str, details: str, source: str = "node_monitor"):
+    log_event(LogType.NODE_ONLINE, LogLevel.INFO, node=node_name, details=details, source=source)
+
+def log_user_action(username: str, action_description: str, device: Optional[str] = None, node_affected: Optional[str] = "remaja", source: str = "user_interface"):
+    # Determine specific log type based on device and action
+    log_type = LogType.USER_CONTROL_ACTION  # Default fallback
+    
+    if device and "state" in action_description:
+        if device.lower() == "fan":
+            if "ON" in action_description.upper():
+                log_type = LogType.USER_FAN_ON
+            elif "OFF" in action_description.upper():
+                log_type = LogType.USER_FAN_OFF
+        elif device.lower() == "light":
+            if "ON" in action_description.upper():
+                log_type = LogType.USER_LIGHT_ON
+            elif "OFF" in action_description.upper():
+                log_type = LogType.USER_LIGHT_OFF
+    
+    details_message = f"User '{username}' performed action: {action_description}."
+    if device:
+        details_message += f" Target Device: {device}."
+    
+    log_event(
+        log_type=log_type,
+        level=LogLevel.INFO,
+        node=node_affected,
+        details=details_message,
+        source=source,
+        username=username
+    )
+
 # --- Function to retrieve logs (can be expanded later) ---
 def get_system_logs(
     days: int = 7, 
-    log_type_filter: str = None,
-    level_filter: str = None,
-    node_filter: str = None,
+    log_type_filter: Optional[str] = None,
+    level_filter: Optional[str] = None,
+    node_filter: Optional[str] = None,
     limit: int = 100
 ):
     db_client_instance = get_firestore_db()
@@ -146,7 +191,7 @@ def get_system_logs(
                 query = query.where('node', '==', node_filter)
             
             # Reduce initial limit to prevent timeout
-            actual_limit = min(limit, 25)  # Even smaller limit
+            actual_limit = min(limit, 500)  # Even smaller limit
             query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(actual_limit)
             
             print(f"DEBUG: Executing Firestore query with limit {actual_limit}")

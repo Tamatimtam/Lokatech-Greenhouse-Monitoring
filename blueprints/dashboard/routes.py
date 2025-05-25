@@ -12,6 +12,14 @@ logger = logging.getLogger(__name__)
 # Define the MQTT control topic based on the hardware code
 MQTT_CONTROL_TOPIC = "lokatech/greenhouse/controls/set"
 
+try:
+    from ..logs.firestore_logger import log_user_action, LogType, LogLevel
+    system_logger_available = True
+except ImportError:
+    system_logger_available = False
+    def log_user_action(username, action_description, device=None, node_affected="remaja", source="user_interface"):
+        logging.warning(f"[DUMMY_USER_ACTION_LOG] User: {username}, Action: {action_description}, Device: {device}, Node: {node_affected}, Source: {source}")
+
 @bp.route("/")
 @isloggedin
 def dashboard():
@@ -50,8 +58,15 @@ def set_control_state():
 
     # Publish the command to the MQTT broker
     try:
-        if sensor_manager.client.publish(MQTT_CONTROL_TOPIC, mqtt_payload).rc == mqtt.MQTT_ERR_SUCCESS:
+        publish_result = sensor_manager.client.publish(MQTT_CONTROL_TOPIC, mqtt_payload)
+        if publish_result.rc == mqtt.MQTT_ERR_SUCCESS:
             logger.info(f"Successfully published MQTT command to {MQTT_CONTROL_TOPIC}: {mqtt_payload}")
+            
+            if system_logger_available:
+                user_email = session['user'].get('email', 'unknown_user')
+                action_details = f"Set {device} to {'ON' if state else 'OFF'}, mode to {mode}."
+                log_user_action(username=user_email, action_description=action_details, device=device, node_affected="remaja")
+
             # Update the local state in sensor_manager for immediate feedback on dashboard
             if device in sensor_manager.latest_data.get('actuators', {}):
                  sensor_manager.latest_data['actuators'][device]['state'] = state
