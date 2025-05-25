@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const logTableBody = document.getElementById('log-table-body');
     const maxLogsInput = document.getElementById('maxLogs');
     const clearLogsButton = document.getElementById('clearLogsButton');
+    const exportPerformanceCsvBtn = document.getElementById('exportPerformanceCsvBtn');
 
     // Summary elements
     const avgEspnowPenyemaianEl = document.getElementById('avg-espnow-penyemaian');
@@ -310,6 +311,50 @@ document.addEventListener('DOMContentLoaded', function() {
             packetsExpectedEl.textContent = expectedPackets;
             throughputPercentageEl.textContent = throughputPercentage + '%';
             packetLossPercentageEl.textContent = packetLossPercentage + '%';
+        }
+    }
+
+    if (exportPerformanceCsvBtn) {
+        exportPerformanceCsvBtn.addEventListener('click', function() {
+            exportPerformanceLogsToCSV();
+        });
+    }
+
+    function exportPerformanceLogsToCSV() {
+        if (logEntries.length === 0) {
+            alert("No performance logs to export.");
+            return;
+        }
+
+        const headers = [
+            "Packet ID", "Hardware Send (UTC)", "Server MQTT Receive (UTC)", "Server WebSocket Send (UTC)", "Frontend WebSocket Receive (Local)",
+            "ESP-P Latency (ms)", "ESP-D Latency (ms)", "MQTT Latency (ms)", "WebSocket Latency (ms)", "Total Latency (ms)",
+            "Jitter MQTT (ms)", "Jitter WebSocket (ms)", "Jitter ESP-P (ms)", "Jitter ESP-D (ms)"
+        ];
+        
+        let csvContent = headers.join(",") + "\r\n";
+
+        logEntries.forEach(entry => {
+            const row = [
+                entry.packetId, entry.hwSendTs, entry.serverMqttRecvTs, entry.serverWsSendTs, entry.feWsRecvTs,
+                entry.espP, entry.espD, entry.mqtt, entry.ws, entry.total,
+                entry.jitterMqtt, entry.jitterWs, entry.jitterEspP, entry.jitterEspD
+            ];
+            csvContent += row.join(",") + "\r\n";
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `performance_logs_${timestamp}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
     }
 
