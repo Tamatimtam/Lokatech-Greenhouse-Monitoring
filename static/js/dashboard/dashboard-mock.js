@@ -6,8 +6,8 @@ const SystemMonitor = {
         connected: true, // Always connected in mock mode
         masterNode: true, // Assume master is online
         nodes: {
-            penyemaian: { online: true, sensors: { temp: true, humidity: true, light: true } },
-            peremajaan: { online: true, sensors: { temp: true, humidity: true, light: true } },
+            penyemaian: { online: true, sensors: { temp: true, humidity: true, light: true } }, // Backend key: penyemaian
+            remaja: { online: true, sensors: { temp: true, humidity: true, light: true } },     // Backend key: remaja
             dewasa: { online: true, sensors: { temp: true, humidity: true, light: true } }
         }
     },
@@ -87,7 +87,7 @@ const UI = {
     resetDisplay() { /* Initial reset might still be useful */
         ['temperature-gauge', 'humidity-gauge'].forEach(id => { this.updateGauge(id, null, 100, '#ccc'); });
         this.updateGauge('light-gauge', null, 10000, '#ccc');
-        const sections = ['penyemaian', 'peremajaan', 'dewasa'];
+        const sections = ['penyemaian', 'remaja', 'dewasa']; // Backend keys
         const types = ['temp', 'humidity', 'light'];
         sections.forEach(section => {
             types.forEach(type => {
@@ -174,8 +174,8 @@ const UI = {
     },
 
     translateSection(section) { /* ... (same as original) ... */
-        const translations = { penyemaian: 'Penyemaian', peremajaan: 'Peremajaan', dewasa: 'Dewasa' };
-        return translations[section] || section;
+        const translations = { penyemaian: 'Peremajaan', remaja: 'Meja Apung', dewasa: 'Dewasa' }; // Frontend: Peremajaan (Backend/HW: penyemaian), Frontend: Meja Apung (Backend/HW: remaja)
+        return translations[section] || section; // section is backend key
     },
     translateSensor(sensor) { /* ... (same as original) ... */
         const translations = { temp: 'suhu', humidity: 'kelembapan', light: 'cahaya' };
@@ -197,10 +197,10 @@ const UI = {
 // Data Management (Mock Version)
 const DataManager = {
     debug: false, // Disable debug logging for mock unless needed
-    mockState: { // Store current mock values
-        penyemaian: { temp: 26, humidity: 85, light: 500 },
-        peremajaan: { temp: 25, humidity: 80, light: 800 },
-        dewasa: { temp: 24, humidity: 75, light: 1200 }
+    mockState: { // Store current mock values. Keys are backend keys.
+        penyemaian: { temp: 26, humidity: 85, light: 500 }, // Backend key: penyemaian
+        remaja: { temp: 25, humidity: 80, light: 800 },     // Backend key: remaja
+        dewasa: { temp: 24, humidity: 75, light: 1200 }     // Backend key: dewasa
     },
 
     log(...args) {
@@ -274,7 +274,7 @@ const DataManager = {
             UI.updateGauge('light-gauge', data.averages.light, 10000, '#F9D949');
         }
 
-        const allSections = ['penyemaian', 'peremajaan', 'dewasa'];
+        const allSections = ['penyemaian', 'remaja', 'dewasa']; // Backend keys
         allSections.forEach(section => {
             const nodeIsOnline = SystemMonitor.status.nodes[section]?.online;
             const values = data.sections[section];

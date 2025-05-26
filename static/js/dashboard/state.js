@@ -13,8 +13,8 @@ export const SystemMonitor = {
         // For now, 'connected' implies master (Remaja) is connected to MQTT and sending data.
         masterNode: false, // Will be true if 'remaja' section has data and system is connected
         nodes: {
-            penyemaian: { online: false, sensors: { temp: false, humidity: false, light: false } },
-            remaja: { online: false, sensors: { temp: false, humidity: false, light: false } }, // New
+            penyemaian: { online: false, sensors: { temp: false, humidity: false, light: false } }, // Backend key: penyemaian
+            remaja: { online: false, sensors: { temp: false, humidity: false, light: false } },     // Backend key: remaja
             dewasa: { online: false, sensors: { temp: false, humidity: false, light: false } }
         },
         actuators: { // Actuators on Remaja (Master)

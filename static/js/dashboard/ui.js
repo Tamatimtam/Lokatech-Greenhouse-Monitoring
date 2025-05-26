@@ -377,8 +377,12 @@ export const UI = {
     },
 
     translateSection(section) {
-        const translations = { penyemaian: 'Penyemaian', remaja: 'Remaja', dewasa: 'Dewasa' }; // Updated
-        return translations[section] || section;
+        // section is a backend key e.g. 'penyemaian', 'remaja'
+        const translations = {
+            penyemaian: 'Peremajaan', // Frontend: Peremajaan (Backend/HW: penyemaian)
+            remaja: 'Meja Apung',   // Frontend: Meja Apung (Backend/HW: remaja)
+            dewasa: 'Dewasa' };
+        return translations[section] || section; // Fallback to the key itself if no translation
     },
 
     translateSensor(sensor) {
