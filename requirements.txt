@@ -8,3 +8,4 @@ eventlet
 flask_cors
 openpyxl
 pytz
+psutil

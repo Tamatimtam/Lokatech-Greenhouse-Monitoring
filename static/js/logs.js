@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabLinks = document.querySelectorAll('.tab-header .tab-link');
     const tabContents = document.querySelectorAll('.container .tab-content');
 
-    // Function to activate a tab
     function activateTab(tabId) {
         tabLinks.forEach(link => {
             if (link.getAttribute('data-tab') === tabId) {
@@ -21,18 +20,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Set initial active tab based on HTML class
-    // This ensures the JS respects the server-rendered active tab
     const initialActiveLink = document.querySelector('.tab-header .tab-link.active');
     if (initialActiveLink) {
         const initialTabId = initialActiveLink.getAttribute('data-tab');
-        activateTab(initialTabId); // Ensure consistency if JS loads after some interaction or if classes are misaligned
+        activateTab(initialTabId);
     } else if (tabLinks.length > 0) {
-        // Fallback: if no tab is marked active in HTML, activate the first one
-        // Or, activate a specific default like 'tab-performance'
-        activateTab(tabLinks[0].getAttribute('data-tab'));
+        let performanceTabLink = Array.from(tabLinks).find(link => link.getAttribute('data-tab') === 'tab-performance');
+        if (performanceTabLink) {
+            activateTab('tab-performance');
+        } else {
+            activateTab(tabLinks[0].getAttribute('data-tab'));
+        }
     }
-
 
     tabLinks.forEach(link => {
         link.addEventListener('click', function(event) {
@@ -42,39 +41,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Existing logs.js code for Performance Logs
+    // Performance Logs specific code
     const socket = io();
     const logTableBody = document.getElementById('log-table-body');
     const maxLogsInput = document.getElementById('maxLogs');
     const clearLogsButton = document.getElementById('clearLogsButton');
-    const exportPerformanceCsvBtn = document.getElementById('exportPerformanceCsvBtn');
+    const exportPerformanceCsvBtn = document.getElementById('exportPerformanceLogsCsvBtn');
 
     // Summary elements
+    const avgCpuBackendEl = document.getElementById('avg-cpu-backend');
+    const avgRamBackendEl = document.getElementById('avg-ram-backend');
+    const maxCpuBackendEl = document.getElementById('max-cpu-backend');
+    const maxRamBackendEl = document.getElementById('max-ram-backend');
+
     const avgEspnowPenyemaianEl = document.getElementById('avg-espnow-penyemaian');
     const avgEspnowDewasaEl = document.getElementById('avg-espnow-dewasa');
     const avgMqttLatencyEl = document.getElementById('avg-mqtt-latency');
     const avgWebsocketLatencyEl = document.getElementById('avg-websocket-latency');
     const avgTotalLatencyEl = document.getElementById('avg-total-latency');
-    const avgMqttJitterEl = document.getElementById('avg-mqtt-jitter');
-    const avgWebsocketJitterEl = document.getElementById('avg-websocket-jitter');
+    
     const avgEspnowPJitterEl = document.getElementById('avg-espnow-p-jitter');
     const avgEspnowDJitterEl = document.getElementById('avg-espnow-d-jitter');
+    const avgMqttJitterEl = document.getElementById('avg-mqtt-jitter');
+    const avgWebsocketJitterEl = document.getElementById('avg-websocket-jitter');
+    
     const packetsReceivedEl = document.getElementById('packets-received');
-
-    // New elements for throughput stats
     const packetsExpectedEl = document.getElementById('packets-expected');
+    const msgsPerSecBackendEl = document.getElementById('msgs-per-sec-backend');
     const throughputPercentageEl = document.getElementById('throughput-percentage');
     const packetLossPercentageEl = document.getElementById('packet-loss-percentage');
     
     let logEntries = [];
-    let maxLogEntries = parseInt(maxLogsInput.value, 10);
+    let maxLogEntries = maxLogsInput ? parseInt(maxLogsInput.value, 10) : 50;
 
-    let prevMqttLatency = null;
     let prevWebsocketLatency = null;
-    let prevEspnowPLatency = null;
-    let prevEspnowDLatency = null;
 
     // Stats for averages
+    let totalCpu = 0, countCpu = 0, currentMaxCpu = 0;
+    let totalRam = 0, countRam = 0, currentMaxRam = 0;
     let totalEspnowP = 0, countEspnowP = 0;
     let totalEspnowD = 0, countEspnowD = 0;
     let totalMqtt = 0, countMqtt = 0;
@@ -84,44 +88,50 @@ document.addEventListener('DOMContentLoaded', function() {
     let totalWsJitter = 0, countWsJitter = 0;
     let totalEspnowPJitter = 0, countEspnowPJitter = 0;
     let totalEspnowDJitter = 0, countEspnowDJitter = 0;
+    let totalMsgsPerSec = 0, countMsgsPerSec = 0;
+    let totalThroughput = 0, countThroughput = 0;
+    let totalPacketLoss = 0, countPacketLoss = 0;
 
-    // Tracking variables for throughput calculation
     let connectionStartTime = null;
-    let expectedPacketsPerSecond = 0.6; // 1 packet every 2 seconds
+    
+    if (maxLogsInput) {
+        maxLogsInput.addEventListener('change', function() {
+            maxLogEntries = parseInt(this.value, 10);
+            renderLogTable(); 
+        });
+    }
 
-    maxLogsInput.addEventListener('change', function() {
-        maxLogEntries = parseInt(this.value, 10);
-        renderLogTable(); // Re-render with new limit
-    });
+    if (clearLogsButton) {
+        clearLogsButton.addEventListener('click', function() {
+            logEntries = [];
+            prevWebsocketLatency = null;
+            
+            // Reset all stat counters
+            totalCpu = 0; countCpu = 0; currentMaxCpu = 0;
+            totalRam = 0; countRam = 0; currentMaxRam = 0;
+            totalEspnowP = 0; countEspnowP = 0;
+            totalEspnowD = 0; countEspnowD = 0;
+            totalMqtt = 0; countMqtt = 0;
+            totalWs = 0; countWs = 0;
+            totalOverall = 0; countOverall = 0;
+            totalMqttJitter = 0; countMqttJitter = 0;
+            totalWsJitter = 0; countWsJitter = 0;
+            totalEspnowPJitter = 0; countEspnowPJitter = 0;
+            totalEspnowDJitter = 0; countEspnowDJitter = 0;
+            totalMsgsPerSec = 0; countMsgsPerSec = 0;
+            totalThroughput = 0; countThroughput = 0;
+            totalPacketLoss = 0; countPacketLoss = 0;
 
-    clearLogsButton.addEventListener('click', function() {
-        logEntries = [];
-        prevMqttLatency = null;
-        prevWebsocketLatency = null;
-        prevEspnowPLatency = null;
-        prevEspnowDLatency = null;
-        totalEspnowP = 0; countEspnowP = 0;
-        totalEspnowD = 0; countEspnowD = 0;
-        totalMqtt = 0; countMqtt = 0;
-        totalWs = 0; countWs = 0;
-        totalOverall = 0; countOverall = 0;
-        totalMqttJitter = 0; countMqttJitter = 0;
-        totalWsJitter = 0; countWsJitter = 0;
-        totalEspnowPJitter = 0; countEspnowPJitter = 0;
-        totalEspnowDJitter = 0; countEspnowDJitter = 0;
-        
-        renderLogTable();
-        updateSummaryStats();
-        if (logTableBody.firstChild.cells[0].textContent === "Menunggu data log...") {
-            // Do nothing, placeholder already there
-        } else if (logEntries.length === 0) {
-             logTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Log dibersihkan. Menunggu data baru...</td></tr>';
-        }
-
-        // Reset throughput tracking
-        connectionStartTime = new Date();
-    });
-
+            renderLogTable();
+            updateSummaryStats();
+            if (logTableBody && logTableBody.firstChild && logTableBody.firstChild.cells[0].textContent === "Menunggu data log...") {
+                // Do nothing
+            } else if (logEntries.length === 0 && logTableBody) {
+                 logTableBody.innerHTML = '<tr><td colspan="20" style="text-align:center;">Log dibersihkan. Menunggu data baru...</td></tr>';
+            }
+            connectionStartTime = new Date();
+        });
+    }
 
     socket.on('connect', () => {
         console.log('Logs.js: Connected to WebSocket');
@@ -136,23 +146,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     socket.on('sensor_update', (data) => {
-        const feWsRecvTimestamp = new Date(); // Frontend WebSocket reception time (Local)
+        const feWsRecvTimestamp = new Date(); 
         const logData = data.log_data;
 
         if (!logData) {
             console.warn('Received sensor_update without log_data:', data);
             return;
         }
-        
-        console.debug('Logs.js - Received log_data:', JSON.stringify(logData, null, 2));
 
-        let mqttLatencyMs = logData.mqtt_latency_ms;
-        let espnowLatencyPenyemaianMs = logData.espnow_latency_penyemaian_ms;
-        let espnowLatencyDewasaMs = logData.espnow_latency_dewasa_ms;
         let websocketLatencyMs = null;
-        let totalLatencyMs = null;
-
-        // Calculate WebSocket Latency
         if (logData.websocket_send_timestamp_str && logData.websocket_send_timestamp_str !== "N/A") {
             try {
                 const serverWsSendDate = new Date(logData.websocket_send_timestamp_str);
@@ -162,74 +164,88 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Calculate Total Latency
-        // Only if all components are valid numbers
-        const latencies = [espnowLatencyPenyemaianMs, espnowLatencyDewasaMs, mqttLatencyMs, websocketLatencyMs].filter(l => typeof l === 'number');
-        if (latencies.length > 0) { // If at least one ESP-NOW latency is present, sum it with others
-            let sum = 0;
-            let espNowComponent = 0;
-            if (typeof espnowLatencyPenyemaianMs === 'number' && espnowLatencyPenyemaianMs !== -1) espNowComponent = Math.max(espNowComponent, espnowLatencyPenyemaianMs);
-            if (typeof espnowLatencyDewasaMs === 'number' && espnowLatencyDewasaMs !== -1) espNowComponent = Math.max(espNowComponent, espnowLatencyDewasaMs);
-            
-            if (espNowComponent > 0) sum += espNowComponent;
-            if (typeof mqttLatencyMs === 'number') sum += mqttLatencyMs;
-            if (typeof websocketLatencyMs === 'number') sum += websocketLatencyMs;
-            totalLatencyMs = sum > 0 ? sum : null;
-        }
-
-
-        // Calculate Jitter for ESP-NOW Penyemaian
-        let espnowPJitterMs = null;
-        if (espnowLatencyPenyemaianMs !== null && espnowLatencyPenyemaianMs !== -1 && prevEspnowPLatency !== null && prevEspnowPLatency !== -1) {
-            espnowPJitterMs = Math.abs(espnowLatencyPenyemaianMs - prevEspnowPLatency);
-        }
-        prevEspnowPLatency = espnowLatencyPenyemaianMs !== -1 ? espnowLatencyPenyemaianMs : prevEspnowPLatency;
-
-        // Calculate Jitter for ESP-NOW Dewasa
-        let espnowDJitterMs = null;
-        if (espnowLatencyDewasaMs !== null && espnowLatencyDewasaMs !== -1 && prevEspnowDLatency !== null && prevEspnowDLatency !== -1) {
-            espnowDJitterMs = Math.abs(espnowLatencyDewasaMs - prevEspnowDLatency);
-        }
-        prevEspnowDLatency = espnowLatencyDewasaMs !== -1 ? espnowLatencyDewasaMs : prevEspnowDLatency;
-
-        // Calculate Jitter for MQTT
-        let mqttJitterMs = null;
-        if (mqttLatencyMs !== null && prevMqttLatency !== null) {
-            mqttJitterMs = Math.abs(mqttLatencyMs - prevMqttLatency);
-        }
-        prevMqttLatency = mqttLatencyMs;
-
-        // Calculate Jitter for WebSocket
         let wsJitterMs = null;
         if (websocketLatencyMs !== null && prevWebsocketLatency !== null) {
             wsJitterMs = Math.abs(websocketLatencyMs - prevWebsocketLatency);
         }
         prevWebsocketLatency = websocketLatencyMs;
 
+        // Calculate Total Latency
+        let totalLatencyMs = null;
+        const espP = logData.espnow_latency_penyemaian_ms;
+        const espD = logData.espnow_latency_dewasa_ms;
+        const mqttL = logData.mqtt_latency_ms;
+        
+        let espNowEffectiveLatency = 0;
+        if (typeof espP === 'number' && espP !== -1) {
+            espNowEffectiveLatency = Math.max(espNowEffectiveLatency, espP);
+        }
+        if (typeof espD === 'number' && espD !== -1) {
+            espNowEffectiveLatency = Math.max(espNowEffectiveLatency, espD);
+        }
+
+        let tempTotalLatency = 0;
+        let validComponentsForTotal = 0;
+        if (espNowEffectiveLatency > 0) {
+            tempTotalLatency += espNowEffectiveLatency;
+            validComponentsForTotal++;
+        }
+        if (typeof mqttL === 'number') {
+            tempTotalLatency += mqttL;
+            validComponentsForTotal++;
+        }
+        if (typeof websocketLatencyMs === 'number') {
+            tempTotalLatency += websocketLatencyMs;
+            validComponentsForTotal++;
+        }
+        if (validComponentsForTotal > 0) {
+            totalLatencyMs = tempTotalLatency;
+        }
+
+        // Extract simulator packet ID from various possible locations
+        let simPacketId = '-';
+        if (data.log_data && data.log_data.packet_id) {
+            // If the backend forwards the simulator's original packet_id as separate field
+            simPacketId = data.log_data.packet_id;
+        } else if (data.sections && data.sections.remaja && data.sections.remaja.packet_id) {
+            // If simulator sends packet_id in remaja section
+            simPacketId = data.sections.remaja.packet_id;
+        } else if (data.packet_id) {
+            // If simulator sends packet_id at top level
+            simPacketId = data.packet_id;
+        }
+        // If none found, keep as '-'
+
         const entry = {
-            packetId: logData.packet_id || '-',
+            backendPacketId: logData.packet_id || '-',
+            simPacketId: simPacketId,
             hwSendTs: formatTimestamp(logData.hardware_send_timestamp_str),
             serverMqttRecvTs: formatTimestamp(logData.server_mqtt_recv_timestamp_str),
             serverWsSendTs: formatTimestamp(logData.websocket_send_timestamp_str),
             feWsRecvTs: formatTimestamp(feWsRecvTimestamp.toISOString()),
-            espP: espnowLatencyPenyemaianMs !== null && espnowLatencyPenyemaianMs !== -1 ? espnowLatencyPenyemaianMs : '--',
-            espD: espnowLatencyDewasaMs !== null && espnowLatencyDewasaMs !== -1 ? espnowLatencyDewasaMs : '--',
-            mqtt: mqttLatencyMs !== null ? mqttLatencyMs.toFixed(2) : '--',
+            cpuBackendPercent: logData.cpu_backend_percent !== null ? logData.cpu_backend_percent.toFixed(2) : '--',
+            memoryBackendMb: logData.memory_backend_mb !== null ? logData.memory_backend_mb.toFixed(2) : '--',
+            espP: espP !== null && espP !== -1 ? espP.toFixed(2) : '--',
+            espD: espD !== null && espD !== -1 ? espD.toFixed(2) : '--',
+            mqtt: mqttL !== null ? mqttL.toFixed(2) : '--',
             ws: websocketLatencyMs !== null ? websocketLatencyMs.toFixed(2) : '--',
             total: totalLatencyMs !== null ? totalLatencyMs.toFixed(2) : '--',
-            jitterMqtt: mqttJitterMs !== null ? mqttJitterMs.toFixed(2) : '--',
+            jitterEspP: logData.espnow_penyemaian_jitter_ms !== null ? logData.espnow_penyemaian_jitter_ms.toFixed(2) : '--',
+            jitterEspD: logData.espnow_dewasa_jitter_ms !== null ? logData.espnow_dewasa_jitter_ms.toFixed(2) : '--',
+            jitterMqtt: logData.mqtt_jitter_ms !== null ? logData.mqtt_jitter_ms.toFixed(2) : '--',
             jitterWs: wsJitterMs !== null ? wsJitterMs.toFixed(2) : '--',
-            jitterEspP: espnowPJitterMs !== null ? espnowPJitterMs.toFixed(2) : '--',
-            jitterEspD: espnowDJitterMs !== null ? espnowDJitterMs.toFixed(2) : '--',
+            msgsPerSecBackend: logData.msgs_per_sec_backend !== null ? logData.msgs_per_sec_backend.toFixed(2) : '--',
+            throughputBackendPercentage: logData.throughput_backend_percentage !== null ? logData.throughput_backend_percentage.toFixed(2) : '--',
+            packetLossBackendPercentage: logData.packet_loss_backend_percentage !== null ? logData.packet_loss_backend_percentage.toFixed(2) : '--',
         };
 
-        logEntries.unshift(entry); // Add to the beginning of the array
+        logEntries.unshift(entry); 
         if (logEntries.length > maxLogEntries) {
-            logEntries.pop(); // Remove the oldest entry
+            logEntries.pop(); 
         }
 
         renderLogTable();
-        updateStats(entry);
+        updateStats(entry, logData);
         updateSummaryStats();
     });
 
@@ -246,71 +262,109 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function renderLogTable() {
         if (!logTableBody) return;
-        logTableBody.innerHTML = ''; // Clear existing rows
+        logTableBody.innerHTML = '';
 
         if (logEntries.length === 0) {
-            logTableBody.innerHTML = '<tr><td colspan="12" style="text-align:center;">Menunggu data log...</td></tr>';
+            logTableBody.innerHTML = '<tr><td colspan="20" style="text-align:center;">Menunggu data log...</td></tr>';
             return;
         }
 
         logEntries.forEach(entry => {
             const row = logTableBody.insertRow();
-            row.insertCell().textContent = entry.packetId;
+            row.insertCell().textContent = entry.backendPacketId;
+            row.insertCell().textContent = entry.simPacketId;
             row.insertCell().textContent = entry.hwSendTs;
             row.insertCell().textContent = entry.serverMqttRecvTs;
             row.insertCell().textContent = entry.serverWsSendTs;
             row.insertCell().textContent = entry.feWsRecvTs;
+            row.insertCell().textContent = entry.cpuBackendPercent;
+            row.insertCell().textContent = entry.memoryBackendMb;
             row.insertCell().textContent = entry.espP;
             row.insertCell().textContent = entry.espD;
             row.insertCell().textContent = entry.mqtt;
             row.insertCell().textContent = entry.ws;
             row.insertCell().textContent = entry.total;
+            row.insertCell().textContent = entry.jitterEspP;
+            row.insertCell().textContent = entry.jitterEspD;
             row.insertCell().textContent = entry.jitterMqtt;
             row.insertCell().textContent = entry.jitterWs;
+            row.insertCell().textContent = entry.msgsPerSecBackend;
+            row.insertCell().textContent = entry.throughputBackendPercentage;
+            row.insertCell().textContent = entry.packetLossBackendPercentage;
         });
     }
 
-    function updateStats(entry) {
-        if (entry.espP !== '--') { totalEspnowP += parseFloat(entry.espP); countEspnowP++; }
-        if (entry.espD !== '--') { totalEspnowD += parseFloat(entry.espD); countEspnowD++; }
-        if (entry.mqtt !== '--') { totalMqtt += parseFloat(entry.mqtt); countMqtt++; }
+    function updateStats(entry, logData) {
+        // CPU and RAM stats from backend
+        if (logData.cpu_backend_percent !== null) { 
+            const cpuVal = parseFloat(logData.cpu_backend_percent);
+            totalCpu += cpuVal; 
+            countCpu++;
+            currentMaxCpu = Math.max(currentMaxCpu, cpuVal);
+        }
+        if (logData.memory_backend_mb !== null) { 
+            const ramVal = parseFloat(logData.memory_backend_mb);
+            totalRam += ramVal; 
+            countRam++; 
+            currentMaxRam = Math.max(currentMaxRam, ramVal);
+        }
+
+        // Latencies
+        if (logData.espnow_latency_penyemaian_ms !== null && logData.espnow_latency_penyemaian_ms !== -1) { totalEspnowP += parseFloat(logData.espnow_latency_penyemaian_ms); countEspnowP++; }
+        if (logData.espnow_latency_dewasa_ms !== null && logData.espnow_latency_dewasa_ms !== -1) { totalEspnowD += parseFloat(logData.espnow_latency_dewasa_ms); countEspnowD++; }
+        if (logData.mqtt_latency_ms !== null) { totalMqtt += parseFloat(logData.mqtt_latency_ms); countMqtt++; }
         if (entry.ws !== '--') { totalWs += parseFloat(entry.ws); countWs++; }
         if (entry.total !== '--') { totalOverall += parseFloat(entry.total); countOverall++; }
-        if (entry.jitterMqtt !== '--') { totalMqttJitter += parseFloat(entry.jitterMqtt); countMqttJitter++; }
+
+        // Jitters
+        if (logData.espnow_penyemaian_jitter_ms !== null) { totalEspnowPJitter += parseFloat(logData.espnow_penyemaian_jitter_ms); countEspnowPJitter++; }
+        if (logData.espnow_dewasa_jitter_ms !== null) { totalEspnowDJitter += parseFloat(logData.espnow_dewasa_jitter_ms); countEspnowDJitter++; }
+        if (logData.mqtt_jitter_ms !== null) { totalMqttJitter += parseFloat(logData.mqtt_jitter_ms); countMqttJitter++; }
         if (entry.jitterWs !== '--') { totalWsJitter += parseFloat(entry.jitterWs); countWsJitter++; }
-        if (entry.jitterEspP !== '--') { totalEspnowPJitter += parseFloat(entry.jitterEspP); countEspnowPJitter++; }
-        if (entry.jitterEspD !== '--') { totalEspnowDJitter += parseFloat(entry.jitterEspD); countEspnowDJitter++; }
+        
+        // Throughput stats
+        if (logData.msgs_per_sec_backend !== null) { totalMsgsPerSec += parseFloat(logData.msgs_per_sec_backend); countMsgsPerSec++;}
+        if (logData.throughput_backend_percentage !== null) { totalThroughput += parseFloat(logData.throughput_backend_percentage); countThroughput++;}
+        if (logData.packet_loss_backend_percentage !== null) { totalPacketLoss += parseFloat(logData.packet_loss_backend_percentage); countPacketLoss++;}
     }
 
     function updateSummaryStats() {
-        avgEspnowPenyemaianEl.textContent = countEspnowP > 0 ? (totalEspnowP / countEspnowP).toFixed(2) + ' ms' : '-- ms';
-        avgEspnowDewasaEl.textContent = countEspnowD > 0 ? (totalEspnowD / countEspnowD).toFixed(2) + ' ms' : '-- ms';
-        avgMqttLatencyEl.textContent = countMqtt > 0 ? (totalMqtt / countMqtt).toFixed(2) + ' ms' : '-- ms';
-        avgWebsocketLatencyEl.textContent = countWs > 0 ? (totalWs / countWs).toFixed(2) + ' ms' : '-- ms';
-        avgTotalLatencyEl.textContent = countOverall > 0 ? (totalOverall / countOverall).toFixed(2) + ' ms' : '-- ms';
-        avgMqttJitterEl.textContent = countMqttJitter > 0 ? (totalMqttJitter / countMqttJitter).toFixed(2) + ' ms' : '-- ms';
-        avgWebsocketJitterEl.textContent = countWsJitter > 0 ? (totalWsJitter / countWsJitter).toFixed(2) + ' ms' : '-- ms';
-        avgEspnowPJitterEl.textContent = countEspnowPJitter > 0 ? (totalEspnowPJitter / countEspnowPJitter).toFixed(2) + ' ms' : '-- ms';
-        avgEspnowDJitterEl.textContent = countEspnowDJitter > 0 ? (totalEspnowDJitter / countEspnowDJitter).toFixed(2) + ' ms' : '-- ms';
-        packetsReceivedEl.textContent = logEntries.length;
+        if (avgCpuBackendEl) avgCpuBackendEl.textContent = countCpu > 0 ? (totalCpu / countCpu).toFixed(2) + ' %' : '-- %';
+        if (avgRamBackendEl) avgRamBackendEl.textContent = countRam > 0 ? (totalRam / countRam).toFixed(2) + ' MB' : '-- MB';
+        if (maxCpuBackendEl) maxCpuBackendEl.textContent = countCpu > 0 ? currentMaxCpu.toFixed(2) + ' %' : '-- %';
+        if (maxRamBackendEl) maxRamBackendEl.textContent = countRam > 0 ? currentMaxRam.toFixed(2) + ' MB' : '-- MB';
+
+        if (avgEspnowPenyemaianEl) avgEspnowPenyemaianEl.textContent = countEspnowP > 0 ? (totalEspnowP / countEspnowP).toFixed(2) + ' ms' : '-- ms';
+        if (avgEspnowDewasaEl) avgEspnowDewasaEl.textContent = countEspnowD > 0 ? (totalEspnowD / countEspnowD).toFixed(2) + ' ms' : '-- ms';
+        if (avgMqttLatencyEl) avgMqttLatencyEl.textContent = countMqtt > 0 ? (totalMqtt / countMqtt).toFixed(2) + ' ms' : '-- ms';
+        if (avgWebsocketLatencyEl) avgWebsocketLatencyEl.textContent = countWs > 0 ? (totalWs / countWs).toFixed(2) + ' ms' : '-- ms';
+        if (avgTotalLatencyEl) avgTotalLatencyEl.textContent = countOverall > 0 ? (totalOverall / countOverall).toFixed(2) + ' ms' : '-- ms';
         
-        // Calculate throughput statistics
+        if (avgEspnowPJitterEl) avgEspnowPJitterEl.textContent = countEspnowPJitter > 0 ? (totalEspnowPJitter / countEspnowPJitter).toFixed(2) + ' ms' : '-- ms';
+        if (avgEspnowDJitterEl) avgEspnowDJitterEl.textContent = countEspnowDJitter > 0 ? (totalEspnowDJitter / countEspnowDJitter).toFixed(2) + ' ms' : '-- ms';
+        if (avgMqttJitterEl) avgMqttJitterEl.textContent = countMqttJitter > 0 ? (totalMqttJitter / countMqttJitter).toFixed(2) + ' ms' : '-- ms';
+        if (avgWebsocketJitterEl) avgWebsocketJitterEl.textContent = countWsJitter > 0 ? (totalWsJitter / countWsJitter).toFixed(2) + ' ms' : '-- ms';
+        
+        if (packetsReceivedEl) packetsReceivedEl.textContent = logEntries.length;
+
+        if (msgsPerSecBackendEl) msgsPerSecBackendEl.textContent = countMsgsPerSec > 0 ? (totalMsgsPerSec / countMsgsPerSec).toFixed(2) : (logEntries.length > 0 && logEntries[0].msgsPerSecBackend !== '--' ? logEntries[0].msgsPerSecBackend : '--');
+        
+        // Original frontend throughput/packet loss calculation
         if (connectionStartTime) {
             const elapsedTimeSeconds = (new Date() - connectionStartTime) / 1000;
-            let expectedPackets = Math.max(1, Math.floor(elapsedTimeSeconds * expectedPacketsPerSecond));
+            let expectedPackets = Math.max(1, Math.floor(elapsedTimeSeconds * 0.5)); // 2 packets per second (every 0.5 seconds)
             const receivedPackets = logEntries.length;
             
-            // If received packets exceeds expected packets, adjust expected packets to match
             if (receivedPackets > expectedPackets) {
                 expectedPackets = receivedPackets;
             }
             
             const throughputPercentage = Math.min(100, ((receivedPackets / expectedPackets) * 100)).toFixed(1);
-            const packetLossPercentage = Math.max(0, (100 - throughputPercentage)).toFixed(1);
+            const packetLossPercentage = Math.max(0, (100 - parseFloat(throughputPercentage))).toFixed(1);
             
-            packetsExpectedEl.textContent = expectedPackets;
-            throughputPercentageEl.textContent = throughputPercentage + '%';
-            packetLossPercentageEl.textContent = packetLossPercentage + '%';
+            if (packetsExpectedEl) packetsExpectedEl.textContent = expectedPackets;
+            if (throughputPercentageEl) throughputPercentageEl.textContent = throughputPercentage + '%';
+            if (packetLossPercentageEl) packetLossPercentageEl.textContent = packetLossPercentage + '%';
         }
     }
 
@@ -327,20 +381,26 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const headers = [
-            "Packet ID", "Hardware Send (UTC)", "Server MQTT Receive (UTC)", "Server WebSocket Send (UTC)", "Frontend WebSocket Receive (Local)",
-            "ESP-P Latency (ms)", "ESP-D Latency (ms)", "MQTT Latency (ms)", "WebSocket Latency (ms)", "Total Latency (ms)",
-            "Jitter MQTT (ms)", "Jitter WebSocket (ms)", "Jitter ESP-P (ms)", "Jitter ESP-D (ms)"
+            "Backend Packet ID", "Simulator Packet ID",
+            "Hardware Send (UTC)", "Server MQTT Receive (UTC)", "Server WebSocket Send (UTC)", "Frontend WebSocket Receive (Local)",
+            "CPU Backend (%)", "Memori Backend (MB)",
+            "Latensi ESP-P (ms)", "Latensi ESP-D (ms)", "Latensi MQTT (ms)", "Latensi WS (ms)", "Latensi Total (ms)",
+            "Jitter ESP-P (ms)", "Jitter ESP-D (ms)", "Jitter MQTT (ms)", "Jitter WS (ms)",
+            "Pesan/Detik (Backend)", "Throughput Backend (%)", "Packet Loss Backend (%)"
         ];
         
         let csvContent = headers.join(",") + "\r\n";
 
-        logEntries.forEach(entry => {
+        logEntries.slice().reverse().forEach(entry => {
             const row = [
-                entry.packetId, entry.hwSendTs, entry.serverMqttRecvTs, entry.serverWsSendTs, entry.feWsRecvTs,
+                entry.backendPacketId, entry.simPacketId,
+                entry.hwSendTs, entry.serverMqttRecvTs, entry.serverWsSendTs, entry.feWsRecvTs,
+                entry.cpuBackendPercent, entry.memoryBackendMb,
                 entry.espP, entry.espD, entry.mqtt, entry.ws, entry.total,
-                entry.jitterMqtt, entry.jitterWs, entry.jitterEspP, entry.jitterEspD
+                entry.jitterEspP, entry.jitterEspD, entry.jitterMqtt, entry.jitterWs,
+                entry.msgsPerSecBackend, entry.throughputBackendPercentage, entry.packetLossBackendPercentage
             ];
-            csvContent += row.join(",") + "\r\n";
+            csvContent += row.map(val => `"${String(val === null || val === undefined ? '--' : val).replace(/"/g, '""')}"`).join(",") + "\r\n";
         });
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -358,7 +418,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Initial render in case there are no logs yet
-    renderLogTable();
+    if (logTableBody) renderLogTable();
     updateSummaryStats();
 });

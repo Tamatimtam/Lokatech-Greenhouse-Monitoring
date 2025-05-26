@@ -1,7 +1,11 @@
 import paho.mqtt.client as mqtt
 import json
 import logging
-from datetime import datetime, timedelta, timezone # Added timezone
+from datetime import datetime, timedelta, timezone
+import time # For throughput calculation
+import os # For process ID
+import psutil # For CPU and Memory usage
+
 # Import system logger
 try:
     from ..logs.firestore_logger import log_event, LogType, LogLevel, log_sensor_error, log_sensor_operational, log_node_offline, log_node_online
@@ -9,14 +13,13 @@ try:
 except ImportError:
     system_logger_available = False
     # Define dummy logger functions if the import fails to prevent runtime errors
-    class LogType: SENSOR_ERROR = "SENSOR_ERROR"; CONNECTION_LOST = "CONNECTION_LOST"; CONNECTION_RESTORED = "CONNECTION_RESTORED" # Dummy
-    class LogLevel: ERROR = "ERROR"; WARNING = "WARNING"; INFO = "INFO" # Dummy
+    class LogType: SENSOR_ERROR = "SENSOR_ERROR"; CONNECTION_LOST = "CONNECTION_LOST"; CONNECTION_RESTORED = "CONNECTION_RESTORED"; FAN_ON_AUTO = "FAN_ON_AUTO"; FAN_OFF_AUTO = "FAN_OFF_AUTO"; LIGHT_ON_AUTO = "LIGHT_ON_AUTO"; LIGHT_OFF_AUTO = "LIGHT_OFF_AUTO"; NODE_OFFLINE = "NODE_OFFLINE"; NODE_ONLINE = "NODE_ONLINE"
+    class LogLevel: ERROR = "ERROR"; WARNING = "WARNING"; INFO = "INFO"; CRITICAL = "CRITICAL"
     def log_event(log_type, level, node=None, sensor_type=None, details=None, source=None): logging.warning(f"[DUMMY_SYS_LOG] Type: {log_type}, Level: {level}, Node: {node}, Details: {details}, Source: {source}")
     def log_sensor_error(node, sensor_type, details, source): logging.warning(f"[DUMMY_SYS_LOG_SENSOR_ERROR] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
     def log_sensor_operational(node, sensor_type, details, source): logging.warning(f"[DUMMY_SYS_LOG_SENSOR_OPERATIONAL] Node: {node}, Sensor: {sensor_type}, Details: {details}, Source: {source}")
     def log_node_offline(node_name, details, level=LogLevel.WARNING, source="node_monitor"): logging.warning(f"[DUMMY_NODE_OFFLINE] Node: {node_name}, Details: {details}, Level: {level}, Source: {source}")
     def log_node_online(node_name, details, source="node_monitor"): logging.warning(f"[DUMMY_NODE_ONLINE] Node: {node_name}, Details: {details}, Source: {source}")
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,32 +32,57 @@ class SensorDataManager:
                 "dewasa": {}      
             },
             "averages": {"temp": None, "humidity": None, "light": None},
-            "timestamp": None, # This will be the hardware_send_timestamp_str
+            "timestamp": None,
             "actuators": { 
                 "fan": {"state": None, "mode": "auto"},
                 "light": {"state": None, "mode": "auto"}
             },
-            "log_data": { # New section for latency and log related data
+            "log_data": {
                 "hardware_send_timestamp_str": None,
                 "server_mqtt_recv_timestamp_str": None,
                 "mqtt_latency_ms": None,
                 "espnow_latency_penyemaian_ms": None,
                 "espnow_latency_dewasa_ms": None,
-                "websocket_send_timestamp_str": None, # Will be set before emitting
-                "packet_id": 0 # Simple packet counter
+                "websocket_send_timestamp_str": None,
+                "packet_id": 0,
+                # New fields for testing plan
+                "cpu_backend_percent": None,
+                "memory_backend_mb": None,
+                "mqtt_jitter_ms": None,
+                "espnow_penyemaian_jitter_ms": None,
+                "espnow_dewasa_jitter_ms": None,
+                "msgs_per_sec_backend": None,
+                "throughput_backend_percentage": None,
+                "packet_loss_backend_percentage": None,
             }
         }
         self.last_update = None
         self.mqtt_connected = False
         self.socketio = None 
         self.packet_counter = 0
-        self.source_identifier = "flask_sensor_manager" # For system logs
+        self.source_identifier = "flask_sensor_manager"
         self.node_online_status = {
             'penyemaian': True,
             'remaja': True,
             'dewasa': True
         }
         
+        # For psutil
+        self.process = psutil.Process(os.getpid())
+        self.process.cpu_percent(interval=None) # Initialize cpu_percent, first call returns 0.0 or None
+
+        # For jitter calculation
+        self.prev_mqtt_latency = None
+        self.prev_espnow_penyemaian_latency = None
+        self.prev_espnow_dewasa_latency = None
+
+        # For throughput/packet loss calculation
+        self.last_received_packet_id_from_payload = 0
+        self.total_expected_packets_from_payload = 0
+        self.time_first_packet_received = None
+        self.time_last_throughput_calc = time.monotonic()
+        self.packets_since_last_throughput_calc = 0
+
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
@@ -140,8 +168,10 @@ class SensorDataManager:
         if self.debug:
             logger.debug(f"Validating data structure: {json.dumps(data, indent=2)}")
         
-        # Expected top-level keys, including the new hardware_send_timestamp_str
         required_top_level_keys = ['hardware_send_timestamp_str', 'sections', 'averages', 'actuators']
+        if 'log_data' in data and isinstance(data['log_data'], dict) and 'packet_id' in data['log_data']:
+             pass # Simulator might be sending its own packet_id
+
         missing_top_level = [key for key in required_top_level_keys if key not in data]
         if missing_top_level:
             details = f"MQTT data missing top-level keys: {missing_top_level}. Data: {str(data)[:200]}"
@@ -260,15 +290,19 @@ class SensorDataManager:
         for section_name in expected_sections:
             self.latest_data["sections"][section_name] = data.get("sections", {}).get(section_name, {})
 
-        # --- Latency and Log Data Processing ---
+        # --- Performance and Latency Data Processing ---
         self.packet_counter += 1
-        self.latest_data["log_data"]["packet_id"] = self.packet_counter
+        self.packets_since_last_throughput_calc += 1
+
+        current_log_data = self.latest_data["log_data"]
+        current_log_data["packet_id"] = self.packet_counter
         
         hw_ts_str = data.get("hardware_send_timestamp_str")
-        self.latest_data["log_data"]["hardware_send_timestamp_str"] = hw_ts_str
-        self.latest_data["log_data"]["server_mqtt_recv_timestamp_str"] = server_mqtt_recv_time.isoformat().replace('+00:00', 'Z')
+        current_log_data["hardware_send_timestamp_str"] = hw_ts_str
+        current_log_data["server_mqtt_recv_timestamp_str"] = server_mqtt_recv_time.isoformat().replace('+00:00', 'Z')
 
-        mqtt_lat = None
+        # MQTT Latency
+        current_mqtt_latency = None
         if hw_ts_str and hw_ts_str != "N/A":
             try:
                 # Handle potential "Z" for UTC or offset like +07:00
@@ -281,68 +315,101 @@ class SensorDataManager:
                 if hw_ts_dt.tzinfo is None:
                      hw_ts_dt = hw_ts_dt.replace(tzinfo=timezone.utc)
 
-
-                mqtt_lat = (server_mqtt_recv_time - hw_ts_dt).total_seconds() * 1000
-                self.latest_data["log_data"]["mqtt_latency_ms"] = round(mqtt_lat, 2)
+                current_mqtt_latency = (server_mqtt_recv_time - hw_ts_dt).total_seconds() * 1000
+                current_log_data["mqtt_latency_ms"] = round(current_mqtt_latency, 2)
             except ValueError as ve:
                 logger.error(f"Error parsing hardware_send_timestamp_str '{hw_ts_str}': {ve}")
-                if system_logger_available:
-                    log_sensor_error(node="mqtt_data_validation", sensor_type="timestamp_parsing", details=f"Error parsing hardware_send_timestamp_str '{hw_ts_str}': {ve}", source=self.source_identifier)
-                self.latest_data["log_data"]["mqtt_latency_ms"] = None
+                current_log_data["mqtt_latency_ms"] = None
         else:
-            self.latest_data["log_data"]["mqtt_latency_ms"] = None
-            logger.warning("Hardware timestamp 'N/A' or missing, cannot calculate MQTT latency.")
-
-        # Extract ESP-NOW latencies
-        self.latest_data["log_data"]["espnow_latency_penyemaian_ms"] = data.get("sections", {}).get("penyemaian", {}).get("espnow_latency_ms")
-        self.latest_data["log_data"]["espnow_latency_dewasa_ms"] = data.get("sections", {}).get("dewasa", {}).get("espnow_latency_ms")
+            current_log_data["mqtt_latency_ms"] = None
         
-        # --- End Latency Processing ---
+        # MQTT Jitter
+        if current_mqtt_latency is not None and self.prev_mqtt_latency is not None:
+            current_log_data["mqtt_jitter_ms"] = round(abs(current_mqtt_latency - self.prev_mqtt_latency), 2)
+        else:
+            current_log_data["mqtt_jitter_ms"] = None
+        self.prev_mqtt_latency = current_mqtt_latency
 
-        expected_sections_in_payload = ["penyemaian", "remaja", "dewasa"]
-        for section_name in expected_sections_in_payload:
-            section_data = data.get("sections", {}).get(section_name, {})
-            section_data_present_and_valid = (
-                section_name in data.get("sections", {}) and 
-                isinstance(section_data, dict) and 
-                bool(section_data) and
-                # Check if at least one of the main sensor values is not null
-                any(section_data.get(key) is not None for key in ['temp', 'humidity', 'light'])
-            )
+        # ESP-NOW Latencies & Jitters
+        espnow_penyemaian_ms = data.get("sections", {}).get("penyemaian", {}).get("espnow_latency_ms")
+        current_log_data["espnow_latency_penyemaian_ms"] = espnow_penyemaian_ms
+        if espnow_penyemaian_ms is not None and self.prev_espnow_penyemaian_latency is not None and espnow_penyemaian_ms != -1 and self.prev_espnow_penyemaian_latency != -1:
+            current_log_data["espnow_penyemaian_jitter_ms"] = round(abs(espnow_penyemaian_ms - self.prev_espnow_penyemaian_latency), 2)
+        else:
+            current_log_data["espnow_penyemaian_jitter_ms"] = None
+        self.prev_espnow_penyemaian_latency = espnow_penyemaian_ms if espnow_penyemaian_ms != -1 else self.prev_espnow_penyemaian_latency
 
-            if section_data_present_and_valid:
-                if not self.node_online_status.get(section_name, False):
-                    self.node_online_status[section_name] = True
-                    if system_logger_available:
-                        log_node_online(node_name=section_name, details=f"Node {section_name} data received. Marking as online.")
-            else:
-                if self.node_online_status.get(section_name, True):
-                    self.node_online_status[section_name] = False
-                    level = LogLevel.CRITICAL if section_name == "remaja" else LogLevel.WARNING
-                    
-                    # Create more detailed message based on the issue
-                    if section_name not in data.get("sections", {}):
-                        details_msg = f"Node {section_name} data section is completely missing from MQTT payload."
-                    elif not isinstance(section_data, dict) or not section_data:
-                        details_msg = f"Node {section_name} data section is empty or invalid in MQTT payload."
-                    else:
-                        # All sensor values are null
-                        details_msg = f"Node {section_name} is sending null values for all sensors (temp, humidity, light). Node appears to be offline or malfunctioning."
-                    
-                    if section_name == "remaja" and level == LogLevel.CRITICAL:
-                         details_msg = f"CRITICAL: {details_msg} This indicates a problem on the Remaja Master itself."
-                    
-                    if system_logger_available:
-                        log_node_offline(node_name=section_name, details=details_msg, level=level)
+        espnow_dewasa_ms = data.get("sections", {}).get("dewasa", {}).get("espnow_latency_ms")
+        current_log_data["espnow_latency_dewasa_ms"] = espnow_dewasa_ms
+        if espnow_dewasa_ms is not None and self.prev_espnow_dewasa_latency is not None and espnow_dewasa_ms != -1 and self.prev_espnow_dewasa_latency != -1:
+            current_log_data["espnow_dewasa_jitter_ms"] = round(abs(espnow_dewasa_ms - self.prev_espnow_dewasa_latency), 2)
+        else:
+            current_log_data["espnow_dewasa_jitter_ms"] = None
+        self.prev_espnow_dewasa_latency = espnow_dewasa_ms if espnow_dewasa_ms != -1 else self.prev_espnow_dewasa_latency
+        
+        # Backend CPU and Memory
+        try:
+            current_log_data["cpu_backend_percent"] = round(self.process.cpu_percent(interval=None), 2)
+            memory_info = self.process.memory_info()
+            current_log_data["memory_backend_mb"] = round(memory_info.rss / (1024 * 1024), 2)
+        except Exception as e:
+            logger.warning(f"Could not get CPU/Memory stats: {e}")
+            current_log_data["cpu_backend_percent"] = None
+            current_log_data["memory_backend_mb"] = None
 
-        self.last_update = datetime.now(timezone.utc) # Use timezone-aware datetime
-        logger.info(f"Updated sensor data (Packet ID: {self.packet_counter}). MQTT Latency: {mqtt_lat if mqtt_lat is not None else 'N/A'} ms")
+        # Throughput and Packet Loss
+        payload_packet_id = None
+        if 'log_data' in data and isinstance(data['log_data'], dict) and 'packet_id' in data['log_data']:
+            payload_packet_id = data['log_data']['packet_id']
+        elif 'remaja' in data.get('sections', {}) and isinstance(data['sections']['remaja'], dict) and 'packet_id' in data['sections']['remaja']:
+            payload_packet_id = data['sections']['remaja']['packet_id']
+
+        if payload_packet_id is not None:
+            try:
+                payload_packet_id = int(payload_packet_id)
+                if self.time_first_packet_received is None:
+                    self.time_first_packet_received = time.monotonic()
+                    self.last_received_packet_id_from_payload = payload_packet_id - 1
+                
+                if payload_packet_id > self.total_expected_packets_from_payload:
+                    self.total_expected_packets_from_payload = payload_packet_id
+            
+            except ValueError:
+                logger.warning(f"Could not parse payload_packet_id '{payload_packet_id}' as int.")
+                payload_packet_id = None
+
+        # Calculate msgs_per_sec_backend
+        current_mono_time = time.monotonic()
+        elapsed_throughput_time = current_mono_time - self.time_last_throughput_calc
+        if elapsed_throughput_time >= 1.0:
+            current_log_data["msgs_per_sec_backend"] = round(self.packets_since_last_throughput_calc / elapsed_throughput_time, 2)
+            self.packets_since_last_throughput_calc = 0
+            self.time_last_throughput_calc = current_mono_time
+        elif "msgs_per_sec_backend" not in current_log_data or current_log_data["msgs_per_sec_backend"] is None:
+             current_log_data["msgs_per_sec_backend"] = self.latest_data["log_data"].get("msgs_per_sec_backend")
+
+        # Calculate throughput and packet loss
+        if payload_packet_id is not None and self.total_expected_packets_from_payload > 0:
+            processed_count_for_throughput = self.packet_counter
+            if processed_count_for_throughput > self.total_expected_packets_from_payload:
+                 logger.warning(f"Backend packet_counter ({processed_count_for_throughput}) > total_expected_from_payload ({self.total_expected_packets_from_payload}). Throughput might be >100% if not capped.")
+            
+            throughput_val = (processed_count_for_throughput / self.total_expected_packets_from_payload) * 100
+            current_log_data["throughput_backend_percentage"] = round(min(100.0, throughput_val), 2)
+            current_log_data["packet_loss_backend_percentage"] = round(max(0.0, 100.0 - current_log_data["throughput_backend_percentage"]), 2)
+        else:
+            current_log_data["throughput_backend_percentage"] = None
+            current_log_data["packet_loss_backend_percentage"] = None
+        
+        # --- End Performance Data ---
+
+        self.last_update = datetime.now(timezone.utc)
+        logger.info(f"Updated sensor data (Backend PID: {current_log_data['packet_id']}, Sim PID: {payload_packet_id if payload_packet_id is not None else 'N/A'}). MQTT Latency: {current_log_data['mqtt_latency_ms'] if current_log_data['mqtt_latency_ms'] is not None else 'N/A'} ms")
         if self.debug:
             logger.debug(f"Stored data (incl. log_data): {json.dumps(self.latest_data, indent=2)}")
 
         if self.socketio:
             try:
-                # Set WebSocket send timestamp just before emitting
                 self.latest_data["log_data"]["websocket_send_timestamp_str"] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
                 self.socketio.emit('sensor_update', self.latest_data)
                 logger.info("Emitted 'sensor_update' via WebSocket")
@@ -354,23 +421,30 @@ class SensorDataManager:
         current_time = datetime.now(timezone.utc)
         if not self.latest_data or self.latest_data.get("timestamp") is None or not self.last_update:
             logger.warning("No data available or no updates received yet")
-            # Return a structured None or default structure
-            return { # Return default structure
+            return {
                 "sections": { "penyemaian": {}, "remaja": {}, "dewasa": {} },
                 "averages": {"temp": None, "humidity": None, "light": None},
-                "timestamp": None, # hardware_send_timestamp_str
+                "timestamp": None,
                 "actuators": {
                     "fan": {"state": None, "mode": "auto"},
                     "light": {"state": None, "mode": "auto"}
                 },
-                "log_data": { # Default log_data
+                "log_data": {
                     "hardware_send_timestamp_str": None,
                     "server_mqtt_recv_timestamp_str": None,
                     "mqtt_latency_ms": None,
                     "espnow_latency_penyemaian_ms": None,
                     "espnow_latency_dewasa_ms": None,
                     "websocket_send_timestamp_str": None,
-                    "packet_id": 0
+                    "packet_id": 0,
+                    "cpu_backend_percent": None,
+                    "memory_backend_mb": None,
+                    "mqtt_jitter_ms": None,
+                    "espnow_penyemaian_jitter_ms": None,
+                    "espnow_dewasa_jitter_ms": None,
+                    "msgs_per_sec_backend": None,
+                    "throughput_backend_percentage": None,
+                    "packet_loss_backend_percentage": None,
                 },
                 "status_message": "No data available"
             }

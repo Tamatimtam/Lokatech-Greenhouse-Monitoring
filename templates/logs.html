@@ -45,6 +45,29 @@
     <div id="tab-performance" class="tab-content">
       {% call card.card('SUMMARY STATISTICS') %}
         <div id="log-summary-container" class="log-summary">
+            <!-- Backend Resource Metrics Section -->
+            <div class="summary-section">
+                <h3 class="summary-section-title"><i class="fas fa-server"></i> Backend Resource Metrics</h3>
+                <div class="summary-items-grid">
+                    <div class="summary-item summary-item--resource">
+                        <span class="summary-label">Avg. CPU Backend (%):</span>
+                        <span class="summary-value" id="avg-cpu-backend">-- %</span>
+                    </div>
+                    <div class="summary-item summary-item--resource">
+                        <span class="summary-label">Avg. RAM Backend (MB):</span>
+                        <span class="summary-value" id="avg-ram-backend">-- MB</span>
+                    </div>
+                    <div class="summary-item summary-item--resource summary-item--highlight">
+                        <span class="summary-label">Highest CPU Backend (%):</span>
+                        <span class="summary-value" id="max-cpu-backend">-- %</span>
+                    </div>
+                    <div class="summary-item summary-item--resource summary-item--highlight">
+                        <span class="summary-label">Highest RAM Backend (MB):</span>
+                        <span class="summary-value" id="max-ram-backend">-- MB</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Latency Metrics Section -->
             <div class="summary-section">
                 <h3 class="summary-section-title"><i class="fas fa-bolt"></i> Latency Metrics</h3>
@@ -74,7 +97,7 @@
             
             <!-- Jitter Metrics Section -->
             <div class="summary-section">
-                <h3 class="summary-section-title"><i class="fas fa-random"></i> Jitter Metrics</h3>
+                <h3 class="summary-section-title"><i class="fas fa-wave-square"></i> Jitter Metrics</h3>
                 <div class="summary-items-grid">
                     <div class="summary-item summary-item--jitter">
                         <span class="summary-label">Avg. ESP-NOW Jitter (Penyemaian):</span>
@@ -97,30 +120,34 @@
             
             <!-- Throughput & Packet Loss Section -->
             <div class="summary-section">
-                <h3 class="summary-section-title"><i class="fas fa-tachometer-alt"></i> Throughput & Packet Loss</h3>
+                <h3 class="summary-section-title"><i class="fas fa-exchange-alt"></i> Throughput & Packet Metrics</h3>
                 <div class="summary-items-grid">
                     <div class="summary-item summary-item--throughput">
-                        <span class="summary-label">Packets Received:</span>
+                        <span class="summary-label">Packets Received (Backend):</span>
                         <span class="summary-value" id="packets-received">0</span>
                     </div>
                     <div class="summary-item summary-item--throughput">
-                        <span class="summary-label">Expected Packets:</span>
+                        <span class="summary-label">Expected Packets (from Sim):</span>
                         <span class="summary-value" id="packets-expected">0</span>
                     </div>
-                    <div class="summary-item summary-item--throughput">
-                        <span class="summary-label">Throughput:</span>
-                        <span class="summary-value" id="throughput-percentage">0%</span>
+                     <div class="summary-item summary-item--throughput">
+                        <span class="summary-label">Messages Processed/Sec (Backend):</span>
+                        <span class="summary-value" id="msgs-per-sec-backend">--</span>
                     </div>
-                    <div class="summary-item summary-item--throughput">
-                        <span class="summary-label">Packet Loss:</span>
-                        <span class="summary-value" id="packet-loss-percentage">0%</span>
+                    <div class="summary-item summary-item--throughput summary-item--highlight">
+                        <span class="summary-label">Throughput (Backend vs Sim):</span>
+                        <span class="summary-value" id="throughput-percentage">-- %</span>
+                    </div>
+                    <div class="summary-item summary-item--throughput summary-item--highlight">
+                        <span class="summary-label">Packet Loss (Backend vs Sim):</span>
+                        <span class="summary-value" id="packet-loss-percentage">-- %</span>
                     </div>
                 </div>
             </div>
         </div>
       {% endcall %}
     
-      {% call card.card('DETAILED LOG ENTRIES') %}
+      {% call card.card('DETAILED PERFORMANCE LOG ENTRIES') %}
         <div class="log-controls">
             <button id="clearLogsButton" class="log-control-btn">Clear Logs</button>
             <label for="maxLogs">Max Logs to Display: </label>
@@ -133,23 +160,31 @@
           <table class="log-table">
             <thead>
               <tr>
-                <th>Packet ID</th>
+                <th>Backend Packet ID</th>
+                <th>Sim Packet ID</th>
                 <th>HW Send (UTC)</th>
                 <th>Server MQTT Recv (UTC)</th>
                 <th>Server WS Send (UTC)</th>
                 <th>FE WS Recv (Local)</th>
-                <th>ESP-P (ms)</th>
-                <th>ESP-D (ms)</th>
-                <th>MQTT (ms)</th>
-                <th>WS (ms)</th>
-                <th>Total (ms)</th>
+                <th>CPU Backend (%)</th>
+                <th>Memori Backend (MB)</th>
+                <th>Latensi ESP-P (ms)</th>
+                <th>Latensi ESP-D (ms)</th>
+                <th>Latensi MQTT (ms)</th>
+                <th>Latensi WS (ms)</th>
+                <th>Latensi Total (ms)</th>
+                <th>Jitter ESP-P (ms)</th>
+                <th>Jitter ESP-D (ms)</th>
                 <th>Jitter MQTT (ms)</th>
                 <th>Jitter WS (ms)</th>
+                <th>Pesan/Detik (Backend)</th>
+                <th>Throughput Backend (%)</th>
+                <th>Packet Loss Backend (%)</th>
               </tr>
             </thead>
             <tbody id="log-table-body">
               <!-- Log entries will be populated here by logs.js -->
-              <tr><td colspan="12" style="text-align:center;">Menunggu data log...</td></tr>
+              <tr><td colspan="20" style="text-align:center;">Menunggu data log...</td></tr>
             </tbody>
           </table>
         </div>
