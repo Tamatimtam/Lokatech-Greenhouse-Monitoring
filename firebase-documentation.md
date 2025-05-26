@@ -492,6 +492,14 @@ Key Firebase methods used in the application:
 - **Secure Communication**: All API requests use HTTPS
 
 ### 📝 Audit & Monitoring
-- **Activity Logging**: All authentication activities are logged with timestamp and IP
+- **Activity Logging**:
+  - System-level Firebase operations (e.g., token verification failures) are logged in `system_logs`.
+  - Specific user-initiated actions:
+    - Device control actions (e.g., turning a fan on/off).
+    - Profile display name changes.
+    - Account deletion attempts and successes.
+    - New user registrations.
+    These are logged in the dedicated `user_logs` collection, providing an audit trail for these key user lifecycle and interaction events. See `logs-user-documentation.md` for more details.
+  - *Note: Password reset or change events are not explicitly logged in `user_logs` to simplify the initial implementation and due to the Firebase-handled nature of these flows.*
 - **Error Tracking**: Detailed error logging for security investigation
 - **Anomaly Detection**: Suspicious activities are logged with warning level

@@ -188,11 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="LIGHT_OFF_AUTO">Light Off (Auto)</option>
                     <option value="NODE_OFFLINE">Node Offline</option>
                     <option value="NODE_ONLINE">Node Online</option>
-                    <option value="USER_FAN_ON">User Fan On</option>
-                    <option value="USER_FAN_OFF">User Fan Off</option>
-                    <option value="USER_LIGHT_ON">User Light On</option>
-                    <option value="USER_LIGHT_OFF">User Light Off</option>
-                    <option value="USER_CONTROL_ACTION">User Control Action (Other)</option>
+                    <!-- User-specific log types removed from system logs filter -->
                 </select>
                 <label for="logLevelFilter">Level: </label>
                 <select id="logLevelFilter" class="log-input">
@@ -222,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <th>Type</th>
                             <th>Node</th>
                             <th>Source</th>
-                            <th>User</th>
+                            <!-- <th>User</th> Removed User column -->
                             <th>Details</th>
                         </tr>
                     </thead>
@@ -243,6 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         tbody.innerHTML = ''; // Clear existing rows
         if (systemLogs.length === 0) {
+            // Adjusted colspan to 6 due to 6 columns total
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No system logs found for the selected criteria.</td></tr>';
         } else {            
             let previousLogTimestampWIB = null;
@@ -276,6 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         
                         const headerRow = document.createElement('tr');
+                        // Adjusted colspan to 6
                         headerRow.innerHTML = `<td colspan="6" class="time-group-header">
                             <i class="fas fa-clock"></i> ${formatter.format(currentLogTimestampWIB)} - ${formatter.format(new Date(currentLogTimestampWIB.getTime() + 10*60000))}
                         </td>`;
@@ -352,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Format details for better display
         const formattedDetails = log.details ? formatDetails(log.details) : '—';
-        const username = log.username || '—';
+        // const username = log.username || '—'; // Username variable correctly commented out
 
         tr.innerHTML = `
             <td class="log-timestamp">${timestampWIB}</td>
@@ -365,7 +363,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </td>
             <td>${log.node || '—'}</td>
             <td>${log.source || 'system'}</td>
-            <td>${username}</td>
             <td class="log-details" title="${log.details || '—'}">${formattedDetails}</td>
         `;
         return tr;
@@ -440,6 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'LIGHT_OFF_AUTO': { icon: 'fas fa-lightbulb', iconClass: 'light' },
             'NODE_OFFLINE': { icon: 'fas fa-server', iconClass: `node-offline ${level === 'CRITICAL' ? 'critical-alert-icon' : ''}`.trim() },
             'NODE_ONLINE': { icon: 'fas fa-server', iconClass: 'node-online' },
+            // User-specific icons are no longer primary for system logs, but keep for potential direct log_event calls.
             'USER_FAN_ON': { icon: 'fas fa-fan', iconClass: 'user-action fan-on' },
             'USER_FAN_OFF': { icon: 'fas fa-fan', iconClass: 'user-action fan-off' },
             'USER_LIGHT_ON': { icon: 'fas fa-lightbulb', iconClass: 'user-action light-on' },
@@ -454,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatLogType(type) {
         if (!type) return 'UNKNOWN';
         
-        // Handle specific user action types
+        // User action types are less relevant here now, but keep formatting for direct log_event calls.
         const userActionTypes = {
             'USER_FAN_ON': 'User Fan On',
             'USER_FAN_OFF': 'User Fan Off',

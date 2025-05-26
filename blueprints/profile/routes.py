@@ -5,6 +5,8 @@ import logging
 import firebase_admin
 from firebase_admin import auth
 import requests
+# Import for user activity logging
+from ..logs.firestore_logger import log_user_activity, UserActionType
 
 logger = logging.getLogger(__name__)
 
@@ -19,30 +21,40 @@ def profile():
 def update_profile():
     try:
         data = request.json
-        display_name = data.get('displayName')
+        new_display_name = data.get('displayName')
         
-        if not display_name or not display_name.strip():
+        if not new_display_name or not new_display_name.strip():
             logger.warning(f"Invalid display name attempt: {session['user']['email']}")
             return jsonify({'status': 'error', 'message': 'Nama tampilan tidak boleh kosong'}), 400
         
-        # Get user email from session
         email = session['user']['email']
-        
+        old_display_name = session['user'].get('name', '') # Capture old display name
+
         try:
-            # Get Firebase user by email (correct method)
             firebase_user = auth.get_user_by_email(email)
             
-            # Update Firebase user display name
             auth.update_user(
                 firebase_user.uid,
-                display_name=display_name
+                display_name=new_display_name
             )
             
-            # Update session
-            session['user']['name'] = display_name
+            session['user']['name'] = new_display_name
             session.modified = True
             
-            logger.info(f"Profile updated for user: {email}, new name: {display_name}")
+            # Log profile update activity
+            log_user_activity(
+                username=email,
+                action_type=UserActionType.PROFILE_UPDATE,
+                event_details={
+                    "field_updated": "displayName",
+                    "old_value": old_display_name,
+                    "new_value": new_display_name
+                },
+                source="profile_module",
+                ip_address=request.remote_addr
+            )
+            
+            logger.info(f"Profile updated for user: {email}, new name: {new_display_name}")
             return jsonify({'status': 'success', 'message': 'Profil berhasil diperbarui'})
         except auth.UserNotFoundError:
             logger.error(f"User not found in Firebase: {email}")
@@ -62,23 +74,21 @@ def delete_account():
     
     Requires password verification for security
     """
+    email = session['user']['email'] # Get email early for logging
     try:
         data = request.json
         password = data.get('password')
         
-        # Validate password is provided
         if not password:
-            logger.warning(f"Missing password in delete account attempt: {session['user']['email']}")
+            logger.warning(f"Missing password in delete account attempt: {email}")
+            # Log failed deletion attempt (missing password) - though this might be too noisy.
+            # Consider if logging every validation failure is necessary.
+            # For now, let's stick to the spec: log on failed deletion due to invalid password.
             return jsonify({'status': 'error', 'message': 'Kata sandi diperlukan untuk konfirmasi'}), 400
         
-        # Get user email from session
-        email = session['user']['email']
-        
         try:
-            # Get Firebase user by email
             firebase_user = auth.get_user_by_email(email)
             
-            # Verify password using Firebase REST API
             firebase_api_key = current_app.config.get('FIREBASE_API_KEY')
             if not firebase_api_key:
                 logger.error("Firebase API key not configured")
@@ -96,12 +106,35 @@ def delete_account():
             
             if not verify_response.ok:
                 logger.warning(f"Invalid password in delete account attempt: {email}")
+                # Log failed deletion attempt (invalid password)
+                log_user_activity(
+                    username=email,
+                    action_type=UserActionType.ACCOUNT_DELETED,
+                    event_details={
+                        "status": "failure",
+                        "reason": "invalid_password",
+                        "attempted_account_email": email
+                    },
+                    source="profile_module",
+                    ip_address=request.remote_addr
+                )
                 return jsonify({'status': 'error', 'message': 'Kata sandi tidak valid'}), 401
             
             # Step 2: Delete user account using Firebase Admin SDK
             auth.delete_user(firebase_user.uid)
             
-            # Clear user session
+            # Log successful deletion
+            log_user_activity(
+                username=email, # Username here is the email of the deleted account
+                action_type=UserActionType.ACCOUNT_DELETED,
+                event_details={
+                    "status": "success",
+                    "deleted_account_email": email 
+                },
+                source="profile_module",
+                ip_address=request.remote_addr
+            )
+            
             session.clear()
             
             logger.info(f"User account deleted successfully: {email}")
@@ -109,12 +142,26 @@ def delete_account():
             
         except auth.UserNotFoundError:
             logger.error(f"User not found in Firebase: {email}")
+            # Potentially log this as a system error rather than user activity if it implies inconsistency
             return jsonify({'status': 'error', 'message': 'Pengguna tidak ditemukan'}), 404
         except Exception as e:
             logger.error(f"Firebase account deletion error: {str(e)}")
+            # Log failed deletion attempt (other error)
+            log_user_activity(
+                username=email,
+                action_type=UserActionType.ACCOUNT_DELETED,
+                event_details={
+                    "status": "failure",
+                    "reason": f"firebase_error: {str(e)}",
+                    "attempted_account_email": email
+                },
+                source="profile_module",
+                ip_address=request.remote_addr
+            )
             return jsonify({'status': 'error', 'message': f'Gagal menghapus akun'}), 500
     except Exception as e:
         logger.error(f"Account deletion failed: {str(e)}")
+        # Generic error, consider if logging is needed here or if above catches are sufficient
         return jsonify({'status': 'error', 'message': f'Terjadi kesalahan sistem'}), 500
 
 # The validate_password function below is removed as it was only used by the
