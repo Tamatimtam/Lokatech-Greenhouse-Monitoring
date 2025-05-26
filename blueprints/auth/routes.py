@@ -5,6 +5,9 @@ import logging
 from . import bp
 from ..decorators import isloggedin
 import re # For email validation
+# Import for user activity logging
+from ..logs.firestore_logger import log_user_activity, UserActionType
+
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +85,15 @@ def register():
             # Create user in Firebase. email_verified is False by default.
             firebase_user = auth.create_user(email=email) 
             logger.info(f"User account created successfully in Firebase: {firebase_user.uid} for email {email}")
+            
+            # Log successful registration
+            log_user_activity(
+                username=email, # The newly registered email
+                action_type=UserActionType.REGISTRATION_SUCCESS,
+                event_details={"registered_email": email},
+                source="auth_module",
+                ip_address=request.remote_addr
+            )
             
             # Backend's job is done here for account creation.
             # Client will now trigger the password setup email.

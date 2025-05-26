@@ -1,0 +1,149 @@
+/* User Logs Specific Styles */
+
+.user-log-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--background-alt);
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.user-log-controls label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.user-log-controls .log-input,
+.user-log-controls .log-control-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.9rem;
+    background-color: var(--background-light);
+    color: var(--text-primary);
+}
+
+.user-log-controls .log-control-btn {
+    cursor: pointer;
+    background-color: var(--primary);
+    color: var(--white);
+    border-color: var(--primary);
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.user-log-controls .log-control-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+.user-log-controls .log-control-btn:active {
+    transform: translateY(1px);
+}
+
+.user-log-controls .log-control-btn i {
+    margin-right: var(--spacing-xs);
+}
+
+.user-log-entries-table-container {
+    overflow-x: auto;
+    background-color: var(--background-light);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-sm);
+}
+
+.user-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.user-log-table th,
+.user-log-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color-light);
+    vertical-align: top; /* Align content to the top for multi-line details */
+}
+
+.user-log-table th {
+    background-color: var(--background-alt);
+    color: var(--text-primary);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.user-log-table tbody tr:hover {
+    background-color: var(--background-highlight);
+}
+
+.user-log-table .log-timestamp {
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.user-log-table .log-username {
+    font-weight: 500;
+    color: var(--primary-dark);
+}
+
+.user-log-table .log-action-type {
+    font-style: italic;
+    color: var(--accent-color); /* Example color, adjust as needed */
+}
+
+.user-log-table .log-ip-address {
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--success);
+}
+
+.user-log-table .log-source {
+    color: var(--text-tertiary);
+}
+
+.user-log-table .log-details-cell pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+    background-color: var(--background-code);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    max-height: 150px; /* Limit height and make scrollable if needed */
+    overflow-y: auto;
+    font-size: 0.85em;
+    color: var(--text-code);
+    border: 1px solid var(--border-color-light);
+}
+
+.user-log-count {
+    margin-left: auto;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Loading and Error States */
+.user-log-content .loading-indicator,
+.user-log-content .alert {
+    padding: var(--spacing-lg);
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.user-log-content .alert-danger {
+    background-color: var(--danger-light);
+    color: var(--danger-dark);
+    border: 1px solid var(--danger);
+    border-radius: var(--border-radius-md);
+}
+
+.user-log-content .alert-danger i {
+    margin-right: var(--spacing-sm);
+}

@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 MQTT_CONTROL_TOPIC = "lokatech/greenhouse/controls/set"
 
 try:
-    from ..logs.firestore_logger import log_user_action, LogType, LogLevel
+    from ..logs.firestore_logger import log_user_action, UserActionType # Added UserActionType for consistency, though not directly used here
     system_logger_available = True
 except ImportError:
     system_logger_available = False
-    def log_user_action(username, action_description, device=None, node_affected="remaja", source="user_interface"):
-        logging.warning(f"[DUMMY_USER_ACTION_LOG] User: {username}, Action: {action_description}, Device: {device}, Node: {node_affected}, Source: {source}")
+    # Ensure the dummy function matches the new signature if system_logger is not available
+    def log_user_action(username, action_description, device=None, node_affected="remaja", source="user_interface", ip_address=None):
+        logging.warning(f"[DUMMY_USER_ACTION_LOG] User: {username}, Action: {action_description}, Device: {device}, Node: {node_affected}, Source: {source}, IP: {ip_address}")
 
 @bp.route("/")
 @isloggedin
@@ -65,7 +66,15 @@ def set_control_state():
             if system_logger_available:
                 user_email = session['user'].get('email', 'unknown_user')
                 action_details = f"Set {device} to {'ON' if state else 'OFF'}, mode to {mode}."
-                log_user_action(username=user_email, action_description=action_details, device=device, node_affected="remaja")
+                # Pass ip_address to log_user_action
+                log_user_action(
+                    username=user_email, 
+                    action_description=action_details, 
+                    device=device, 
+                    node_affected="remaja", # Assuming 'remaja' is the target node for dashboard controls
+                    source="dashboard_controls",
+                    ip_address=request.remote_addr
+                )
 
             # Update the local state in sensor_manager for immediate feedback on dashboard
             if device in sensor_manager.latest_data.get('actuators', {}):

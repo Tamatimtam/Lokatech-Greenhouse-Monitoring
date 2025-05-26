@@ -153,6 +153,7 @@ async function handleRequestPasswordChangeEmail(modal, closeModal) {
     - Firebase's secure link generation, handling, and its password setting page.
 - This flow eliminates the need for the application to handle or verify the user's current password for a password change initiated by an already logged-in user.
 - It aligns with standard web practices for password changes and resets.
+- **Auditing**: Profile display name updates are logged in the `user_logs` collection. Password change requests themselves (i.e., sending the reset email) are *not* logged in `user_logs` in the current implementation. See `logs-user-documentation.md`.
 
 ### Logout
 
@@ -265,6 +266,7 @@ function deleteAccount(password) {
 - **Backend Verification**: Password check happens securely on the server using Firebase REST API.
 - **Irreversible Action**: Clearly communicated to the user in the modal.
 - **Session Clearing**: Immediately logs the user out upon successful deletion.
+- **Auditing**: Account deletion events (both successful and failed attempts due to incorrect password) are logged in the `user_logs` collection. See `logs-user-documentation.md`.
 
 ### Modal System
 
@@ -568,12 +570,12 @@ The Profile System provides a comprehensive user account management solution wit
 
 ### Complete Feature-Code Map
 
-| Feature | Frontend Files | JavaScript Functions | Backend Routes |
-|---------|---------------|---------------------|---------------|
-| Profile Display | profile.html (lines 27-37) | `updateProfileDisplay()` in profile-page.js | GET /profile/ |
-| Profile Editing | profile.html (lines 57-91) | `handleProfileUpdate()` in profile-page.js | POST /profile/update |
-| Password Management | profile.html (lines 93-140) | Functions in profile-password.js:<br>- `setupPasswordValidation()`<br>- `handlePasswordUpdate()`<br>- `validatePassword()`<br>- `isPasswordValid()` | POST /profile/password |
-| Logout | profile.html (lines 49-52, 153-159) | `initModal()`, `handleLogout()` in profile-page.js | POST /auth/logout |
-| Account Deletion | profile.html (lines 53-56, 135-151) | `initModal()`, `handleDeleteAccount()`, `deleteAccount()` in profile-page.js | POST /profile/delete |
-| Modal System | macros/modal.html | `initModal()`, `closeAllModals()` in profile-page.js | N/A (frontend only) |
-| Notifications | Generated via JS | `showToast()`, `showValidationError()` in profile-page.js | N/A (frontend only) |
+| Feature | Frontend Files | JavaScript Functions | Backend Routes | User Logged |
+|---------|---------------|---------------------|---------------|-------------|
+| Profile Display | profile.html (lines 27-37) | `updateProfileDisplay()` in profile-page.js | GET /profile/ | No |
+| Profile Editing (Display Name) | profile.html (lines 57-91) | `handleProfileUpdate()` in profile-page.js | POST /profile/update | Yes (`PROFILE_UPDATE`) |
+| Password Management (Request Change Email) | profile.html (lines 93-140) | `handleRequestPasswordChangeEmail()` in profile-page.js | N/A (Client-side Firebase) | No |
+| Logout | profile.html (lines 49-52, 153-159) | `initModal()`, `handleLogout()` in profile-page.js | POST /auth/logout | No (Was previously considered, but removed from focused scope) |
+| Account Deletion | profile.html (lines 53-56, 135-151) | `initModal()`, `handleDeleteAccount()`, `deleteAccount()` in profile-page.js | POST /profile/delete | Yes (`ACCOUNT_DELETED`) |
+| Modal System | macros/modal.html | `initModal()`, `closeAllModals()` in profile-page.js | N/A (frontend only) | N/A |
+| Notifications | Generated via JS | `showToast()`, `showValidationError()` in profile-page.js | N/A (frontend only) | N/A |

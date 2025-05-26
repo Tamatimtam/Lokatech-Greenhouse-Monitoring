@@ -44,7 +44,7 @@ class LogType(Enum):
     NODE_OFFLINE = "NODE_OFFLINE"         # 📴 Satellite node offline
     NODE_ONLINE = "NODE_ONLINE"           # 📶 Satellite node online
     
-    # User Actions
+    # User Actions (Note: Device control actions like USER_FAN_ON, etc., are now primarily logged to 'user_logs' via log_user_action. These enums might be used if other system parts log user interactions directly to system_logs.)
     USER_FAN_ON = "USER_FAN_ON"           # 👤🌀 User turned fan on
     USER_FAN_OFF = "USER_FAN_OFF"         # 👤🛑 User turned fan off
     USER_LIGHT_ON = "USER_LIGHT_ON"       # 👤💡 User turned light on
@@ -71,7 +71,7 @@ def log_event(
     sensor_type: str = None, # 🌡️ Which sensor (if applicable)
     details: str = None,   # 📄 Detailed description
     source: str = "system", # 📍 Where it came from
-    username: str = None   # 👤 Who did it (for user actions)
+    username: str = None   # 👤 Who did it (for user actions not covered by user_logs)
 ) -> bool
 ```
 
@@ -89,8 +89,8 @@ log_connection_restored(details, source, node)
 log_node_offline(node_name, details, level, source)
 log_node_online(node_name, details, source)
 
-# 👤 User Actions
-log_user_action(username, action_description, device, node_affected, source)
+# 👤 User Actions (Note: This function now logs to the 'user_logs' collection, not 'system_logs')
+log_user_action(username, action_description, device, node_affected, source) # Now includes ip_address
 ```
 
 ##### 📊 `get_system_logs()` - Retrieve Logs
@@ -131,8 +131,8 @@ log_user_action(username, action_description, device, node_affected, source)
 | Node | 🏠 Affected component |
 | Sensor Type | 🌡️ Sensor involved |
 | Source | 📍 Origin module |
-| Username | 👤 User (for user actions) |
 | Details | 📄 Full description |
+<!-- Removed "Username" column as it's no longer in the system_logs CSV export -->
 
 </details>
 
@@ -152,7 +152,7 @@ Each document contains:
   "sensor_type": "temp",                       // 🌡️ Sensor (optional)
   "details": "Node dewasa is sending null...", // 📄 Description
   "source": "flask_sensor_manager",           // 📍 Origin
-  "username": "user@example.com"              // 👤 User (optional)
+  "username": "user@example.com"              // 👤 User (optional, though device control actions are now in user_logs)
 }
 ```
 
@@ -325,17 +325,21 @@ if section_data_present_and_valid:
 #### 🎛️ **Manual Control Logging**
 ```python
 # 📝 When user changes actuator settings
-if system_logger_available:
+if system_logger_available: # This check might need to be for the user_logger or a general logger availability
     user_email = session['user'].get('email', 'unknown_user')
     action_details = f"Set {device} to {'ON' if state else 'OFF'}, mode to {mode}."
-    log_user_action(username=user_email, action_description=action_details, device=device)
+    # Note: log_user_action now logs to 'user_logs' collection and includes IP address.
+    # Ensure ip_address (e.g., request.remote_addr) is passed here.
+    # Example: firestore_logger.log_user_action(username=user_email, action_description=action_details, device=device, node_affected=node_name, source="dashboard_controls", ip_address=request.remote_addr)
+    log_user_action(username=user_email, action_description=action_details, device=device, node_affected="remaja", source="dashboard_controls", ip_address="<ip_address_here>")
 ```
 
-**Captures:**
+**Captures (in `user_logs`):**
 - 👤 **Who**: User email address
-- 🎯 **What**: Device and action (Fan ON/OFF, Light ON/OFF)
+- 🎯 **What**: Device and action (Fan ON/OFF, Light ON/OFF), and other event_details
 - 🕐 **When**: Timestamp of action
 - 🏠 **Where**: Target node (usually "remaja")
+- 🌐 **IP Address**: User's IP address
 
 </details>
 
@@ -439,8 +443,8 @@ def on_disconnect(self, client, userdata, rc):
 ```bash
 # 1. 🌐 Go to Dashboard
 # 2. 🎛️ Turn fan ON/OFF or change mode to Auto/Manual  
-# 3. 📊 Check System Logs
-# Expected: 👤🌀 USER_FAN_ON or 👤🛑 USER_FAN_OFF log with your username
+# 3. 📊 Check User Logs (not System Logs)
+# Expected: Log entry in 'user_logs' collection with action_type 'DEVICE_CONTROL', your username, IP address, and event details.
 ```
 
 #### 📥 **Test CSV Export**
@@ -486,8 +490,8 @@ def on_disconnect(self, client, userdata, rc):
 | **🌡️ Sensors** | ERROR, OPERATIONAL | 🚨 ✅ |
 | **🔌 Connection** | LOST, RESTORED | 🔌 🔗 |
 | **🏠 Nodes** | OFFLINE, ONLINE | 📴 📶 |
-| **👤 User Actions** | FAN_ON/OFF, LIGHT_ON/OFF | 🌀 💡 |
 | **🤖 Auto Actions** | FAN_AUTO, LIGHT_AUTO | 🤖🌀 🤖💡 |
+<!-- User device control actions are now primarily in user_logs. System logs might still contain other user-related LogTypes if logged directly via log_event. -->
 
 </details>
 

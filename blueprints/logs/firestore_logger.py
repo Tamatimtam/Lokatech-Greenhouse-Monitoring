@@ -7,7 +7,7 @@ import pytz
 from enum import Enum
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-from typing import Optional  # Add this import
+from typing import Optional, Dict, Any # Add Dict and Any
 
 # Constants for log types (keep as is)
 class LogType(Enum):
@@ -27,6 +27,12 @@ class LogType(Enum):
     USER_LIGHT_ON = "USER_LIGHT_ON"
     USER_LIGHT_OFF = "USER_LIGHT_OFF"
     USER_CONTROL_ACTION = "USER_CONTROL_ACTION"  # Keep as fallback for unknown devices
+
+class UserActionType(Enum):
+    DEVICE_CONTROL = "DEVICE_CONTROL"
+    PROFILE_UPDATE = "PROFILE_UPDATE"
+    ACCOUNT_DELETED = "ACCOUNT_DELETED"
+    REGISTRATION_SUCCESS = "REGISTRATION_SUCCESS"
 
 class LogLevel(Enum):
     # ... your LogLevel enum ...
@@ -131,34 +137,75 @@ def log_node_offline(node_name: str, details: str, level: LogLevel = LogLevel.WA
 def log_node_online(node_name: str, details: str, source: str = "node_monitor"):
     log_event(LogType.NODE_ONLINE, LogLevel.INFO, node=node_name, details=details, source=source)
 
-def log_user_action(username: str, action_description: str, device: Optional[str] = None, node_affected: Optional[str] = "remaja", source: str = "user_interface"):
-    # Determine specific log type based on device and action
-    log_type = LogType.USER_CONTROL_ACTION  # Default fallback
-    
-    if device and "state" in action_description:
-        if device.lower() == "fan":
-            if "ON" in action_description.upper():
-                log_type = LogType.USER_FAN_ON
-            elif "OFF" in action_description.upper():
-                log_type = LogType.USER_FAN_OFF
-        elif device.lower() == "light":
-            if "ON" in action_description.upper():
-                log_type = LogType.USER_LIGHT_ON
-            elif "OFF" in action_description.upper():
-                log_type = LogType.USER_LIGHT_OFF
-    
-    details_message = f"User '{username}' performed action: {action_description}."
-    if device:
-        details_message += f" Target Device: {device}."
-    
-    log_event(
-        log_type=log_type,
-        level=LogLevel.INFO,
-        node=node_affected,
-        details=details_message,
+# Refactored log_user_action
+def log_user_action(
+    username: str, 
+    action_description: str, 
+    device: Optional[str], 
+    node_affected: Optional[str], 
+    source: str, 
+    ip_address: Optional[str]
+):
+    """
+    Logs a user-initiated action to the user_logs collection.
+    This function is specifically for UserActionType.DEVICE_CONTROL.
+    """
+    event_details = {
+        "action_summary": action_description,
+        "device": device,
+        "node_affected": node_affected
+    }
+    log_user_activity(
+        username=username,
+        action_type=UserActionType.DEVICE_CONTROL,
+        event_details=event_details,
         source=source,
-        username=username
+        ip_address=ip_address
     )
+
+def log_user_activity(
+    username: str, 
+    action_type: UserActionType, 
+    event_details: Dict[str, Any], 
+    source: str, 
+    ip_address: Optional[str]
+):
+    """
+    Logs a specific user activity to the 'user_logs' Firestore collection.
+    """
+    db_client_instance = get_firestore_db()
+    if not db_client_instance:
+        print(f"FALLBACK_LOG (log_user_activity): Firestore DB not available. User: {username}, ActionType: {action_type.value}, Details: {event_details}, Source: {source}")
+        return False
+
+    try:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        now_wib = now_utc.astimezone(wib_timezone)
+        
+        log_data = {
+            "timestamp": now_utc,
+            "timestamp_wib": now_wib.isoformat(),
+            "username": username,
+            "action_type": action_type.value,
+            "event_details": event_details,
+            "source": source,
+        }
+        if ip_address:
+            log_data["ip_address"] = ip_address
+        
+        random_suffix = os.urandom(3).hex()
+        log_id = f"{now_wib.strftime('%Y-%m-%d %H:%M:%S.%f')}-{random_suffix}"
+        
+        db_client_instance.collection('user_logs').document(log_id).set(log_data)
+        
+        print(f"DEBUG: User activity log successfully added/set to Firestore with ID '{log_id}'. User: {username}, ActionType: {action_type.value}")
+        return True
+    
+    except Exception as e:
+        print(f"Error creating user activity log entry: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 # --- Function to retrieve logs (can be expanded later) ---
 def get_system_logs(
@@ -191,7 +238,7 @@ def get_system_logs(
                 query = query.where('node', '==', node_filter)
             
             # Reduce initial limit to prevent timeout
-            actual_limit = min(limit, 500)  # Even smaller limit
+            actual_limit = min(limit, 500) # Even smaller limit
             query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(actual_limit)
             
             print(f"DEBUG: Executing Firestore query with limit {actual_limit}")
@@ -225,6 +272,67 @@ def get_system_logs(
                 
     except Exception as e:
         print(f"Error retrieving system logs: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+def get_user_logs(
+    days: int = 7, 
+    log_type_filter: Optional[str] = None, # This will filter by UserActionType.value
+    username_filter: Optional[str] = None,
+    limit: int = 100
+):
+    db_client_instance = get_firestore_db()
+    if not db_client_instance: 
+        return []
+    
+    def _query_firestore_user_logs():
+        """Inner function to execute the Firestore query for user_logs."""
+        try:
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            start_date_utc = now_utc - datetime.timedelta(days=days)
+
+            query = db_client_instance.collection('user_logs')
+            query = query.where('timestamp', '>=', start_date_utc)
+            
+            if log_type_filter: # Corresponds to 'action_type' field in user_logs
+                query = query.where('action_type', '==', log_type_filter)
+            if username_filter:
+                query = query.where('username', '==', username_filter)
+            
+            actual_limit = min(limit, 500) 
+            query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(actual_limit)
+            
+            print(f"DEBUG: Executing Firestore query on user_logs with limit {actual_limit}")
+            docs = query.stream()
+            
+            results = []
+            for doc in docs:
+                log_entry = doc.to_dict()
+                log_entry['id'] = doc.id 
+                if isinstance(log_entry.get('timestamp'), datetime.datetime):
+                    log_entry['timestamp'] = log_entry['timestamp'].isoformat()
+                results.append(log_entry)
+            
+            return results
+            
+        except Exception as e:
+            print(f"Error in _query_firestore_user_logs: {e}")
+            return []
+    
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_query_firestore_user_logs)
+            try:
+                results = future.result(timeout=10) 
+                print(f"DEBUG: Successfully retrieved {len(results)} user logs")
+                return results
+            except FutureTimeoutError:
+                print("ERROR: Firestore user_logs query timed out after 10 seconds")
+                return []
+                
+    except Exception as e:
+        print(f"Error retrieving user logs: {e}")
         import traceback
         traceback.print_exc()
         return []
