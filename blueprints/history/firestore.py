@@ -22,7 +22,7 @@ def get_firestore_db():
 
 def get_historical_data(section=None, days=7, data_type=None):
     """
-    Retrieve historical greenhouse data from Firestore.
+    Retrieve historical greenhouse data from Firestore using smart sampling.
     
     Args:
         section (str, optional): The greenhouse section: 'dewasa', 'remaja', 'penyemaian', or 'averages'. 
@@ -31,63 +31,116 @@ def get_historical_data(section=None, days=7, data_type=None):
         data_type (str, optional): 'temps', 'humidities', or 'lights'. If None, all types.
     
     Returns:
-        list: List of data points ordered by timestamp
+        list: List of sampled data points ordered by timestamp
     """
     db = get_firestore_db()
     if not db: return []
     
     try:
-        # Calculate date limit in WIB, then convert to UTC for Firestore query
         now_wib = datetime.datetime.now(wib_timezone)
-        date_limit_wib = now_wib - datetime.timedelta(days=days)
-        date_limit_utc = date_limit_wib.astimezone(datetime.timezone.utc)
+        start_date_wib = now_wib - datetime.timedelta(days=days)
         
-        query = db.collection('greenhouse_data').where('timestamp', '>=', date_limit_utc).order_by('timestamp')
-        docs = query.stream()
         results = []
+        
+        # --- SMART SAMPLING LOGIC ---
+        # Determine target number of points based on date range
+        points_to_target = 0
+        if days <= 1:  # For 1 day (every 15 minutes)
+            points_to_target = 96 
+        elif days <= 7:  # For 7 days (hourly samples)
+            points_to_target = days * 24 
+        else:  # For 30+ days (every 3 hours)
+            points_to_target = days * 8 
+        
+        # Ensure minimum number of points
+        points_to_target = max(points_to_target, 24)
 
-        for doc in docs:
-            data = doc.to_dict()
-            timestamp = data.get('timestamp')
-            # Convert Firestore timestamp (assumed UTC if no tzinfo) to WIB
-            timestamp_wib = None
-            if isinstance(timestamp, datetime.datetime):
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=datetime.timezone.utc) # Assume UTC if no tzinfo
-                timestamp_wib = timestamp.astimezone(wib_timezone)
+        total_duration_seconds = days * 24 * 60 * 60
+        if total_duration_seconds <= 0:
+            total_duration_seconds = (now_wib - start_date_wib).total_seconds()
 
-            result_point = {'timestamp': timestamp_wib.isoformat() if timestamp_wib else None, 'data': {}} # Use ISO format for JS
+        if total_duration_seconds <= 0 or points_to_target == 0:
+             time_increment_seconds = 3600  # Default to 1 hour
+        else:
+            time_increment_seconds = total_duration_seconds / points_to_target
+        
+        current_query_target_wib = start_date_wib
+
+        # Fetch spaced-out data points
+        for i in range(int(points_to_target)):
+            # Define search window around target time
+            window_half_size_seconds = max(60, time_increment_seconds / 4)
             
-            stats_data = data.get('stats', {})
-            
-            # Valid sections now include 'remaja'
-            valid_sections = ['dewasa', 'remaja', 'penyemaian', 'averages']
+            query_window_start_wib = current_query_target_wib - datetime.timedelta(seconds=window_half_size_seconds / 2)
+            query_window_end_wib = current_query_target_wib + datetime.timedelta(seconds=window_half_size_seconds / 2)
 
-            if section and section in valid_sections:
-                if section in stats_data:
-                    section_stats = stats_data[section]
-                    if data_type:
-                        if data_type in section_stats and section_stats[data_type] is not None: # Check for None
-                            result_point['data'][section] = {data_type: section_stats[data_type]}
-                    elif section_stats is not None: # Check for None
-                        result_point['data'][section] = section_stats
-            elif not section: # All sections
-                for sec_name, sec_stats in stats_data.items():
-                    if sec_name not in valid_sections or sec_stats is None: continue # Skip if not valid or None
+            # Convert to UTC for Firestore
+            query_window_start_utc = query_window_start_wib.astimezone(datetime.timezone.utc)
+            query_window_end_utc = query_window_end_wib.astimezone(datetime.timezone.utc)
+
+            # Fetch one document in this window
+            query = db.collection('greenhouse_data') \
+                      .where('timestamp', '>=', query_window_start_utc) \
+                      .where('timestamp', '<=', query_window_end_utc) \
+                      .order_by('timestamp') \
+                      .limit(1)
+            
+            docs_in_window = list(query.stream())
+
+            if docs_in_window:
+                doc = docs_in_window[0]
+                data = doc.to_dict()
+                timestamp = data.get('timestamp')
+                timestamp_wib = None
+                if isinstance(timestamp, datetime.datetime):
+                    if timestamp.tzinfo is None:
+                        timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+                    timestamp_wib = timestamp.astimezone(wib_timezone)
+
+                if timestamp_wib:
+                    result_point = {'timestamp': timestamp_wib.isoformat(), 'data': {}}
+                    stats_data = data.get('stats', {})
+                    valid_sections = ['dewasa', 'remaja', 'penyemaian', 'averages']
+
+                    if section and section in valid_sections:
+                        if section in stats_data:
+                            section_stats = stats_data[section]
+                            if data_type:
+                                if data_type in section_stats and section_stats[data_type] is not None:
+                                    result_point['data'][section] = {data_type: section_stats[data_type]}
+                            elif section_stats is not None:
+                                result_point['data'][section] = section_stats
+                    elif not section:  # All sections
+                        for sec_name, sec_stats in stats_data.items():
+                            if sec_name not in valid_sections or sec_stats is None: continue
+                            if data_type:
+                                if data_type in sec_stats and sec_stats[data_type] is not None:
+                                    if sec_name not in result_point['data']: result_point['data'][sec_name] = {}
+                                    result_point['data'][sec_name][data_type] = sec_stats[data_type]
+                            else:
+                                result_point['data'][sec_name] = sec_stats
                     
-                    if data_type:
-                        if data_type in sec_stats and sec_stats[data_type] is not None: # Check for None
-                            if sec_name not in result_point['data']: result_point['data'][sec_name] = {}
-                            result_point['data'][sec_name][data_type] = sec_stats[data_type]
-                    else:
-                        result_point['data'][sec_name] = sec_stats
+                    if result_point['data']:
+                        # Avoid duplicates from overlapping windows
+                        is_duplicate = False
+                        for res_item in results:
+                            if res_item['timestamp'] == timestamp_wib.isoformat():
+                                is_duplicate = True
+                                break
+                        if not is_duplicate:
+                            results.append(result_point)
             
-            if result_point['data']: # Only add if there's some data
-                results.append(result_point)
+            current_query_target_wib += datetime.timedelta(seconds=time_increment_seconds)
+            if current_query_target_wib > now_wib:
+                break
+        
+        # Sort results by timestamp
+        results.sort(key=lambda x: x['timestamp'])
+        # --- END SMART SAMPLING LOGIC ---
         
         return results
     except Exception as e:
-        print(f"Error retrieving historical data: {e}")
+        print(f"Error retrieving historical data (sampled): {e}")
         import traceback
         traceback.print_exc()
         return []
