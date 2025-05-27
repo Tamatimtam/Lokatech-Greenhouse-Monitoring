@@ -280,6 +280,32 @@ class SensorDataManager:
                             details=f"Sensor {sensor_key} in {section_name} reported 0 (error state) upon first valid data.",
                             source=self.source_identifier + "_data_monitor"
                         )
+
+        # --- Node Offline/Online Detection ---
+        if system_logger_available:
+            expected_sections_for_node_check = ["penyemaian", "remaja", "dewasa"]
+            for section_name in expected_sections_for_node_check:
+                new_section_data = data.get("sections", {}).get(section_name, {})
+                
+                # Check if all primary sensor values are null (indicating node offline)
+                primary_sensors = ['temp', 'humidity', 'light']
+                all_sensors_null = all(new_section_data.get(sensor) is None for sensor in primary_sensors)
+                
+                # Get previous online status (default to True if not tracked yet)
+                was_online = self.node_online_status.get(section_name, True)
+                
+                if all_sensors_null and was_online:
+                    # Node just went offline
+                    self.node_online_status[section_name] = False
+                    level = LogLevel.CRITICAL if section_name == "remaja" else LogLevel.WARNING
+                    details_msg = f"Node {section_name} is sending null values for all sensors (temp, humidity, light). Node considered offline."
+                    log_node_offline(node_name=section_name, details=details_msg, level=level, source=self.source_identifier + "_null_detection")
+                    
+                elif not all_sensors_null and not was_online:
+                    # Node came back online
+                    self.node_online_status[section_name] = True
+                    details_msg = f"Node {section_name} data received. Node is back online."
+                    log_node_online(node_name=section_name, details=details_msg, source=self.source_identifier + "_null_detection")
  
 
         # Store core data
