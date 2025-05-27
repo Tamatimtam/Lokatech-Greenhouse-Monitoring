@@ -151,6 +151,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (nodeFilterEl && filters.node) nodeFilterEl.value = filters.node;
     }
 
+    // Add helper function to translate node names for display
+    function translateNodeNameForDisplay(nodeName) {
+        if (!nodeName) return '—';
+        switch (nodeName.toLowerCase()) {
+            case 'remaja':
+                return 'Meja Apung';
+            case 'penyemaian':
+                return 'Peremajaan';
+            case 'dewasa':
+                return 'Dewasa';
+            case 'server':
+                return 'Server';
+            default:
+                return nodeName.charAt(0).toUpperCase() + nodeName.slice(1);
+        }
+    }
+
     function displaySystemLogsUI() {
         if (!systemLogContent) {
             console.error('System Log content area (tab-system) not found.');
@@ -201,8 +218,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <label for="logNodeFilter">Node: </label>
                 <select id="logNodeFilter" class="log-input">
                     <option value="">All Nodes</option>
-                    <option value="penyemaian">Penyemaian</option>
-                    <option value="remaja">Remaja</option>
+                    <option value="penyemaian">Peremajaan</option>
+                    <option value="remaja">Meja Apung</option>
                     <option value="dewasa">Dewasa</option>
                     <option value="server">Server</option>
                     <!-- Add other relevant nodes if any -->
@@ -350,7 +367,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Format details for better display
         const formattedDetails = log.details ? formatDetails(log.details) : '—';
-        // const username = log.username || '—'; // Username variable correctly commented out
+        // Use translated node name for display
+        const nodeDisplay = translateNodeNameForDisplay(log.node);
 
         tr.innerHTML = `
             <td class="log-timestamp">${timestampWIB}</td>
@@ -361,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${formatLogType(log.type)}${log.sensor_type ? ` (${log.sensor_type})` : ''}
                 </div>
             </td>
-            <td>${log.node || '—'}</td>
+            <td>${nodeDisplay}</td>
             <td>${log.source || 'system'}</td>
             <td class="log-details" title="${log.details || '—'}">${formattedDetails}</td>
         `;
