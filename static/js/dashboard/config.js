@@ -10,5 +10,5 @@ export const CONNECTION_TIMEOUT_DURATION = 8000; // ms to detect connection loss
 export const THRESHOLDS = {
     temp: { low: 9, high: 31, name: "Suhu" }, 
     humidity: { low: 50, high: 85, name: "Kelembapan" }, 
-    light: { dark: 150, name: "Cahaya" } 
+    light: { dark: 100, name: "Cahaya" } 
 };

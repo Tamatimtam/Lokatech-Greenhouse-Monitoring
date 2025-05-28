@@ -34,7 +34,7 @@ cahaya = ctrl.Antecedent(light_range, 'Intensitas Cahaya (lux)')
 # ---------------------------------------------------------
 
 # Suhu MFs - Adjusted for better control
-suhu['Dingin'] = fuzz.trapmf(suhu.universe, [-1, -1, 5, 8])      # Falls to 0.5 at 20°C
+# suhu['Dingin'] = fuzz.trapmf(suhu.universe, [-1, -1, 5, 8])      # Falls to 0.5 at 20°C # REMOVED
 suhu['Optimal'] = fuzz.trapmf(suhu.universe, [5, 10, 29, 31])    # Full membership 22-24°C, ends at 27°C
 suhu['Panas'] = fuzz.trapmf(suhu.universe, [30, 32, 40, 40])      # Starts at 27°C, reaches 0.5 at 30°C
 
@@ -45,9 +45,9 @@ kelembaban['Lembab'] = fuzz.trapmf(kelembaban.universe, [80, 90, 100, 100])
 
 # Cahaya MFs
 # DARK_FOR_WORK: Trapezoidal, 100% below 100, zero above 200
-cahaya['Gelap'] = fuzz.trapmf(cahaya.universe, [0, 0, 50, 500])
+cahaya['Gelap'] = fuzz.trapmf(cahaya.universe, [0, 0, 50, 150]) # Adjusted for 0.5 membership at 100 lux
 # ADEQUATE_FOR_WORK: Trapezoidal, zero below 150, 100% above 500
-cahaya['Optimal untuk bekerja'] = fuzz.trapmf(cahaya.universe, [150, 500, 1500, 1500])
+cahaya['Optimal untuk bekerja'] = fuzz.trapmf(cahaya.universe, [150, 450, 1500, 1500]) # Adjusted for 0.5 membership at 300 lux
 
 # ---------------------------------------------------------
 # 3. Plot Fungsi Keanggotaan
@@ -65,8 +65,8 @@ suhu_zoom['Optimal'] = fuzz.trapmf(suhu_zoom.universe, [5, 10, 29, 30])
 suhu_zoom['Panas'] = fuzz.trapmf(suhu_zoom.universe, [29, 31, 40, 40])
 
 # Plot Suhu
-ax0.set_title('Fungsi Keanggotaan Suhu Udara', fontsize=14)
-ax0.plot(temp_range, suhu['Dingin'].mf, 'b', linewidth=2.5, label='Dingin')
+ax0.set_title('Fungsi Keanggotaan Suhu Udara (Optimal vs Panas)', fontsize=14) # MODIFIED TITLE
+# ax0.plot(temp_range, suhu['Dingin'].mf, 'b', linewidth=2.5, label='Dingin') # REMOVED
 ax0.plot(temp_range, suhu['Optimal'].mf, 'g', linewidth=2.5, label='Optimal')
 ax0.plot(temp_range, suhu['Panas'].mf, 'r', linewidth=2.5, label='Panas')
 ax0.set_ylabel('Derajat Keanggotaan', fontsize=12)
@@ -87,15 +87,6 @@ ax0.set_xlim([0, 40])
 ax0.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
 
 # Find and mark the 0.5 membership intersections for each temperature function
-# For Dingin-Optimal transition
-dingin_mf = suhu['Dingin'].mf
-for i in range(len(temp_range)-1):
-    if (dingin_mf[i] >= 0.5 and dingin_mf[i+1] < 0.5):
-        dingin_x = np.interp(0.5, [dingin_mf[i+1], dingin_mf[i]], [temp_range[i+1], temp_range[i]])
-        ax0.plot([dingin_x, dingin_x], [0, 0.5], 'b--', linewidth=1.5)
-        ax0.text(dingin_x,  -0.05, f'{dingin_x:.1f}°C', fontsize=5, ha='center', color='blue', weight='bold')
-        break
-
 # For Optimal-Panas transition (around 30°C)
 optimal_mf = suhu['Optimal'].mf
 panas_mf = suhu['Panas'].mf
@@ -213,7 +204,7 @@ for i in range(0, len(light_range)-1):  # Check full range to find intersection
 
 # For Optimal
 optimal_mf = cahaya['Optimal untuk bekerja'].mf
-for i in range(6, len(light_range)-1):  # Check in reasonable range (~300-350 lux)
+for i in range(0, len(light_range)-1):  # Check full range for rising slope
     if (optimal_mf[i] < 0.5 and optimal_mf[i+1] >= 0.5):
         optimal_x = np.interp(0.5, [optimal_mf[i], optimal_mf[i+1]], [light_range[i], light_range[i+1]])
         ax2.plot([optimal_x, optimal_x], [0, 0.5], 'g--', linewidth=1.5)
@@ -234,8 +225,8 @@ ax_zoom.spines['right'].set_visible(False)
 ax_zoom.grid(True, linestyle='--', alpha=0.7)
 ax_zoom.set_yticks(np.arange(0, 1.1, 0.1))
 ax_zoom.set_yticklabels([f"{y:.1f}" for y in np.arange(0, 1.1, 0.1)], fontsize=10)
-ax_zoom.set_xticks(np.arange(28, 32.1, 0.2))
-ax_zoom.set_xlim([28, 32])
+ax_zoom.set_xticks(np.arange(29, 31.1, 0.1)) # MODIFIED for finer ticks
+ax_zoom.set_xlim([29, 31]) # MODIFIED for a tighter zoom
 ax_zoom.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
 
 # Find intersection with 0.5 line in the zoomed view

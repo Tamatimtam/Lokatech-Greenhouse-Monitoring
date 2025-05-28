@@ -16,15 +16,15 @@ FuzzySet* tempHot = new FuzzySet(29, 31, 40, 40);
 // DRY: Trapezoidal, 100% below 40, zero above 50
 FuzzySet* humidityDry = new FuzzySet(-1, -1, 40, 50); // Assuming range starts at -1
 // OPTIMAL: Trapezoidal, 100% from 55-75, dropping to 0 at 40 and 90
-FuzzySet* humidityOptimal = new FuzzySet(40, 55, 75, 90);
+FuzzySet* humidityOptimal = new FuzzySet(40, 55, 80, 85);
 // HUMID: Trapezoidal, zero below 90, 100% above 100
-FuzzySet* humidityHumid = new FuzzySet(80, 90, 100, 100); // Assuming range ends at 100
+FuzzySet* humidityHumid = new FuzzySet(80, 85, 100, 100); // Assuming range ends at 100
 
 // Light Input Sets (Range: 0-1000 lux)
 // DARK: Trapezoidal, 100% from 0-100, dropping linearly to 0 at 350
-FuzzySet* lightDark = new FuzzySet(0, 0, 150, 350);
+FuzzySet* lightDark = new FuzzySet(0, 0, 100, 300);
 // ADEQUATE: Trapezoidal, 0 below 150, rising linearly to 100% at 400
-FuzzySet* lightAdequate = new FuzzySet(150, 350, 1000, 1000);
+FuzzySet* lightAdequate = new FuzzySet(100, 300, 1000, 1000);
 
 
 // Output Sets (Simple ON/OFF representation, Range 0-1)
