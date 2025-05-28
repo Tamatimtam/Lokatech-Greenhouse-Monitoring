@@ -52,10 +52,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const typeFilterEl = document.getElementById('userLogActionTypeFilter');
         const usernameFilterEl = document.getElementById('userLogUsernameFilter');
 
+        const usernameValue = usernameFilterEl ? usernameFilterEl.value.trim() : null;
+
         return {
             days: daysFilterEl ? parseInt(daysFilterEl.value, 10) : 7,
             type: typeFilterEl ? typeFilterEl.value : null,
-            username: usernameFilterEl ? usernameFilterEl.value.trim() : null,
+            username: usernameValue ? usernameValue : null, // Ensure null if empty string after trim
             limit: defaultMaxLogEntries
         };
     }
@@ -64,6 +66,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isLoadingUserLogs && !silentRefresh) return;
 
         isLoadingUserLogs = true;
+        
+        const refreshBtn = document.getElementById('refreshUserLogsBtn');
+        let originalRefreshBtnWidth = '';
+        if (refreshBtn && !silentRefresh) {
+            refreshBtn.disabled = true;
+            originalRefreshBtnWidth = refreshBtn.offsetWidth + 'px'; // Capture width before changing content
+            refreshBtn.style.width = originalRefreshBtnWidth; // Apply fixed width
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+        }
+        
         if (userLogContent && !silentRefresh) {
             const existingLoadingIndicator = userLogContent.querySelector('.loading-indicator');
              // Check if controls are not yet rendered or if it's the initial placeholder
@@ -82,7 +94,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (filters.type) params.append('type', filters.type);
-        if (filters.username) params.append('username', filters.username);
+        // Only append username if it's a non-empty string
+        if (filters.username && filters.username.length > 0) {
+            params.append('username', filters.username);
+        }
 
         fetch(`/logs/user-activities?${params.toString()}`)
             .then(response => {
@@ -103,10 +118,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error fetching user logs:', error);
                 if (userLogContent && !silentRefresh) {
-                    // Preserve export button if it exists
-                    const exportBtnContainer = userLogContent.querySelector('div[style*="text-align: right"]');
-                    const exportBtnHtml = exportBtnContainer ? exportBtnContainer.innerHTML : `
-                        <div style="margin-bottom: var(--spacing-md); text-align: right;">
+                    // Preserve export button if it exists by selecting its container
+                    const exportBtnContainer = userLogContent.querySelector('.user-log-export-container');
+                    const exportBtnHtml = exportBtnContainer ? exportBtnContainer.outerHTML : `
+                        <div class="user-log-export-container">
                             <button id="exportUserLogsCsvBtn" class="log-control-btn" title="Export current view of user logs to CSV">
                                 <i class="fas fa-file-csv"></i> Export User Logs to CSV
                             </button>
@@ -139,6 +154,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (refreshBtn) {
                     refreshBtn.disabled = false;
                     refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+                    if (originalRefreshBtnWidth) { // Reset width if it was set
+                        refreshBtn.style.width = ''; 
+                    }
                 }
             });
     }
@@ -161,35 +179,46 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Preserve existing export button if it's already there from logs.html
-        const exportBtnContainer = userLogContent.querySelector('div[style*="text-align: right"]');
-        const exportBtnHtml = exportBtnContainer ? exportBtnContainer.innerHTML : `
-            <div style="margin-bottom: var(--spacing-md); text-align: right;">
+        // Check if the export button container already exists.
+        // This helps preserve it if displayUserLogsUI is called multiple times without a full page reload.
+        let exportBtnContainer = userLogContent.querySelector('.user-log-export-container');
+        const exportBtnHtml = `
+            <div class="user-log-export-container">
                 <button id="exportUserLogsCsvBtn" class="log-control-btn" title="Export current view of user logs to CSV">
                     <i class="fas fa-file-csv"></i> Export User Logs to CSV
                 </button>
             </div>`;
 
+        // If the container doesn't exist from a previous render (e.g. initial load, or error cleared),
+        // we prepare its HTML. Otherwise, we'll keep the existing one.
+        const finalExportBtnHtml = exportBtnContainer ? exportBtnContainer.outerHTML : exportBtnHtml;
+
         userLogContent.innerHTML = `
-            ${exportBtnHtml}
+            ${finalExportBtnHtml}
             <div class="user-log-controls">
                 <button id="refreshUserLogsBtn" class="log-control-btn">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
-                <label for="userLogDaysFilter">Days: </label>
-                <input type="number" id="userLogDaysFilter" value="7" min="1" max="90" class="log-input">
+                <div>
+                    <label for="userLogDaysFilter">Days: </label>
+                    <input type="number" id="userLogDaysFilter" value="7" min="1" max="90" class="log-input">
+                </div>
                 
-                <label for="userLogActionTypeFilter">Action Type: </label>
-                <select id="userLogActionTypeFilter" class="log-input">
-                    <option value="">All Types</option>
-                    <option value="DEVICE_CONTROL">Device Control</option>
-                    <option value="PROFILE_UPDATE">Profile Update</option>
-                    <option value="ACCOUNT_DELETED">Account Deleted</option>
-                    <option value="REGISTRATION_SUCCESS">Registration Success</option>
-                </select>
+                <div>
+                    <label for="userLogActionTypeFilter">Action Type: </label>
+                    <select id="userLogActionTypeFilter" class="log-input">
+                        <option value="">All Types</option>
+                        <option value="DEVICE_CONTROL">Device Control</option>
+                        <option value="PROFILE_UPDATE">Profile Update</option>
+                        <option value="ACCOUNT_DELETED">Account Deleted</option>
+                        <option value="REGISTRATION_SUCCESS">Registration Success</option>
+                    </select>
+                </div>
                 
-                <label for="userLogUsernameFilter">Username: </label>
-                <input type="text" id="userLogUsernameFilter" placeholder="user@example.com" class="log-input">
+                <div>
+                    <label for="userLogUsernameFilter">Username: </label>
+                    <input type="text" id="userLogUsernameFilter" placeholder="user@example.com" class="log-input">
+                </div>
                 <span id="userLogCountDisplay" class="user-log-count"></span>
             </div>
             <div class="user-log-entries-table-container">
@@ -223,8 +252,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (userLogs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No user logs found for the selected criteria.</td></tr>';
         } else {
-            userLogs.forEach(log => {
-                tbody.appendChild(createUserLogRow(log));
+            userLogs.forEach((log, index) => { // Added index for staggered animation
+                const row = createUserLogRow(log);
+                tbody.appendChild(row);
+                // Stagger the animation slightly
+                setTimeout(() => {
+                    row.classList.add('visible');
+                }, index * 50); // 50ms delay per row
             });
         }
         updateUserLogCount();
@@ -254,12 +288,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const daysFilterEl = document.getElementById('userLogDaysFilter');
         const typeFilterEl = document.getElementById('userLogActionTypeFilter');
         const usernameFilterEl = document.getElementById('userLogUsernameFilter');
-        const exportCsvBtn = document.getElementById('exportUserLogsCsvBtn'); // Get the potentially re-rendered button
+        const exportCsvBtn = document.getElementById('exportUserLogsCsvBtn'); 
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                refreshBtn.disabled = true;
-                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+                // Loading state is handled in loadUserLogs
                 const filters = getCurrentUserLogFilters();
                 loadUserLogs(filters);
             });
@@ -292,16 +325,41 @@ document.addEventListener('DOMContentLoaded', function() {
     function createUserLogRow(log) {
         const tr = document.createElement('tr');
         
+        // Initial state for animation (opacity 0, transformY 10px set by CSS)
+        // The 'visible' class will be added by populateUserLogTableBody after appending
+        
+        // Format the timestamp nicely
         const timestampWIB = log.timestamp_wib 
             ? new Date(log.timestamp_wib).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) 
             : (log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) : 'N/A');
 
-        const formattedActionType = log.action_type ? log.action_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A';
+        const formattedActionType = log.action_type 
+            ? log.action_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) 
+            : 'N/A';
         
         let detailsContent = '—';
-        if (log.event_details) {
+        if (log.event_details && Object.keys(log.event_details).length > 0) {
             try {
-                // Escape HTML in details to prevent XSS
+                // Function to escape HTML characters within string values of the JSON
+                const escapeHtmlInJson = (obj) => {
+                    return JSON.parse(JSON.stringify(obj, (key, value) => {
+                        if (typeof value === 'string') {
+                            return value
+                                .replace(/&/g, "&amp;")
+                                .replace(/</g, "&lt;")
+                                .replace(/>/g, "&gt;")
+                                .replace(/"/g, "&quot;")
+                                .replace(/'/g, "&#039;");
+                        }
+                        return value;
+                    }));
+                };
+                
+                const escapedEventDetails = escapeHtmlInJson(log.event_details);
+                const prettyDetails = JSON.stringify(escapedEventDetails, null, 2);
+                detailsContent = `<pre>${prettyDetails}</pre>`;
+            } catch (e) {
+                // Fallback for any error during stringification or escaping
                 const escapeHtml = (text) => {
                     if (typeof text !== 'string') text = String(text);
                     return text
@@ -310,16 +368,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         .replace(/>/g, "&gt;")
                         .replace(/"/g, "&quot;")
                         .replace(/'/g, "&#039;");
-                };
-                const prettyDetails = JSON.stringify(log.event_details, (key, value) => {
-                    // Ensure all string values within event_details are escaped
-                    if (typeof value === 'string') {
-                        return escapeHtml(value);
-                    }
-                    return value;
-                }, 2);
-                detailsContent = `<pre>${prettyDetails}</pre>`;
-            } catch (e) {
+                }
                 detailsContent = `<pre>${escapeHtml(String(log.event_details))}</pre>`;
             }
         }
@@ -332,6 +381,13 @@ document.addEventListener('DOMContentLoaded', function() {
             <td class="log-source">${log.source || 'N/A'}</td>
             <td class="log-details-cell">${detailsContent}</td>
         `;
+        
+        // Animation is triggered by adding 'visible' class in populateUserLogTableBody
+        // setTimeout(() => {
+        //     tr.style.opacity = '1';
+        //     tr.style.transform = 'translateY(0)';
+        // }, 50); // This direct manipulation is replaced by class addition
+        
         return tr;
     }
 

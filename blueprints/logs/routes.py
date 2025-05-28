@@ -133,10 +133,21 @@ def export_system_logs_csv():
 def get_user_activities_route():
     """Fetch user activity logs from Firestore with filtering."""
     try:
+        # Log all received query parameters for detailed debugging
+        print(f"DEBUG (get_user_activities_route): Received request.args: {request.args}")
+
         days = request.args.get('days', 7, type=int)
         log_type = request.args.get('type', None) # Filters by UserActionType string value
         username = request.args.get('username', None)
         limit = request.args.get('limit', 100, type=int)
+        
+        # Explicitly check if log_type is an empty string from query params and treat it as None
+        # This ensures that if "All Types" (value="") is selected, no type filter is applied.
+        if log_type == "":
+            print(f"DEBUG (get_user_activities_route): log_type was an empty string, setting to None.")
+            log_type = None
+        
+        print(f"DEBUG (get_user_activities_route): Parsed filters - days: {days}, log_type: {log_type}, username: {username}, limit: {limit}")
         
         logs = firestore_logger.get_user_logs(
             days=days,

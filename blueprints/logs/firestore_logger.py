@@ -186,12 +186,17 @@ def log_user_activity(
             "timestamp": now_utc,
             "timestamp_wib": now_wib.isoformat(),
             "username": username,
+            "username_lowercase": username.lower(), # Store lowercase username
             "action_type": action_type.value,
             "event_details": event_details,
             "source": source,
         }
         if ip_address:
             log_data["ip_address"] = ip_address
+        
+        # --- TEMPORARY DEBUG PRINT ---
+        print(f"DEBUG_SAVE_USER_LOG: Preparing to save log_data: {log_data}")
+        # --- END TEMPORARY DEBUG PRINT ---
         
         random_suffix = os.urandom(3).hex()
         log_id = f"{now_wib.strftime('%Y-%m-%d %H:%M:%S.%f')}-{random_suffix}"
@@ -295,15 +300,22 @@ def get_user_logs(
             query = db_client_instance.collection('user_logs')
             query = query.where('timestamp', '>=', start_date_utc)
             
+            applied_filters_debug = {"days": days}
+
             if log_type_filter: # Corresponds to 'action_type' field in user_logs
                 query = query.where('action_type', '==', log_type_filter)
+                applied_filters_debug["action_type"] = log_type_filter
+            
             if username_filter:
-                query = query.where('username', '==', username_filter)
+                # Query against the lowercase version of the username
+                username_filter_lower = username_filter.lower()
+                query = query.where('username_lowercase', '==', username_filter_lower)
+                applied_filters_debug["username_lowercase"] = username_filter_lower
             
             actual_limit = min(limit, 500) 
             query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(actual_limit)
             
-            print(f"DEBUG: Executing Firestore query on user_logs with limit {actual_limit}")
+            print(f"DEBUG (user_logs): Executing Firestore query with limit {actual_limit}. Filters: {applied_filters_debug}")
             docs = query.stream()
             
             results = []

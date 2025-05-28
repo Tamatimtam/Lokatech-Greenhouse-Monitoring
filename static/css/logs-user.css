@@ -1,15 +1,49 @@
 /* User Logs Specific Styles */
 
+/* Container for the export button to ensure it's stable */
+.user-log-export-container {
+    display: flex;
+    justify-content: flex-end; /* Aligns button to the right */
+    margin-bottom: var(--spacing-md);
+    padding: 0 var(--spacing-md); /* Add padding if controls bar has it, for alignment */
+}
+
+/* Specific styling for the Export User Logs button */
+#exportUserLogsCsvBtn {
+    background-color: var(--success, #28a745); /* Green for export/success */
+    color: var(--white, #fff);
+    border-color: var(--success-dark, #1e7e34);
+    /* Inherit other .log-control-btn styles like padding, height, border-radius, etc. */
+}
+
+#exportUserLogsCsvBtn:hover {
+    background-color: var(--success-dark, #218838);
+    border-color: var(--success-darker, #196c2b);
+}
+
+#exportUserLogsCsvBtn:active {
+    transform: translateY(1px);
+    background-color: var(--success-darker, #196c2b);
+}
+
+
+/* Control bar improvements */
 .user-log-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
     align-items: center;
+    margin-bottom: var(--spacing-lg);
     padding: var(--spacing-md);
     background-color: var(--background-alt);
     border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
+}
+
+.user-log-controls > div { /* Style for the div wrappers around label/input pairs */
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm); /* Space between label and input */
 }
 
 .user-log-controls label {
@@ -17,22 +51,42 @@
     color: var(--text-secondary);
 }
 
-.user-log-controls .log-input,
+.user-log-controls .log-input {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--background-light);
+    color: var(--text-primary);
+    min-width: 150px; /* Ensure inputs have a decent width */
+}
+
+.user-log-controls .log-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--primary-light-transparent);
+}
+
+.user-log-controls #refreshUserLogsBtn {
+    margin-right: auto; /* Pushes other items to the right if needed */
+}
+
+/* Fix refresh button sizing and prevent layout shift */
 .user-log-controls .log-control-btn {
-    padding: var(--spacing-xs) var(--spacing-sm);
+    min-width: 110px; /* Default min-width for buttons */
+    padding: var(--spacing-sm) var(--spacing-md); /* More horizontal padding for text */
+    height: 38px;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     font-size: 0.9rem;
-    background-color: var(--background-light);
-    color: var(--text-primary);
-}
-
-.user-log-controls .log-control-btn {
-    cursor: pointer;
     background-color: var(--primary);
     color: var(--white);
-    border-color: var(--primary);
-    transition: background-color 0.2s ease, transform 0.1s ease;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Prevent shrinking */
+    text-align: center; /* Center text and icon */
 }
 
 .user-log-controls .log-control-btn:hover {
@@ -43,48 +97,113 @@
     transform: translateY(1px);
 }
 
-.user-log-controls .log-control-btn i {
-    margin-right: var(--spacing-xs);
+/* Apply disabled style that doesn't change layout */
+.user-log-controls .log-control-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background-color: var(--primary); /* Keep same bg color when disabled */
 }
 
+.user-log-controls .log-control-btn i {
+    margin-right: var(--spacing-sm);
+}
+
+/* Filter controls styling */
+.user-log-controls .log-input {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.9rem;
+    background-color: var(--background-light);
+    color: var(--text-primary);
+    height: 38px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user-log-controls .log-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+    outline: none;
+}
+
+.user-log-controls input[type="number"] {
+    width: 80px;
+}
+
+.user-log-controls input[type="text"] {
+    min-width: 200px; /* Adjusted for typical email length */
+}
+
+.user-log-controls select.log-input {
+    min-width: 180px; /* Slightly wider for "Registration Success" */
+    padding-right: 25px; /* Space for the dropdown arrow */
+    appearance: none; /* Remove default arrow */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+}
+
+/* Log count display - push to right */
+.user-log-count {
+    margin-left: auto; /* This pushes it to the right within the flex container */
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    padding: var(--spacing-sm);
+    font-weight: 500;
+    align-self: center; /* Vertically align with other controls */
+}
+
+/* Table container and styles */
 .user-log-entries-table-container {
     overflow-x: auto;
     background-color: var(--background-light);
     border-radius: var(--border-radius-md);
     box-shadow: var(--shadow-md);
-    padding: var(--spacing-sm);
+    padding: var(--spacing-md);
 }
 
 .user-log-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
+    /* Add subtle border to table itself if desired */
+    /* border: 1px solid var(--border-color-light); */
 }
 
 .user-log-table th,
 .user-log-table td {
-    padding: var(--spacing-sm) var(--spacing-md);
+    padding: var(--spacing-md);
     text-align: left;
     border-bottom: 1px solid var(--border-color-light);
-    vertical-align: top; /* Align content to the top for multi-line details */
+    vertical-align: top; /* Align content to the top, especially for multi-line details */
 }
 
 .user-log-table th {
     background-color: var(--background-alt);
     color: var(--text-primary);
     font-weight: 600;
-    position: sticky;
+    position: sticky; /* Make header sticky if container scrolls */
     top: 0;
     z-index: 1;
 }
 
-.user-log-table tbody tr:hover {
-    background-color: var(--background-highlight);
+.user-log-table tbody tr:nth-child(even) {
+    background-color: var(--background-zebra);
 }
 
-.user-log-table .log-timestamp {
-    white-space: nowrap;
+.user-log-table tbody tr:hover {
+    background-color: var(--highlight-bg);
+    cursor: default;
+}
+
+/* Column Specific Styling */
+.user-log-table .log-timestamp,
+.user-log-table .log-ip-address {
+    font-family: var(--font-mono);
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .user-log-table .log-username {
@@ -93,57 +212,79 @@
 }
 
 .user-log-table .log-action-type {
-    font-style: italic;
-    color: var(--accent-color); /* Example color, adjust as needed */
+    color: var(--accent-color); /* Example: use an accent color */
+    font-weight: 500;
 }
 
-.user-log-table .log-ip-address {
-    font-family: 'Courier New', Courier, monospace;
-    color: var(--success);
-}
-
-.user-log-table .log-source {
-    color: var(--text-tertiary);
-}
 
 .user-log-table .log-details-cell pre {
-    white-space: pre-wrap;       /* Since CSS 2.1 */
-    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-    white-space: -pre-wrap;      /* Opera 4-6 */
-    white-space: -o-pre-wrap;    /* Opera 7 */
-    word-wrap: break-word;       /* Internet Explorer 5.5+ */
-    background-color: var(--background-code);
-    padding: var(--spacing-xs);
-    border-radius: var(--border-radius-sm);
-    max-height: 150px; /* Limit height and make scrollable if needed */
-    overflow-y: auto;
-    font-size: 0.85em;
-    color: var(--text-code);
+    margin: 0;
+    padding: var(--spacing-sm);
+    background-color: var(--code-bg);
     border: 1px solid var(--border-color-light);
+    border-radius: var(--border-radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--code-text);
+    white-space: pre-wrap;       /* Allow wrapping of long lines */
+    word-break: break-all;     /* Break long words/strings */
+    max-height: 200px;         /* Limit height and make scrollable if too long */
+    overflow-y: auto;
+    overflow-x: auto;          /* Ensure horizontal scroll for wide JSON */
 }
 
-.user-log-count {
-    margin-left: auto;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-/* Loading and Error States */
-.user-log-content .loading-indicator,
-.user-log-content .alert {
+/* Loading and error states */
+#tab-user .loading-indicator,
+#tab-user .alert {
     padding: var(--spacing-lg);
     text-align: center;
     font-size: 1.1rem;
     color: var(--text-secondary);
 }
 
-.user-log-content .alert-danger {
+#tab-user .alert-danger {
     background-color: var(--danger-light);
-    color: var(--danger-dark);
+    color: var(--danger);
     border: 1px solid var(--danger);
     border-radius: var(--border-radius-md);
 }
 
-.user-log-content .alert-danger i {
+#tab-user .alert-danger i {
     margin-right: var(--spacing-sm);
+}
+
+#tab-user .alert-danger .log-control-btn {
+    background-color: var(--danger);
+    border-color: var(--danger-dark);
+    color: var(--white);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    margin-left: var(--spacing-md);
+}
+
+#tab-user .alert-danger .log-control-btn:hover {
+    background-color: var(--danger-dark);
+}
+
+/* Export button styling is now more specific with #exportUserLogsCsvBtn */
+
+/* Loading spinner animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spinner.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Row Animation - applied by JS */
+.user-log-table tbody tr {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+.user-log-table tbody tr.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
