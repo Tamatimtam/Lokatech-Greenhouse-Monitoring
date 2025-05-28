@@ -62,10 +62,17 @@ def log_event(
     sensor_type: Optional[str] = None,
     details: Optional[str] = None,
     source: str = "system",
-    username: Optional[str] = None
+    username: Optional[str] = None,
+    db_client = None # New parameter for optional DB client
 ) -> bool:
-    db_client_instance = get_firestore_db()
-    if not db_client_instance:
+    """
+    Logs an event to the 'system_logs' collection in Firestore.
+    Can use a provided db_client or the globally configured _db.
+    """
+    active_db = db_client if db_client else get_firestore_db() # Use provided db_client or fallback to global
+
+    if not active_db:
+        # Fallback logging if Firestore is not available
         print(f"FALLBACK_LOG (log_event): Firestore DB not available. Log Type: {log_type.value if isinstance(log_type, Enum) else log_type}, Level: {level.value if isinstance(level, Enum) else level}, Details: {details}, Source: {source}")
         return False
 
@@ -97,7 +104,7 @@ def log_event(
         print(f"DEBUG: log_data to be added: {log_data}")
         
         # --- MODIFICATION: Use .document(log_id).set() instead of .add() ---
-        db_client_instance.collection('system_logs').document(log_id).set(log_data)
+        active_db.collection('system_logs').document(log_id).set(log_data)
         # --- END MODIFICATION ---
         
         print(f"DEBUG: Log event successfully added/set to Firestore with ID '{log_id}'. Type={log_type.value}")
@@ -110,8 +117,20 @@ def log_event(
         return False
 
 # --- Convenience functions for specific log types ---
-def log_sensor_error(node: str, sensor_type: str, details: str, source: str = "sensor_monitor"):
-    log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node=node, sensor_type=sensor_type, details=details, source=source)
+def log_sensor_error(node: str, sensor_type: str, details: str, source: str = "sensor_monitor", db_client = None):
+    """
+    Specific helper to log sensor-related errors.
+    Can use a provided db_client or the globally configured _db.
+    """
+    log_event(
+        log_type=LogType.SENSOR_ERROR,
+        level=LogLevel.ERROR,
+        node=node,
+        sensor_type=sensor_type,
+        details=details,
+        source=source,
+        db_client=db_client # Pass the db_client through
+    )
 
 def log_sensor_operational(node: str, sensor_type: str, details: str, source: str = "sensor_monitor"):
     log_event(LogType.SENSOR_OPERATIONAL, LogLevel.INFO, node=node, sensor_type=sensor_type, details=details, source=source)

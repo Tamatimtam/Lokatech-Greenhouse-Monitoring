@@ -1,3 +1,8 @@
+# Section Naming Convention Update:
+# - 'penyemaian' is now referred to as 'peremajaan'.
+# - 'remaja' is now referred to as 'meja_apung'.
+# This script reflects these updated names for simulation purposes.
+
 import paho.mqtt.client as mqtt
 import json
 import time
@@ -44,7 +49,7 @@ def calculate_averages(sections_data):
     light_count = 0
 
     # Iterate through all defined sections for averaging
-    for section_key in ["penyemaian", "remaja", "dewasa"]:
+    for section_key in ["peremajaan", "meja_apung", "dewasa"]:
         data = sections_data.get(section_key, {})
         if data.get("temp") is not None:
             total_temp += data["temp"]
@@ -90,18 +95,18 @@ def run_simulator():
             current_iso_timestamp = get_iso_timestamp()
 
             sections_data = {
-                "penyemaian": {
+                "peremajaan": { # Formerly 'penyemaian'
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
                     "espnow_latency_ms": simulate_espnow_latency(),
                     "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 },
-                "remaja": { # Remaja is the master, no ESP-NOW latency from itself
+                "meja_apung": { # Formerly 'remaja', this is the master node
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    # "espnow_latency_ms": None, # Explicitly not present or null
+                    # "espnow_latency_ms": None, # Explicitly not present or null as it's the master
                     "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 },
                 "dewasa": {
@@ -124,7 +129,7 @@ def run_simulator():
                 "hardware_send_timestamp_str": current_iso_timestamp,
                 "sections": sections_data,
                 "averages": averages_data,
-                "actuators": {
+                "actuators": { # Actuators are assumed to be controlled by the master node (meja_apung)
                     "fan": {"state": remaja_fan_state, "mode": remaja_fan_mode},
                     "light": {"state": remaja_light_state, "mode": remaja_light_mode}
                 }

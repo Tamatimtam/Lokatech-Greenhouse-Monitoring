@@ -69,7 +69,7 @@ def get_historical_data(section=None, days=7, data_type=None):
                 if timestamp_wib_val:
                     result_point = {'timestamp': timestamp_wib_val.isoformat(), 'data': {}}
                     stats_data = data.get('stats', {})
-                    valid_sections = ['dewasa', 'remaja', 'penyemaian', 'averages']
+                    valid_sections = ['dewasa', 'meja_apung', 'peremajaan', 'averages'] # Updated here
 
                     if section and section in valid_sections:
                         if section in stats_data:
@@ -153,7 +153,7 @@ def get_historical_data(section=None, days=7, data_type=None):
                     if timestamp_wib_val:
                         result_point = {'timestamp': timestamp_wib_val.isoformat(), 'data': {}}
                         stats_data = data.get('stats', {})
-                        valid_sections = ['dewasa', 'remaja', 'penyemaian', 'averages']
+                        valid_sections = ['dewasa', 'meja_apung', 'peremajaan', 'averages'] # Updated here
 
                         if section and section in valid_sections:
                             if section in stats_data:

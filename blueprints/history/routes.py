@@ -242,9 +242,22 @@ def export_excel():
         for section_name, sensor_types_data in sections_data.items():
             for sensor_type, values in sensor_types_data.items():
                 if isinstance(values, dict):
+                    
+                    # Format section name for display
+                    display_section_name = ''
+                    if section_name == 'meja_apung':
+                        display_section_name = 'Meja Apung'
+                    elif section_name == 'peremajaan':
+                        display_section_name = 'Peremajaan'
+                    elif section_name: # Ensure section_name is not empty or None
+                        display_section_name = section_name.capitalize()
+                    else:
+                        display_section_name = 'Unknown Section'
+
+
                     row = [
                         formatted_timestamp,
-                        section_name.capitalize(),
+                        display_section_name,
                         sensor_type.capitalize(),
                         values.get('avg'),
                         values.get('min'),

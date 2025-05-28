@@ -18,7 +18,7 @@ try:
 except ImportError:
     system_logger_available = False
     # Ensure the dummy function matches the new signature if system_logger is not available
-    def log_user_action(username, action_description, device=None, node_affected="remaja", source="user_interface", ip_address=None):
+    def log_user_action(username, action_description, device=None, node_affected="meja_apung", source="user_interface", ip_address=None): # Changed 'remaja' to 'meja_apung'
         logging.warning(f"[DUMMY_USER_ACTION_LOG] User: {username}, Action: {action_description}, Device: {device}, Node: {node_affected}, Source: {source}, IP: {ip_address}")
 
 @bp.route("/")
@@ -51,7 +51,7 @@ def set_control_state():
 
     # Prepare payload for MQTT
     mqtt_payload = json.dumps({
-        "node": "remaja",
+        "node": "meja_apung", # Changed 'remaja' to 'meja_apung' as it's the master node
         "device":device,
         "state":state,
         "mode":mode

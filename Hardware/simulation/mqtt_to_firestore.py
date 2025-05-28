@@ -1,3 +1,8 @@
+# Section Naming Convention Update:
+# - 'penyemaian' is now referred to as 'peremajaan'.
+# - 'remaja' is now referred to as 'meja_apung'.
+# This script reflects these updated names.
+
 # This script listens to an MQTT topic for greenhouse sensor data, aggregates it over
 # a defined interval, calculates statistics (avg, min, max, median), and then
 # saves these aggregated statistics to a Firestore database.
@@ -62,8 +67,8 @@ COLLECTION_INTERVAL_MINUTES = 1  # How long to collect data before aggregating a
 # In-memory storage for accumulating sensor readings during the collection interval
 # Data is organized by greenhouse section and sensor type (temperature, humidity, light)
 collection_data = {
-    "penyemaian": { "temps": [], "humidities": [], "lights": [] }, # Seedling/germination section
-    "remaja": { "temps": [], "humidities": [], "lights": [] },     # Juvenile/growing section
+    "peremajaan": { "temps": [], "humidities": [], "lights": [] }, # Formerly 'penyemaian'
+    "meja_apung": { "temps": [], "humidities": [], "lights": [] }, # Formerly 'remaja'
     "dewasa": { "temps": [], "humidities": [], "lights": [] },     # Mature/adult section
     "averages": { "temps": [], "humidities": [], "lights": [] }    # Overall greenhouse averages
 }
@@ -87,11 +92,11 @@ def on_connect(client, userdata, flags, rc):
         client.subscribe(MQTT_SUBSCRIBE_TOPIC)
         print(f"Subscribed to {MQTT_SUBSCRIBE_TOPIC}")
         if logger_available:
-            log_event(LogType.CONNECTION_RESTORED, LogLevel.INFO, node="mqtt_aggregator_script", details="Successfully connected to MQTT Broker.", source="mqtt_to_firestore.py")
+            log_event(LogType.CONNECTION_RESTORED, LogLevel.INFO, node="mqtt_aggregator_script", details="Successfully connected to MQTT Broker.", source="mqtt_to_firestore.py", db_client=db)
     else:
         print(f"Failed to connect, return code {rc}")
         if logger_available:
-            log_event(LogType.CONNECTION_LOST, LogLevel.ERROR, node="mqtt_aggregator_script", details=f"Failed to connect to MQTT Broker. Return code: {rc}", source="mqtt_to_firestore.py")
+            log_event(LogType.CONNECTION_LOST, LogLevel.ERROR, node="mqtt_aggregator_script", details=f"Failed to connect to MQTT Broker. Return code: {rc}", source="mqtt_to_firestore.py", db_client=db)
         # Common return codes: 1 (incorrect protocol), 3 (server unavailable), 5 (unauthorized)
 
 def on_message(client, userdata, msg):
@@ -111,17 +116,17 @@ def on_message(client, userdata, msg):
         err_details = f"Invalid JSON on topic {msg.topic}. Error: {e}. Payload: {msg.payload.decode(errors='ignore')[:200]}"
         print(f"Error: {err_details}")
         if logger_available:
-            log_sensor_error(node="mqtt_aggregator_script", sensor_type="json_payload", details=err_details, source="mqtt_to_firestore.py")
+            log_sensor_error(node="mqtt_aggregator_script", sensor_type="json_payload", details=err_details, source="mqtt_to_firestore.py", db_client=db)
     except UnicodeDecodeError as e:
         err_details = f"Unicode decode error on topic {msg.topic}. Error: {e}. Raw Payload: {str(msg.payload)[:200]}"
         print(f"Error: {err_details}")
         if logger_available:
-            log_sensor_error(node="mqtt_aggregator_script", sensor_type="payload_encoding", details=err_details, source="mqtt_to_firestore.py")
+            log_sensor_error(node="mqtt_aggregator_script", sensor_type="payload_encoding", details=err_details, source="mqtt_to_firestore.py", db_client=db)
     except Exception as e:
         err_details = f"Generic error in on_message: {e}"
         print(f"Error: {err_details}")
         if logger_available:
-            log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py")
+            log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py", db_client=db)
 
 
 # --- Data Processing Functions ---
@@ -139,7 +144,7 @@ def process_mqtt_data(payload):
 
     try:
         # Extract sensor data for each greenhouse section from the payload
-        for section_name in ["penyemaian", "remaja", "dewasa"]: # Each growing stage
+        for section_name in ["peremajaan", "meja_apung", "dewasa"]: # Each growing stage
             if section_name in payload.get("sections", {}): # Check if section exists in payload
                 section_payload = payload["sections"][section_name]
                 
@@ -150,10 +155,10 @@ def process_mqtt_data(payload):
                         collection_data[section_name]["temps"].append(float(temp_val))
                     except (ValueError, TypeError) as e:
                         if logger_available:
-                            log_sensor_error(node=section_name, sensor_type="temp", details=f"Invalid temp value: '{temp_val}'. Error: {e}", source=source_script)
+                            log_sensor_error(node=section_name, sensor_type="temp", details=f"Invalid temp value: '{temp_val}'. Error: {e}", source=source_script, db_client=db)
                 else:
                     if logger_available:
-                         log_sensor_error(node=section_name, sensor_type="temp", details="Temp data missing or null.", source=source_script)
+                         log_sensor_error(node=section_name, sensor_type="temp", details="Temp data missing or null.", source=source_script, db_client=db)
                 
                 # Extract and store humidity readings if available
                 humidity_val = section_payload.get("humidity")
@@ -162,10 +167,10 @@ def process_mqtt_data(payload):
                         collection_data[section_name]["humidities"].append(float(humidity_val))
                     except (ValueError, TypeError) as e:
                         if logger_available:
-                            log_sensor_error(node=section_name, sensor_type="humidity", details=f"Invalid humidity value: '{humidity_val}'. Error: {e}", source=source_script)
+                            log_sensor_error(node=section_name, sensor_type="humidity", details=f"Invalid humidity value: '{humidity_val}'. Error: {e}", source=source_script, db_client=db)
                 else:
                     if logger_available:
-                        log_sensor_error(node=section_name, sensor_type="humidity", details="Humidity data missing or null.", source=source_script)
+                        log_sensor_error(node=section_name, sensor_type="humidity", details="Humidity data missing or null.", source=source_script, db_client=db)
                 
                 # Extract and store light intensity readings if available
                 light_val = section_payload.get("light")
@@ -174,13 +179,13 @@ def process_mqtt_data(payload):
                         collection_data[section_name]["lights"].append(float(light_val))
                     except (ValueError, TypeError) as e:
                         if logger_available:
-                            log_sensor_error(node=section_name, sensor_type="light", details=f"Invalid light value: '{light_val}'. Error: {e}", source=source_script)
+                            log_sensor_error(node=section_name, sensor_type="light", details=f"Invalid light value: '{light_val}'. Error: {e}", source=source_script, db_client=db)
                 else:
                     if logger_available:
-                        log_sensor_error(node=section_name, sensor_type="light", details="Light data missing or null.", source=source_script)
+                        log_sensor_error(node=section_name, sensor_type="light", details="Light data missing or null.", source=source_script, db_client=db)
             else:
                 if logger_available:
-                    log_event(LogType.SENSOR_ERROR, LogLevel.WARNING, node=section_name, details=f"Section data missing in payload for '{section_name}'.", source=source_script)
+                    log_event(LogType.SENSOR_ERROR, LogLevel.WARNING, node=section_name, details=f"Section data missing in payload for '{section_name}'.", source=source_script, db_client=db)
 
 
         # Also process overall average values if provided in the payload
@@ -205,7 +210,7 @@ def process_mqtt_data(payload):
         err_details = f"Error processing MQTT data payload: {e}"
         print(err_details)
         if logger_available:
-            log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node="mqtt_aggregator_script", details=err_details, source=source_script)
+            log_event(LogType.SENSOR_ERROR, LogLevel.ERROR, node="mqtt_aggregator_script", details=err_details, source=source_script, db_client=db)
 
 def calculate_stats(values):
     """
@@ -305,6 +310,8 @@ def run_collector():
     client.on_connect = on_connect  # Set connect callback
     client.on_message = on_message  # Set message callback
     
+    # db_client_for_logger = db # Use the db instance initialized in this script
+    
     try:
         # Configure secure connection with credentials
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
@@ -323,12 +330,12 @@ def run_collector():
         err_details = "Connection refused. Check MQTT broker address, port, and firewall."
         print(err_details)
         if logger_available:
-            log_event(LogType.CONNECTION_LOST, LogLevel.CRITICAL, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py")
+            log_event(LogType.CONNECTION_LOST, LogLevel.CRITICAL, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py", db_client=db)
     except Exception as e:
         err_details = f"An unexpected error occurred in run_collector: {e}"
         print(err_details)
         if logger_available:
-            log_event(LogType.CONNECTION_LOST, LogLevel.CRITICAL, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py")
+            log_event(LogType.CONNECTION_LOST, LogLevel.CRITICAL, node="mqtt_aggregator_script", details=err_details, source="mqtt_to_firestore.py", db_client=db)
     finally:
         # Ensure clean disconnection in all cases
         print("Disconnecting MQTT client...")
@@ -337,6 +344,6 @@ def run_collector():
         print("MQTT client disconnected.")
 
 if __name__ == "__main__":
-    print(f"Starting MQTT to Firestore data collector (for Penyemaian, Remaja, Dewasa).")
+    print(f"Starting MQTT to Firestore data collector (for Peremajaan, Meja Apung, Dewasa).")
     print(f"Data will be aggregated approx. every {COLLECTION_INTERVAL_MINUTES} minute(s).")
     run_collector()

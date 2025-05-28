@@ -31,8 +31,8 @@ function getCurrentTimeRange() {
  */
 const chartColors = {
     dewasa: 'rgba(231, 76, 60, 1)',     // Red
-    remaja: 'rgba(52, 152, 219, 1)',    // Blue
-    penyemaian: 'rgba(46, 204, 113, 1)',// Green
+    meja_apung: 'rgba(52, 152, 219, 1)',    // Blue (formerly remaja)
+    peremajaan: 'rgba(46, 204, 113, 1)',// Green (formerly penyemaian)
     averages: 'rgba(155, 89, 182, 1)'   // Purple for overall average lines
 };
 
@@ -371,7 +371,7 @@ function processSensorData(apiData, selectedRange, sensorType) {
     const finalDataForChartDisplay = dataForChartDisplayPoints;
 
     // 5. Format data for Chart.js datasets
-    const chartData = { dewasa: [], remaja: [], penyemaian: [], averages: [] };
+    const chartData = { dewasa: [], meja_apung: [], peremajaan: [], averages: [] };
     finalDataForChartDisplay.forEach(point => {
         const timestamp = new Date(point.timestamp);
         validSections.forEach(sectionName => {
@@ -416,6 +416,13 @@ function updateLightChart(chartData, selectedRange) {
 function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel) {
     chartInstance.data.datasets = []; // Clear previous datasets
 
+    // Helper function (can be defined globally or passed if preferred)
+    const formatLabelSectionName = (sectionName) => {
+        if (sectionName === 'meja_apung') return 'Meja Apung';
+        if (sectionName === 'peremajaan') return 'Peremajaan';
+        return sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
+    };
+
     Object.keys(chartData).forEach(sectionName => {
         if (chartData[sectionName] && chartData[sectionName].length > 0) {
             const isAverages = sectionName === 'averages';
@@ -423,7 +430,7 @@ function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel
             const backgroundColor = isAverages ? color.replace('1)', '0.2)') : color.replace('1)', '0.1)');
 
             const dataset = {
-                label: `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} ${sensorLabel}`,
+                label: `${formatLabelSectionName(sectionName)} ${sensorLabel}`, // Used helper here
                 data: chartData[sectionName],
                 borderColor: color,
                 backgroundColor: backgroundColor,
@@ -514,16 +521,19 @@ function updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, max
                date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    // Helper to capitalize the first letter of a string (for section names)
-    const capitalizeFirstLetter = (string) => {
-        if (!string) return '';
-        return string.charAt(0).toUpperCase() + string.slice(1);
+    // Helper to format section names for display
+    const formatSectionNameForDisplay = (sectionName) => {
+        if (!sectionName) return '';
+        if (sectionName === 'meja_apung') return 'Meja Apung';
+        if (sectionName === 'peremajaan') return 'Peremajaan';
+        // Default capitalization for other sections like 'dewasa' or 'averages'
+        return sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
     };
 
     // Update Min Insight
     if (insights && insights.min) {
         minValEl.textContent = `${insights.min.value.toFixed(1)}${unit}`;
-        minSubtextEl.textContent = `${minLabelPrefix} ${capitalizeFirstLetter(insights.min.section)} pada ${formatDateForInsight(insights.min.timestamp)}`;
+        minSubtextEl.textContent = `${minLabelPrefix} ${formatSectionNameForDisplay(insights.min.section)} pada ${formatDateForInsight(insights.min.timestamp)}`;
     } else {
         minValEl.textContent = '--';
         minSubtextEl.textContent = 'Tidak ada data';
@@ -532,7 +542,7 @@ function updateGenericInsights(insights, sensorPrefix, unit, minLabelPrefix, max
     // Update Max Insight
     if (insights && insights.max) {
         maxValEl.textContent = `${insights.max.value.toFixed(1)}${unit}`;
-        maxSubtextEl.textContent = `${maxLabelPrefix} ${capitalizeFirstLetter(insights.max.section)} pada ${formatDateForInsight(insights.max.timestamp)}`;
+        maxSubtextEl.textContent = `${maxLabelPrefix} ${formatSectionNameForDisplay(insights.max.section)} pada ${formatDateForInsight(insights.max.timestamp)}`;
     } else {
         maxValEl.textContent = '--';
         maxSubtextEl.textContent = 'Tidak ada data';

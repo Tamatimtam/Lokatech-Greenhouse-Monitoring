@@ -1,3 +1,9 @@
+<!--
+Section Naming Convention Update (as of recent changes):
+- 'Penyemaian' is now referred to as 'Peremajaan'.
+- 'Remaja' is now referred to as 'Meja Apung'.
+This document reflects these updated names.
+-->
 # Greenhouse Monitoring: History Page Implementation
 
 ## 1. Introduction
@@ -61,7 +67,7 @@ sequenceDiagram
 *   **Source:** `Hardware/simulation/mqtt_to_firestore.py`
 *   **Process:**
     1.  Subscribes to an MQTT topic where raw sensor data is published.
-    2.  Aggregates readings (temperature, humidity, light) for each greenhouse section (`penyemaian`, `remaja`, `dewasa`, `averages`) over a defined interval (e.g., 1 minute).
+    2.  Aggregates readings (temperature, humidity, light) for each greenhouse section (`peremajaan`, `meja_apung`, `dewasa`, `averages`) over a defined interval (e.g., 1 minute).
     3.  Calculates statistics (average, min, max, median, count) for the aggregated data.
     4.  Saves these statistics as a new document in the `greenhouse_data` collection in Firestore. Each document is timestamped (UTC).
 
@@ -91,8 +97,8 @@ sequenceDiagram
                   "humidities": { "avg": 60.1, ... },
                   "lights": { "avg": 5000, ... }
                 },
-                "remaja": { /* ... */ },
-                "penyemaian": { /* ... */ },
+                "meja_apung": { /* ... */ },
+                "peremajaan": { /* ... */ },
                 "averages": { /* ... */ }
               }
             }
@@ -191,8 +197,8 @@ This is a crucial generic function responsible for transforming raw API data int
         *   This list is then de-duplicated (based on timestamp) and sorted chronologically. This ensures that the exact data points shown in the insights are always plotted and interactive on the chart.
     5.  **Final Chart Data Construction:**
         *   Iterates through the `finalDataForChartDisplay` (which is `dataForChartDisplayPoints` after potential modifications).
-        *   For each point and each valid section (`dewasa`, `remaja`, `penyemaian`, `averages`), extracts the `avg` value for the current `sensorType`.
-        *   Formats these as `{ x: DateObject, y: value }` and pushes them into the appropriate arrays within the `chartData` object (e.g., `chartData.dewasa`, `chartData.remaja`).
+        *   For each point and each valid section (`dewasa`, `meja_apung`, `peremajaan`, `averages`), extracts the `avg` value for the current `sensorType`.
+        *   Formats these as `{ x: DateObject, y: value }` and pushes them into the appropriate arrays within the `chartData` object (e.g., `chartData.dewasa`, `chartData.meja_apung`).
     6.  **Return Value:** Returns an object `{ chartData, insightsData }`.
         *   `chartData`: Data structured for Chart.js datasets.
         *   `insightsData`: Object containing `{ min, max, overallAverage }`.
@@ -202,7 +208,7 @@ This is a crucial generic function responsible for transforming raw API data int
 *   **Parameters:** `chartInstance`, `chartData` (from `processSensorData`), `selectedRange`, `sensorLabel` (e.g., "Suhu").
 *   **Steps:**
     1.  Clears previous datasets from `chartInstance.data.datasets`.
-    2.  Iterates through each section in `chartData` (e.g., `dewasa`, `remaja`).
+    2.  Iterates through each section in `chartData` (e.g., `dewasa`, `meja_apung`).
     3.  If data exists for the section:
         *   Creates a new Chart.js dataset object with:
             *   `label`: e.g., "Dewasa Suhu".
@@ -277,7 +283,7 @@ The generated Excel file (`.xlsx`) will contain the following columns. The data 
 | Column Header     | Description                                                                                                                                                              | Data Type     | Notes                                                                                                                                       |
 | :---------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Timestamp (WIB)** | The date and time of the sensor reading or the start of the aggregation interval. All timestamps are in Western Indonesian Time (WIB, UTC+7).                             | Date/Time     | For "7 Hari" export, this is the start of a 10-minute interval. For "30 Hari" export, this is the start of an hourly interval.             |
-| **Section**         | The specific section within the greenhouse from which the data was recorded. Values can be: `Dewasa`, `Remaja`, `Penyemaian`, or `Averages`.                               | Text          | `Averages` refers to the calculated average across all primary sections.                                                                  |
+| **Section**         | The specific section within the greenhouse from which the data was recorded. Values can be: `Dewasa`, `Meja Apung`, `Peremajaan`, or `Averages`.                               | Text          | `Averages` refers to the calculated average across all primary sections.                                                                  |
 | **Sensor Type**     | The type of environmental parameter being measured. Values can be: `Suhu` (Temperature), `Kelembaban` (Humidity), or `Intensitas Cahaya` (Light Intensity).                 | Text          |                                                                                                                                             |
 | **Average**         | The average value of the sensor reading. For raw data exports (1 Hour, 1 Day), this is the direct sensor reading. For aggregated exports (7 Days, 30 Days), this is the calculated average over the interval. | Number        | Units: Suhu (°C), Kelembaban (%), Intensitas Cahaya (lux).                                                                    |
 | **Min**             | The minimum value recorded for that sensor. For raw data, this is the same as the Average. For aggregated exports, this is the minimum value observed within the interval. | Number        | Units match the sensor type.                                                                                                                |
