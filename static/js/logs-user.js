@@ -228,9 +228,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <th>Timestamp (WIB)</th>
                             <th>Username</th>
                             <th>Action Type</th>
+                            <th>Details</th>
                             <th>IP Address</th>
                             <th>Source</th>
-                            <th>Details</th>
                         </tr>
                     </thead>
                     <tbody id="user-log-tbody">
@@ -322,13 +322,61 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function escapeHtml(text) {
+        if (typeof text !== 'string') text = String(text); // Ensure text is a string
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
+    function formatEventDetailsForDisplay(actionType, eventDetails) {
+        if (!eventDetails || typeof eventDetails !== 'object' || Object.keys(eventDetails).length === 0) {
+            return '<span class="no-details">No specific details available.</span>';
+        }
+    
+        let html = '<div class="formatted-details">';
+    
+        switch (actionType) {
+            case 'DEVICE_CONTROL':
+                if (eventDetails.action_summary) html += `<div class="detail-item"><span class="detail-key">Summary:</span> <span class="detail-value">${escapeHtml(eventDetails.action_summary)}</span></div>`;
+                if (eventDetails.device) html += `<div class="detail-item"><span class="detail-key">Device:</span> <span class="detail-value">${escapeHtml(eventDetails.device)}</span></div>`;
+                if (eventDetails.node_affected) html += `<div class="detail-item"><span class="detail-key">Node:</span> <span class="detail-value">${escapeHtml(eventDetails.node_affected)}</span></div>`;
+                break;
+            case 'PROFILE_UPDATE':
+                if (eventDetails.field_updated) html += `<div class="detail-item"><span class="detail-key">Field Updated:</span> <span class="detail-value">${escapeHtml(eventDetails.field_updated)}</span></div>`;
+                if (eventDetails.old_value !== undefined) html += `<div class="detail-item"><span class="detail-key">Old Value:</span> <span class="detail-value detail-value-old">${escapeHtml(eventDetails.old_value)}</span></div>`;
+                if (eventDetails.new_value !== undefined) html += `<div class="detail-item"><span class="detail-key">New Value:</span> <span class="detail-value detail-value-new">${escapeHtml(eventDetails.new_value)}</span></div>`;
+                break;
+            case 'ACCOUNT_DELETED':
+                if (eventDetails.status) html += `<div class="detail-item"><span class="detail-key">Status:</span> <span class="detail-value ${eventDetails.status === 'success' ? 'detail-status-success' : 'detail-status-failure'}">${escapeHtml(eventDetails.status)}</span></div>`;
+                if (eventDetails.reason) html += `<div class="detail-item"><span class="detail-key">Reason:</span> <span class="detail-value">${escapeHtml(eventDetails.reason)}</span></div>`;
+                const accountEmail = eventDetails.deleted_account_email || eventDetails.attempted_account_email;
+                if (accountEmail) html += `<div class="detail-item"><span class="detail-key">Account:</span> <span class="detail-value">${escapeHtml(accountEmail)}</span></div>`;
+                break;
+            case 'REGISTRATION_SUCCESS':
+                if (eventDetails.registered_email) html += `<div class="detail-item"><span class="detail-key">Registered Email:</span> <span class="detail-value">${escapeHtml(eventDetails.registered_email)}</span></div>`;
+                break;
+            default:
+                // Fallback to pretty-printed JSON for unrecognized action types or complex structures
+                try {
+                    const escapeHtmlInJson = (obj) => JSON.parse(JSON.stringify(obj, (key, value) => typeof value === 'string' ? escapeHtml(value) : value));
+                    const prettyDetails = JSON.stringify(escapeHtmlInJson(eventDetails), null, 2);
+                    html += `<pre>${prettyDetails}</pre>`;
+                } catch (e) {
+                    html += `<pre>${escapeHtml(String(eventDetails))}</pre>`; // Absolute fallback
+                }
+                break;
+        }
+        html += '</div>';
+        return html;
+    }
+
     function createUserLogRow(log) {
         const tr = document.createElement('tr');
         
-        // Initial state for animation (opacity 0, transformY 10px set by CSS)
-        // The 'visible' class will be added by populateUserLogTableBody after appending
-        
-        // Format the timestamp nicely
         const timestampWIB = log.timestamp_wib 
             ? new Date(log.timestamp_wib).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) 
             : (log.timestamp ? new Date(log.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium'}) : 'N/A');
@@ -337,56 +385,16 @@ document.addEventListener('DOMContentLoaded', function() {
             ? log.action_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) 
             : 'N/A';
         
-        let detailsContent = '—';
-        if (log.event_details && Object.keys(log.event_details).length > 0) {
-            try {
-                // Function to escape HTML characters within string values of the JSON
-                const escapeHtmlInJson = (obj) => {
-                    return JSON.parse(JSON.stringify(obj, (key, value) => {
-                        if (typeof value === 'string') {
-                            return value
-                                .replace(/&/g, "&amp;")
-                                .replace(/</g, "&lt;")
-                                .replace(/>/g, "&gt;")
-                                .replace(/"/g, "&quot;")
-                                .replace(/'/g, "&#039;");
-                        }
-                        return value;
-                    }));
-                };
-                
-                const escapedEventDetails = escapeHtmlInJson(log.event_details);
-                const prettyDetails = JSON.stringify(escapedEventDetails, null, 2);
-                detailsContent = `<pre>${prettyDetails}</pre>`;
-            } catch (e) {
-                // Fallback for any error during stringification or escaping
-                const escapeHtml = (text) => {
-                    if (typeof text !== 'string') text = String(text);
-                    return text
-                        .replace(/&/g, "&amp;")
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;")
-                        .replace(/"/g, "&quot;")
-                        .replace(/'/g, "&#039;");
-                }
-                detailsContent = `<pre>${escapeHtml(String(log.event_details))}</pre>`;
-            }
-        }
+        const detailsContent = formatEventDetailsForDisplay(log.action_type, log.event_details);
 
         tr.innerHTML = `
             <td class="log-timestamp">${timestampWIB}</td>
-            <td class="log-username">${log.username || 'N/A'}</td>
-            <td class="log-action-type">${formattedActionType}</td>
-            <td class="log-ip-address">${log.ip_address || 'N/A'}</td>
-            <td class="log-source">${log.source || 'N/A'}</td>
+            <td class="log-username">${escapeHtml(log.username || 'N/A')}</td>
+            <td class="log-action-type">${escapeHtml(formattedActionType)}</td>
             <td class="log-details-cell">${detailsContent}</td>
+            <td class="log-ip-address">${escapeHtml(log.ip_address || 'N/A')}</td>
+            <td class="log-source">${escapeHtml(log.source || 'N/A')}</td>
         `;
-        
-        // Animation is triggered by adding 'visible' class in populateUserLogTableBody
-        // setTimeout(() => {
-        //     tr.style.opacity = '1';
-        //     tr.style.transform = 'translateY(0)';
-        // }, 50); // This direct manipulation is replaced by class addition
         
         return tr;
     }

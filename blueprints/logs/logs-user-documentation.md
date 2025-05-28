@@ -298,8 +298,8 @@ class UserActionType(Enum):
 
 ### 📊 User Logs Tab (`static/js/logs-user.js`)
 -   **Data Fetching**: Calls `/logs/user-activities` with filter parameters.
--   **Display**: Renders logs in a table with columns: Timestamp (WIB), Username, Action Type, IP Address, Source, Details.
--   **Details Column**: `event_details` are displayed as a pretty-printed JSON string within a `<pre>` tag. HTML within string values of the JSON is escaped.
+-   **Display**: Renders logs in a table with columns: Timestamp (WIB), Username, Action Type, Details, IP Address, Source.
+-   **Details Column**: `event_details` are displayed using a custom formatter (`formatEventDetailsForDisplay`) which generates human-readable HTML. For unrecognized action types or complex data, it falls back to a pretty-printed JSON string within a `<pre>` tag. HTML within string values of the JSON is escaped.
 -   **Filtering**:
     -   Days: Number input (1-90).
     -   Action Type: Dropdown with `DEVICE_CONTROL`, `PROFILE_UPDATE`, `ACCOUNT_DELETED`, `REGISTRATION_SUCCESS`.
