@@ -44,7 +44,8 @@ except ImportError as e:
 # This makes the script more portable as it doesn't rely on hardcoded paths.
 script_dir = os.path.dirname(os.path.abspath(__file__)) # Get directory of current script
 project_root = os.path.dirname(os.path.dirname(script_dir))  # Navigate up two levels to project root
-cred_path = os.path.join(project_root, 'secrets', 'firebase-credentials.json') # Path to Firebase credentials
+# Change this line - don't go up two levels, just use current directory
+cred_path = os.path.join(script_dir, 'secrets', 'firebase-credentials.json')
 
 # Load Firebase credentials and initialize the Firebase Admin app
 # This happens once when the script starts
@@ -142,51 +143,63 @@ def process_mqtt_data(payload):
     """
     global collection_data, last_save_time # Access these variables from global scope
     source_script = "mqtt_to_firestore.py"
+    
+    # Mapping from old MQTT section names to new database section names
+    section_name_mapping = {
+        "penyemaian": "peremajaan",   # Old name -> New name
+        "remaja": "meja_apung",       # Old name -> New name
+        "dewasa": "dewasa"            # Name unchanged
+    }
 
     try:
         # Extract sensor data for each greenhouse section from the payload
-        for section_name in ["peremajaan", "meja_apung", "dewasa"]: # Each growing stage
-            if section_name in payload.get("sections", {}): # Check if section exists in payload
-                section_payload = payload["sections"][section_name]
+        # Check for both old and new section names in the payload
+        sections_payload = payload.get("sections", {})
+        
+        for old_name, new_name in section_name_mapping.items():
+            if old_name in sections_payload: # Check if old section name exists in payload
+                section_payload = sections_payload[old_name]
+                print(f"Processing section '{old_name}' -> '{new_name}' with data: temp={section_payload.get('temp')}, humidity={section_payload.get('humidity')}, light={section_payload.get('light')}")
                 
                 # Extract and store temperature readings if available
                 temp_val = section_payload.get("temp")
                 if temp_val is not None:
                     try:
-                        collection_data[section_name]["temps"].append(float(temp_val))
+                        collection_data[new_name]["temps"].append(float(temp_val))
                     except (ValueError, TypeError) as e:
                         if logger_available:
-                            log_sensor_error(node=section_name, sensor_type="temp", details=f"Invalid temp value: '{temp_val}'. Error: {e}", source=source_script, db_client=db)
+                            log_sensor_error(node=old_name, sensor_type="temp", details=f"Invalid temp value: '{temp_val}'. Error: {e}", source=source_script, db_client=db)
                 else:
                     if logger_available:
-                         log_sensor_error(node=section_name, sensor_type="temp", details="Temp data missing or null.", source=source_script, db_client=db)
+                         log_sensor_error(node=old_name, sensor_type="temp", details="Temp data missing or null.", source=source_script, db_client=db)
                 
                 # Extract and store humidity readings if available
                 humidity_val = section_payload.get("humidity")
                 if humidity_val is not None:
                     try:
-                        collection_data[section_name]["humidities"].append(float(humidity_val))
+                        collection_data[new_name]["humidities"].append(float(humidity_val))
                     except (ValueError, TypeError) as e:
                         if logger_available:
-                            log_sensor_error(node=section_name, sensor_type="humidity", details=f"Invalid humidity value: '{humidity_val}'. Error: {e}", source=source_script, db_client=db)
+                            log_sensor_error(node=old_name, sensor_type="humidity", details=f"Invalid humidity value: '{humidity_val}'. Error: {e}", source=source_script, db_client=db)
                 else:
                     if logger_available:
-                        log_sensor_error(node=section_name, sensor_type="humidity", details="Humidity data missing or null.", source=source_script, db_client=db)
+                        log_sensor_error(node=old_name, sensor_type="humidity", details="Humidity data missing or null.", source=source_script, db_client=db)
                 
                 # Extract and store light intensity readings if available
                 light_val = section_payload.get("light")
                 if light_val is not None:
                     try:
-                        collection_data[section_name]["lights"].append(float(light_val))
+                        collection_data[new_name]["lights"].append(float(light_val))
                     except (ValueError, TypeError) as e:
                         if logger_available:
-                            log_sensor_error(node=section_name, sensor_type="light", details=f"Invalid light value: '{light_val}'. Error: {e}", source=source_script, db_client=db)
+                            log_sensor_error(node=old_name, sensor_type="light", details=f"Invalid light value: '{light_val}'. Error: {e}", source=source_script, db_client=db)
                 else:
                     if logger_available:
-                        log_sensor_error(node=section_name, sensor_type="light", details="Light data missing or null.", source=source_script, db_client=db)
+                        log_sensor_error(node=old_name, sensor_type="light", details="Light data missing or null.", source=source_script, db_client=db)
             else:
+                print(f"Section '{old_name}' not found in payload. Available sections: {list(sections_payload.keys())}")
                 if logger_available:
-                    log_event(LogType.SENSOR_ERROR, LogLevel.WARNING, node=section_name, details=f"Section data missing in payload for '{section_name}'.", source=source_script, db_client=db)
+                    log_event(LogType.SENSOR_ERROR, LogLevel.WARNING, node=old_name, details=f"Section data missing in payload for '{old_name}'.", source=source_script, db_client=db)
 
 
         # Also process overall average values if provided in the payload
