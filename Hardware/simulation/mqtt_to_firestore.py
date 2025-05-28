@@ -17,6 +17,7 @@ import datetime                 # For generating timestamps for data records
 import statistics               # For calculating statistical measures (mean, median, etc.)
 import os                       # For path manipulation to locate credentials file
 import sys # Add sys for path manipulation
+import pytz                     # For timezone conversions
 
 # Add project root to sys.path to allow importing blueprints
 script_dir_for_import = os.path.dirname(os.path.abspath(__file__))
@@ -254,13 +255,19 @@ def save_data_to_firestore():
     try:
         print("Attempting to save aggregated data to Firestore...")
         # Create a timezone-aware UTC timestamp for the document
-        current_timestamp = datetime.datetime.now(datetime.timezone.utc)
-        # Format timestamp as string for document ID (ISO format without microsecond precision)
-        document_id_str = current_timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3] + "Z"
+        current_timestamp_utc = datetime.datetime.now(datetime.timezone.utc)
+        
+        # Convert UTC timestamp to WIB (Asia/Jakarta, UTC+7) for the document ID
+        wib_timezone = pytz.timezone('Asia/Jakarta')
+        current_timestamp_wib = current_timestamp_utc.astimezone(wib_timezone)
+        
+        # Format WIB timestamp as string for document ID
+        # Example: "2023-10-27 15:30:05.123" (WIB)
+        document_id_str = current_timestamp_wib.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
         # Prepare the document data structure
         firestore_doc_data = {
-            "timestamp": current_timestamp, # Stored as Firestore timestamp type
+            "timestamp": current_timestamp_utc, # Store the actual timestamp as UTC Firestore Timestamp
             "stats": {},                    # Will contain all calculated statistics
             "metadata": {
                 "collection_minutes": COLLECTION_INTERVAL_MINUTES,

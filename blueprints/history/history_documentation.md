@@ -8,24 +8,24 @@ This document reflects these updated names.
 
 ## 1. Introduction
 
-This document details the implementation of the "Data Riwayat" (History Page) for the Lokatani Greenhouse Monitoring system. This page allows users to visualize and analyze historical sensor data, including temperature, humidity, and light intensity, collected from various sections of the greenhouse.
+This document details the implementation of the "Data Riwayat" (History Page) for the Lokatani Greenhouse Monitoring system. This page allows users to visualize and analyze historical sensor data, including temperature, humidity, and light intensity, collected from various sections of the greenhouse: `Peremajaan` (Seedling/Rejuvenation), `Meja Apung` (Floating Table/Young Plants), and `Dewasa` (Mature Plants), as well as overall `Averages`.
 
 **Key Features:**
 
 *   **Multi-Sensor Visualization:** Displays separate, interactive line charts for Temperature, Humidity, and Light Intensity.
-*   **Time Range Selection:** Users can select predefined time ranges:
-    *   1 Jam (1 Hour)
-    *   24 Jam (24 Hours / 1 Day)
-    *   7 Hari (7 Days)
-    *   30 Hari (30 Days)
-*   **Data Insights:** For each sensor type and selected range, the page displays:
-    *   Minimum value (with section and timestamp)
-    *   Maximum value (with section and timestamp)
-    *   Overall average value for the period.
+*   **Time Range Selection for Charts:** Users can select predefined time ranges for chart display:
+    *   1 Jam (1 Hour): Shows data at approximately 1-minute intervals.
+    *   24 Jam (24 Hours / 1 Day): Shows data at approximately 15-minute intervals.
+    *   7 Hari (7 Days): Shows data at approximately 1-hour intervals.
+    *   30 Hari (30 Days): Shows data at approximately 3-hour intervals.
+*   **Data Insights:** For each sensor type and selected chart range, the page displays:
+    *   Minimum value (with section and timestamp).
+    *   Maximum value (with section and timestamp).
+    *   Overall average value for the period, calculated from the 'averages' data stream.
 *   **Responsive Design:** Charts and layout adapt to different screen sizes.
-*   **Localization:** UI elements are partially localized to Bahasa Indonesia.
+*   **Localization:** UI elements are primarily in Bahasa Indonesia.
 *   **Dynamic Data Loading:** Data is fetched asynchronously from a backend API.
-*   **Data Export:** Users can export historical data for selected time ranges (1 Hour, 24 Hours, 7 Days, and 30 Days) to an Excel file. The 7-day export provides data aggregated into 10-minute intervals, and the 30-day export provides data aggregated into hourly intervals.
+*   **Data Export to Excel:** Users can export historical data for selected time ranges (1 Hour, 24 Hours, 7 Days, and 30 Days). Aggregation for export differs from chart display for longer ranges (see section 4).
 
 ## 2. System Architecture & Data Flow
 
@@ -34,42 +34,46 @@ The history feature involves several components working together:
 ```mermaid
 sequenceDiagram
     participant User
-    participant Browser (Frontend)
-    participant Flask App (Backend)
-    participant Firestore DB
+    participant Browser (Frontend - history.js)
+    participant Flask App (Backend - routes.py, firestore.py)
+    participant Firestore DB (greenhouse_data collection)
     participant MQTT Broker
-    participant Sensor/Simulator
+    participant Sensor/Simulator (publishes to MQTT)
+    participant Data Aggregator (mqtt_to_firestore.py)
 
-    Sensor/Simulator->>MQTT Broker: Publishes sensor data (JSON)
-    Note over MQTT Broker, Firestore DB: Data Ingestion (mqtt_to_firestore.py)
-    MQTT Broker-->>Firestore DB: Aggregated data stored
+    Sensor/Simulator->>MQTT Broker: Publishes raw sensor data (JSON)
+    Data Aggregator->>MQTT Broker: Subscribes to sensor data topic
+    Data Aggregator->>Data Aggregator: Aggregates data (1-min intervals, stats)
+    Data Aggregator->>Firestore DB: Stores 1-minute aggregated stats
 
-    User->>Browser (Frontend): Navigates to History Page
-    Browser (Frontend)->>Flask App (Backend): GET /history/
-    Flask App (Backend)-->>Browser (Frontend): Serves history.html
+    User->>Browser (Frontend - history.js): Navigates to History Page
+    Browser (Frontend - history.js)->>Flask App (Backend - routes.py, firestore.py): GET /history/
+    Flask App (Backend - routes.py, firestore.py)-->>Browser (Frontend - history.js): Serves history.html
 
-    Browser (Frontend)->>Flask App (Backend): GET /history/data?days=X (on load/range change)
-    Flask App (Backend)->>Firestore DB: Queries greenhouse_data collection
-    Firestore DB-->>Flask App (Backend): Returns historical documents
-    Flask App (Backend)-->>Browser (Frontend): Responds with JSON data
+    User->>Browser (Frontend - history.js): Selects Time Range (e.g., 7 Days)
+    Browser (Frontend - history.js)->>Flask App (Backend - routes.py, firestore.py): GET /history/data?days=X
+    Flask App (Backend - routes.py, firestore.py)->>Firestore DB (greenhouse_data collection): Queries 1-min aggregated data (with sampling for longer ranges)
+    Firestore DB (greenhouse_data collection)-->>Flask App (Backend - routes.py, firestore.py): Returns sampled/raw 1-min data
+    Flask App (Backend - routes.py, firestore.py)-->>Browser (Frontend - history.js): Responds with JSON data (timestamps converted to WIB)
 
-    Browser (Frontend)->>Browser (Frontend): Processes data & renders charts (Chart.js)
+    Browser (Frontend - history.js)->>Browser (Frontend - history.js): Processes data (client-side filtering/downsampling for charts) & renders charts (Chart.js)
 
-    Note over User, Browser (Frontend): User clicks "Export to Excel"
-    Browser (Frontend)->>Flask App (Backend): GET /history/export_excel?range=X
-    Flask App (Backend)->>Firestore DB: Queries greenhouse_data collection
-    Firestore DB-->>Flask App (Backend): Returns historical documents
-    Flask App (Backend)-->>Browser (Frontend): Sends Excel file as download
+    Note over User, Browser (Frontend - history.js): User clicks "Export to Excel"
+    Browser (Frontend - history.js)->>Flask App (Backend - routes.py, firestore.py): GET /history/export_excel?range=X
+    Flask App (Backend - routes.py, firestore.py)->>Firestore DB (greenhouse_data collection): Queries 1-min aggregated data
+    Firestore DB (greenhouse_data collection)-->>Flask App (Backend - routes.py, firestore.py): Returns 1-min data
+    Flask App (Backend - routes.py, firestore.py)->>Flask App (Backend - routes.py, firestore.py): Performs specific aggregation for 7/30 day Excel export
+    Flask App (Backend - routes.py, firestore.py)-->>Browser (Frontend - history.js): Sends Excel file as download
 ```
 
-### 2.1. Data Ingestion (External Script)
+### 2.1. Data Ingestion & Storage
 
-*   **Source:** `Hardware/simulation/mqtt_to_firestore.py`
+*   **Source:** `Hardware/simulation/mqtt_to_firestore.py` (Data Aggregator)
 *   **Process:**
-    1.  Subscribes to an MQTT topic where raw sensor data is published.
-    2.  Aggregates readings (temperature, humidity, light) for each greenhouse section (`peremajaan`, `meja_apung`, `dewasa`, `averages`) over a defined interval (e.g., 1 minute).
-    3.  Calculates statistics (average, min, max, median, count) for the aggregated data.
-    4.  Saves these statistics as a new document in the `greenhouse_data` collection in Firestore. Each document is timestamped (UTC).
+    1.  Subscribes to an MQTT topic (`lokatech/greenhouse/sensors`) where sensor data is published.
+    2.  Collects readings over a **1-minute interval**.
+    3.  For each section (`peremajaan`, `meja_apung`, `dewasa`) and overall `averages`, calculates statistics (average, min, max, median, count of raw readings within that minute).
+    4.  Saves these 1-minute aggregated statistics as a new document in the `greenhouse_data` collection in Firestore. Each document is timestamped (UTC).
 
 ### 2.2. Backend (Flask Application)
 
@@ -77,13 +81,15 @@ sequenceDiagram
     *   `blueprints/history/routes.py`: Defines API endpoints and page rendering logic.
     *   `blueprints/history/firestore.py`: Handles interaction with Firestore for fetching data.
 *   **API Endpoint: `GET /history/data`**
-    *   **Purpose:** Provides historical sensor data to the frontend.
+    *   **Purpose:** Provides historical sensor data to the frontend for chart display.
     *   **Query Parameters:**
-        *   `days` (integer, optional, default: `7`): Specifies the number of past days of data to retrieve. The "1hour" frontend range still requests 1 day of data from this API, with client-side filtering.
-    *   **Processing:**
-        1.  Queries the `greenhouse_data` collection in Firestore.
-        2.  Filters documents based on the `days` parameter (timestamps within the range).
-        3.  Converts UTC timestamps from Firestore to WIB (Asia/Jakarta) ISO 8601 strings.
+        *   `days` (integer, optional, default: `7`): Specifies the number of past days of data to retrieve.
+    *   **Processing (`blueprints/history/firestore.py` - `get_historical_data`):**
+        *   If `days <= 1`: Fetches up to 1500 of the most recent 1-minute aggregated documents from Firestore.
+        *   If `days > 1`: Employs a sampling strategy:
+            *   For `days <= 7` (e.g., 7-day range): Targets `days * 24` points (approx. 1 point per hour).
+            *   For `days > 7` (e.g., 30-day range): Targets `days * 8` points (approx. 1 point per 3 hours).
+        *   Converts UTC timestamps from Firestore to WIB (Asia/Jakarta) ISO 8601 strings.
     *   **Response:** Returns a JSON object:
         ```json
         {
@@ -91,11 +97,11 @@ sequenceDiagram
           "data": [
             {
               "timestamp": "YYYY-MM-DDTHH:MM:SS+07:00", // WIB
-              "data": { // Contains 'stats' from Firestore document
+              "data": { // Contains 'stats' from the 1-minute aggregated Firestore document
                 "dewasa": {
-                  "temps": { "avg": 25.5, "min": 24.0, ... },
-                  "humidities": { "avg": 60.1, ... },
-                  "lights": { "avg": 5000, ... }
+                  "temps": { "avg": 25.5, "min": 24.0, "max": 26.0, "median": 25.5, "count": 30 }, // Example 'count' from 1-min aggregation
+                  "humidities": { /* ... */ },
+                  "lights": { /* ... */ }
                 },
                 "meja_apung": { /* ... */ },
                 "peremajaan": { /* ... */ },
@@ -110,210 +116,137 @@ sequenceDiagram
 ### 2.3. Frontend (Browser)
 
 *   **Relevant Files:**
-    *   `templates/history.html`: Main HTML structure for the page.
-    *   `static/js/history.js`: Core JavaScript logic for interactivity, data fetching, processing, and chart rendering.
-    *   `static/js/history_export.js`: JavaScript logic for handling the "Export to Excel" button functionality.
-    *   `static/css/history.css`: Styles specific to the history page.
+    *   `templates/history.html`: Main HTML structure.
+    *   `static/js/history.js`: Core JavaScript logic.
+    *   `static/js/history_export.js`: Handles Excel export button interactions.
+    *   `static/css/history.css`: Page-specific styles.
 *   **Process:**
-    1.  **Page Load:** Renders `history.html`.
-    2.  **Initialization (`history.js`):**
-        *   Sets up event listeners for time range buttons.
-        *   Initializes empty Chart.js instances for temperature, humidity, and light.
-        *   Triggers an initial data load for the default time range (24 Hours).
-        *   Sets up the "Export to Excel" button, initially enabling/disabling it based on the default range.
-    3.  **Data Fetching & Processing:**
-        *   `loadHistoricalData()`:
-            *   Requests data from the `/history/data` API.
-            *   Displays loading indicators.
-        *   `processSensorData()`:
-            *   Receives raw API data and processes it for each sensor type (`temps`, `humidities`, `lights`).
-            *   Handles client-side filtering for the "1hour" range.
-            *   Performs downsampling for the "1day" range.
-            *   Ensures that data points corresponding to true Min/Max values (for insights) are included in the data sent to the chart, especially for "1day", "7day", and "30day" ranges.
-            *   Calculates insights (min, max, overall average).
-    4.  **Chart Rendering & Insight Display:**
-        *   `updateGenericChart()`: Updates the respective Chart.js instance with processed data, configuring datasets, labels, colors, and X-axis time scale.
-        *   `updateGenericInsights()`: Populates the HTML elements with calculated min, max, and average values.
+    1.  **Page Load & Initialization (`history.js`):** Sets up UI, Chart.js instances, and triggers initial data load (default: 24 Hours).
+    2.  **Data Fetching (`loadHistoricalData`):** Requests data from `/history/data` based on selected range.
+    3.  **Data Processing for Charts (`processSensorData`):**
+        *   Receives data from the backend (which is already sampled for 7/30 day ranges).
+        *   **1 Hour Chart:** Filters the 1-day backend data to the last 60 minutes. Uses these 1-minute interval points.
+        *   **24 Hour (1 Day) Chart:** Downsamples the 1-day backend data to approximately 15-minute intervals.
+        *   **7 Day Chart:** Uses the backend-provided data (approx. 1-hour intervals).
+        *   **30 Day Chart:** Uses the backend-provided data (approx. 3-hour intervals).
+        *   For all ranges, ensures data points corresponding to true Min/Max values (for insights) are included in the chart data.
+        *   Calculates insights (min, max, overall average from the 'averages' stream).
+    4.  **Chart Rendering & Insight Display:** Updates Chart.js instances and insight display elements.
 
 ## 3. Detailed Frontend Implementation (`static/js/history.js`)
 
 ### 3.1. Core Components & Variables
 
-*   **Chart Instances:** `temperatureChart`, `humidityChart`, `lightChart` (global Chart.js objects).
-*   **`currentSelectedRange`:** String variable tracking the active time range (e.g., "1hour", "1day").
-*   **`chartColors`:** Object mapping greenhouse section names (e.g., `dewasa`) to specific colors for chart lines.
+*   **Chart Instances:** `temperatureChart`, `humidityChart`, `lightChart`.
+*   **`currentSelectedRange`:** Tracks active time range (e.g., "1hour", "1day").
+*   **`chartColors`:** Maps section names (`dewasa`, `meja_apung`, `peremajaan`, `averages`) to chart line colors.
 
 ### 3.2. Initialization (`DOMContentLoaded`)
 
-1.  `setupTimeRangeButtons()`: Attaches click event listeners to time range buttons. On click:
-    *   Updates the active button's style.
-    *   Sets `currentSelectedRange`.
-    *   Calls `loadHistoricalData()` to refresh charts.
-    *   Calls `updateExportButtonState()` (from `history.js`, see section 3.8) to enable/disable the export button.
-2.  `initTemperatureChart()`, `initHumidityChart()`, `initLightChart()`:
-    *   Get the canvas context for each chart.
-    *   Create a new `Chart` instance with initial (empty) data and options.
-    *   Configure:
-        *   `type: 'line'`.
-        *   `responsive: true`, `maintainAspectRatio: false`.
-        *   X-axis: `type: 'time'`, title "Waktu".
-        *   Y-axis: Specific titles (e.g., "Suhu (°C)", "Kelembaban (%)", "Intensitas Cahaya (lux)") and `beginAtZero` settings where appropriate (e.g., `true` for light).
-        *   Plugins: Legend position, tooltip behavior.
-3.  `loadHistoricalData(currentSelectedRange)`: Initiates the first data load.
+*   `setupTimeRangeButtons()`: Attaches listeners to time range buttons.
+*   `initTemperatureChart()`, `initHumidityChart()`, `initLightChart()`: Initializes Chart.js instances with configurations (axes, titles, tooltips).
+*   `loadHistoricalData(currentSelectedRange)`: Initiates the first data load.
 
 ### 3.3. Data Loading and Orchestration (`loadHistoricalData`)
 
-1.  Displays a global loading indicator.
-2.  Clears any previously displayed insights for all three charts using `update<Sensor>Insights(null)`.
-3.  Determines `daysToFetchAPI` based on `selectedRange` (1 day for "1hour", or the number of days for "Xday").
-4.  Fetches data from `/history/data?days=<daysToFetchAPI>`.
-5.  Upon receiving a successful API response:
-    *   For each sensor type (`temps`, `humidities`, `lights`):
-        *   Calls `processSensorData(apiResponse.data, selectedRange, <sensorType>)` to get processed chart data and insights.
-        *   Calls `update<Sensor>Chart()` to render the chart.
-        *   Calls `update<Sensor>Insights()` to display min/max/avg.
-        *   Calls `checkAndShowNoDataError()` to display a "no data" message if applicable for that specific chart.
-6.  Handles API errors or unsuccessful responses by showing an error message.
+*   Manages loading indicators and fetches data from `/history/data`.
+*   Orchestrates calls to `processSensorData`, chart update functions, and insight display functions for each sensor type.
 
-### 3.4. Data Processing (`processSensorData`)
+### 3.4. Data Processing for Charts (`processSensorData`)
 
 This is a crucial generic function responsible for transforming raw API data into a format suitable for charting and insights display.
 
 *   **Parameters:** `apiData` (array from backend), `selectedRange` (string), `sensorType` (string: 'temps', 'humidities', 'lights').
-*   **Steps:**
-    1.  **Insight Calculation Data (`dataForInsightCalculation`):**
-        *   If `selectedRange` is "1hour", filters `apiData` to include only data points from the last 60 minutes.
-        *   Otherwise, uses the full `apiData` for the selected period.
-        *   This dataset is used to find the true min, max, and calculate the overall average for the insights display.
-    2.  **True Min/Max Identification:** Iterates through `dataForInsightCalculation` to find the absolute minimum and maximum average values for the given `sensorType` across all sections, along with their timestamps, sections, and original data point objects.
-    3.  **Chart Display Data Preparation (`dataForChartDisplayPoints`):**
-        *   **"1hour":** Uses the client-side filtered data (last 60 minutes).
-        *   **"1day":**
-            *   Downsamples `apiData` to roughly 15-minute intervals to reduce the number of points on the chart.
-            *   The first and last points of the `apiData` are always included.
-        *   **"7day" / "30day":** Starts with the full `apiData` for the period.
-    4.  **Ensuring Min/Max Point Visibility (for "1day", "7day", "30day"):**
-        *   The `originalPoint` objects corresponding to the `trueMin` and `trueMax` (identified in step 2) are explicitly added to `dataForChartDisplayPoints`.
-        *   This list is then de-duplicated (based on timestamp) and sorted chronologically. This ensures that the exact data points shown in the insights are always plotted and interactive on the chart.
-    5.  **Final Chart Data Construction:**
-        *   Iterates through the `finalDataForChartDisplay` (which is `dataForChartDisplayPoints` after potential modifications).
-        *   For each point and each valid section (`dewasa`, `meja_apung`, `peremajaan`, `averages`), extracts the `avg` value for the current `sensorType`.
-        *   Formats these as `{ x: DateObject, y: value }` and pushes them into the appropriate arrays within the `chartData` object (e.g., `chartData.dewasa`, `chartData.meja_apung`).
-    6.  **Return Value:** Returns an object `{ chartData, insightsData }`.
-        *   `chartData`: Data structured for Chart.js datasets.
-        *   `insightsData`: Object containing `{ min, max, overallAverage }`.
+*   **Key Steps for Chart Data Preparation:**
+    1.  **Data for Insight Calculation:**
+        *   For "1hour" range: Uses data from the last 60 minutes.
+        *   For other ranges: Uses the data as provided by the backend (which is already sampled for 7/30 days).
+        *   This subset is used to find the true min/max values for the insight boxes.
+    2.  **Data for Chart Display Points (`dataForChartDisplayPoints`):**
+        *   **"1hour":** Uses the client-side filtered data (last 60 minutes, effectively 1-minute intervals).
+        *   **"1day":** Downsamples the full day of 1-minute data from the backend to approximately 15-minute intervals.
+        *   **"7day":** Uses the data directly from the backend (which was sampled to approx. 1-hour intervals).
+        *   **"30day":** Uses the data directly from the backend (which was sampled to approx. 3-hour intervals).
+    3.  **Min/Max Point Inclusion:** Ensures that the specific data points representing the true minimum and maximum values (for insights) are included in the `dataForChartDisplayPoints` to be plotted. This makes insights visually verifiable on the chart.
+    4.  **Chart.js Formatting:** Transforms `dataForChartDisplayPoints` into the `{x: DateObject, y: value}` format required by Chart.js for each section.
+*   **Return Value:** `{ chartData, insightsData }`.
 
 ### 3.5. Chart Rendering (`updateGenericChart`)
 
-*   **Parameters:** `chartInstance`, `chartData` (from `processSensorData`), `selectedRange`, `sensorLabel` (e.g., "Suhu").
-*   **Steps:**
-    1.  Clears previous datasets from `chartInstance.data.datasets`.
-    2.  Iterates through each section in `chartData` (e.g., `dewasa`, `meja_apung`).
-    3.  If data exists for the section:
-        *   Creates a new Chart.js dataset object with:
-            *   `label`: e.g., "Dewasa Suhu".
-            *   `data`: The array of `{x, y}` points.
-            *   `borderColor`, `backgroundColor` (derived from `chartColors`).
-            *   `tension`, `borderWidth`, `pointRadius` (adjusted based on `selectedRange` - smaller/no points for longer ranges).
-            *   `fill` (e.g., `true` for 'averages' line).
-            *   `order` (to ensure 'averages' line might render on top or bottom as desired).
-        *   Pushes the dataset to `chartInstance.data.datasets`.
-    4.  **X-axis Time Scale Configuration:** Dynamically adjusts the X-axis `time.unit`, `time.tooltipFormat`, and `time.displayFormats` based on `selectedRange` to optimize label readability (e.g., 'minute' for "1hour", 'hour' for "1day", 'day' for "7day"/"30day").
-    5.  Calls `chartInstance.update()` to re-render the chart.
+*   Updates the Chart.js instance with new data.
+*   Sets dataset properties (labels, colors, point radius based on range).
+*   Configures X-axis time scale units and formats dynamically based on `selectedRange` for optimal readability.
 
 ### 3.6. Insights Display (`updateGenericInsights`)
 
-*   **Parameters:** `insights` (from `processSensorData`), `sensorPrefix` (e.g., "Temp", "Humidity", "Light"), `unit` (e.g., "°C", "%", " lux"), and localized label prefixes.
-*   **Steps:**
-    1.  Gets references to the HTML elements for min value, min subtext, max value, max subtext, avg value, and avg subtext using the `sensorPrefix`.
-    2.  If `insights.min` exists, formats and displays the min value and subtext (section and formatted timestamp).
-    3.  If `insights.max` exists, formats and displays the max value and subtext.
-    4.  If `insights.overallAverage` exists, formats and displays the average value.
-    5.  If data is not available for any insight, displays "--" and "Tidak ada data".
+*   Populates HTML elements with min, max, and average values, including section names (e.g., "Meja Apung") and timestamps.
+*   Uses `formatSectionNameForDisplay` to correctly show "Meja Apung" and "Peremajaan".
 
 ### 3.7. UI Feedback
 
-*   `showLoadingState(containerId)`, `hideLoadingState(containerId)`, `showErrorState(containerId, message)`: Helper functions to manage the display of loading messages ("Memuat data...") and error messages within the specified chart container.
-*   `checkAndShowNoDataError(containerId, chartData, insightsData)`: Checks if `chartData` is empty for a specific chart and calls `showErrorState` with "Tidak ada data untuk periode terpilih." if needed. Also clears insights for that chart.
+*   Functions like `showLoadingState`, `hideLoadingState`, `showErrorState`, and `checkAndShowNoDataError` manage user feedback during data operations.
 
 ## 4. Excel Data Export Feature
 
-This section details the functionality allowing users to export historical sensor data into Microsoft Excel (`.xlsx`) format. This feature provides a convenient way for users to perform offline analysis, create custom reports, or archive data.
+This section details the functionality for exporting historical sensor data to Microsoft Excel (`.xlsx`) format.
 
 ### 4.1. Overview
 
-The history page provides dedicated buttons to export data for different time ranges. Depending on the selected range, the data might be raw (at its original collection interval, e.g., per minute) or aggregated to provide a summary over longer periods, keeping file sizes manageable and data interpretation clearer for trends.
+Dedicated buttons allow users to export data. Aggregation for export is distinct from chart display for longer ranges to provide comprehensive summaries.
 
-### 4.2. Available Export Ranges & Data Aggregation
-
-Four distinct export options are available, each corresponding to a button on the history page:
+### 4.2. Available Export Ranges & Data Aggregation for Excel
 
 *   **Export 1 Jam:**
-    *   **Data:** Exports raw sensor data recorded within the **last one hour**.
-    *   **Interval:** Data is typically at the original sensor reading interval (e.g., every 1 minute).
-    *   **Aggregation:** None.
+    *   **Data:** Sensor data from the **last one hour**.
+    *   **Interval:** Original 1-minute aggregated data from Firestore.
+    *   **Aggregation:** None beyond the initial 1-minute aggregation.
 *   **Export 1 Hari:**
-    *   **Data:** Exports raw sensor data recorded within the **last 24 hours**.
-    *   **Interval:** Data is typically at the original sensor reading interval (e.g., every 1 minute).
-    *   **Aggregation:** None.
+    *   **Data:** Sensor data from the **last 24 hours**.
+    *   **Interval:** Original 1-minute aggregated data from Firestore.
+    *   **Aggregation:** None beyond the initial 1-minute aggregation.
 *   **Export 1 Minggu:**
-    *   **Data:** Exports sensor data for the **last 7 days**.
-    *   **Interval:** Data is **aggregated into 10-minute intervals**. Each row in the Excel file represents a 10-minute window.
-    *   **Aggregation:** Average, Minimum, Maximum, and Count are calculated for each 10-minute interval. The Median is **not** calculated for this export.
+    *   **Data:** Sensor data for the **last 7 days**.
+    *   **Interval:** Data is **aggregated by the backend into 10-minute intervals** for the Excel file.
+    *   **Aggregation:** Average, Minimum, Maximum, and total Count (of underlying 1-minute records) are calculated for each 10-minute interval. Median is **not** calculated.
 *   **Export 30 Hari:**
-    *   **Data:** Exports sensor data for the **last 30 days**.
-    *   **Interval:** Data is **aggregated into hourly intervals**. Each row in the Excel file represents a one-hour window.
-    *   **Aggregation:** Average, Minimum, Maximum, and Count are calculated for each hourly interval. The Median is **not** calculated for this export.
+    *   **Data:** Sensor data for the **last 30 days**.
+    *   **Interval:** Data is **aggregated by the backend into hourly intervals** for the Excel file.
+    *   **Aggregation:** Average, Minimum, Maximum, and total Count (of underlying 1-minute records) are calculated for each hourly interval. Median is **not** calculated.
 
 ### 4.3. How to Use
 
-1.  Navigate to the "Riwayat Data" (History) page.
-2.  Locate the "Ekspor Data ke Excel" section in the header controls.
-3.  Click the desired export button:
-    *   "Export 1 Jam"
-    *   "Export 1 Hari"
-    *   "Export 1 Minggu"
-    *   "Export 30 Hari"
-4.  The system will generate the Excel file, and your browser will prompt you to download it. The filename will indicate the range and the timestamp of generation (e.g., `sensor_data_7day_20231027_143000.xlsx`).
+1.  Navigate to the "Riwayat Data" page.
+2.  Under "Ekspor Data ke Excel", click the desired export button.
+3.  The browser will download the generated Excel file.
 
 ### 4.4. Excel File Structure and Column Explanation
 
-The generated Excel file (`.xlsx`) will contain the following columns. The data in these columns reflects either raw readings or aggregated values depending on the chosen export range.
-
 | Column Header     | Description                                                                                                                                                              | Data Type     | Notes                                                                                                                                       |
 | :---------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Timestamp (WIB)** | The date and time of the sensor reading or the start of the aggregation interval. All timestamps are in Western Indonesian Time (WIB, UTC+7).                             | Date/Time     | For "7 Hari" export, this is the start of a 10-minute interval. For "30 Hari" export, this is the start of an hourly interval.             |
-| **Section**         | The specific section within the greenhouse from which the data was recorded. Values can be: `Dewasa`, `Meja Apung`, `Peremajaan`, or `Averages`.                               | Text          | `Averages` refers to the calculated average across all primary sections.                                                                  |
-| **Sensor Type**     | The type of environmental parameter being measured. Values can be: `Suhu` (Temperature), `Kelembaban` (Humidity), or `Intensitas Cahaya` (Light Intensity).                 | Text          |                                                                                                                                             |
-| **Average**         | The average value of the sensor reading. For raw data exports (1 Hour, 1 Day), this is the direct sensor reading. For aggregated exports (7 Days, 30 Days), this is the calculated average over the interval. | Number        | Units: Suhu (°C), Kelembaban (%), Intensitas Cahaya (lux).                                                                    |
-| **Min**             | The minimum value recorded for that sensor. For raw data, this is the same as the Average. For aggregated exports, this is the minimum value observed within the interval. | Number        | Units match the sensor type.                                                                                                                |
-| **Max**             | The maximum value recorded for that sensor. For raw data, this is the same as the Average. For aggregated exports, this is the maximum value observed within the interval. | Number        | Units match the sensor type.                                                                                                                |
-| **Median**          | The median value of the sensor readings.                                                                                                                                 | Number        | **This column will be BLANK (empty) for "Export 1 Minggu" and "Export 30 Hari"** as median is not calculated for these aggregated exports. |
-| **Count**           | The number of raw data points that contributed to this entry. <br> - For **"Export 1 Jam"** and **"Export 1 Hari"**: This value reflects the number of individual sensor readings received and bundled by the `mqtt_to_firestore.py` script during its 1-minute collection cycle for the given timestamp. A count of 31, for example, means 31 raw readings were processed in that minute. <br> - For **"Export 1 Minggu"** and **"Export 30 Hari"**: This indicates how many 1-minute summary readings (from Firestore) were summarized into that interval's statistics (e.g., into a 10-minute or hourly block). | Integer       | This shows the underlying data frequency before aggregation.                                                                                                                                             |
+| **Timestamp (WIB)** | The date and time (WIB, UTC+7). For 1-hour/1-day exports, it's the timestamp of the 1-minute aggregated record. For 7-day/30-day exports, it's the start of the 10-minute/hourly aggregation interval. | Date/Time     |                                                                                                                                             |
+| **Section**         | Greenhouse section: `Dewasa`, `Meja Apung`, `Peremajaan`, or `Averages`.                                                                                                | Text          |                                                                                                                                             |
+| **Sensor Type**     | `Suhu` (Temperature), `Kelembaban` (Humidity), or `Intensitas Cahaya` (Light Intensity).                                                                                 | Text          |                                                                                                                                             |
+| **Average**         | For 1-hour/1-day exports: the 'avg' from the 1-minute Firestore record. For 7-day/30-day exports: the calculated average over the 10-minute/hourly interval.             | Number        | Units: Suhu (°C), Kelembaban (%), Intensitas Cahaya (lux).                                                                    |
+| **Min**             | For 1-hour/1-day exports: the 'min' from the 1-minute Firestore record. For 7-day/30-day exports: the minimum 'min' observed among the 1-minute records within the interval. | Number        | Units match sensor type.                                                                                                                |
+| **Max**             | For 1-hour/1-day exports: the 'max' from the 1-minute Firestore record. For 7-day/30-day exports: the maximum 'max' observed among the 1-minute records within the interval. | Number        | Units match sensor type.                                                                                                                |
+| **Median**          | For 1-hour/1-day exports: the 'median' from the 1-minute Firestore record. **BLANK** for 7-day/30-day exports.                                                          | Number        |                                                                                                                                             |
+| **Count**           | For 1-hour/1-day exports: the 'count' from the 1-minute Firestore record (number of raw readings in that minute). For 7-day/30-day exports: the sum of 'counts' from all 1-minute Firestore records aggregated into that 10-minute/hourly interval. | Integer       | Reflects data density.                                                                                                                                             |
 
-The columns in the Excel sheet are automatically adjusted for width to ensure readability.
+### 4.5. Technical Implementation Details for Export
 
-### 4.5. Technical Implementation Details
-
-*   **Backend Endpoint:** `GET /history/export_excel`
-    *   This Flask route (in `blueprints/history/routes.py`) handles the export requests.
-    *   It takes a `range` query parameter ("1hour", "1day", "7day", "30day").
-    *   Data is fetched from Firestore using `get_historical_data` (from `blueprints/history/firestore.py`).
-    *   For "7day" and "30day" ranges, data aggregation (10-minute or hourly) is performed in Python.
-    *   The `openpyxl` library is used to construct the Excel file in memory.
-    *   The file is then sent to the client with appropriate headers to trigger a download.
-*   **Frontend Interaction:**
-    *   `static/js/history_export.js` contains the JavaScript logic for the export buttons.
-    *   When a button is clicked, it makes an asynchronous `fetch` request to the `/history/export_excel` endpoint with the corresponding range.
-    *   It handles the server's response, initiating the file download if successful, or displaying an alert with an error message if the export fails (e.g., no data available).
-    *   The buttons provide visual feedback during the export process (e.g., "Mengekspor...").
+*   **Backend Endpoint:** `GET /history/export_excel` (in `blueprints/history/routes.py`).
+    *   Fetches 1-minute aggregated data using `get_historical_data`.
+    *   Performs further aggregation for 7-day (10-minute intervals) and 30-day (hourly intervals) ranges in Python.
+    *   Uses `openpyxl` to create the Excel file.
+*   **Frontend Interaction:** `static/js/history_export.js` handles button clicks, `fetch` requests, and file download initiation or error display.
 
 ## 5. Future Considerations / Potential Enhancements
 
-*   **Per-Chart Loading/Error States:** Currently, a global loading message is shown. Individual loading states for each chart could improve UX.
-*   **Custom Date Range Picker:** Allow users to select custom date ranges instead of predefined ones.
-*   **Data Export:**
-    *   Consider providing an option for "detailed" vs "summary" export for longer ranges if users need finer granularity despite larger file sizes (though current aggregation helps significantly).
-    *   Option to export chart data (e.g., as CSV) directly from the chart interface.
+*   **Per-Chart Loading/Error States:** Enhance UX with individual loading indicators for each chart.
+*   **Custom Date Range Picker:** Allow users to select arbitrary date/time ranges.
+*   **Advanced Export Options:**
+    *   Option to choose raw vs. aggregated data for longer export ranges.
+    *   CSV export option.
+*   **Performance Optimization:** For very large datasets, further optimize backend queries or consider pre-aggregated summary collections in Firestore for extremely long ranges.
 ---
 *This documentation provides a comprehensive guide to the current history page implementation.*
