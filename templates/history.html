@@ -27,18 +27,30 @@
                     <div class="time-range-buttons">
                         <!-- Buttons for selecting different time ranges. 
                              'data-range' attribute is used by JS to determine the selected period. -->
-                        <button class="time-range-btn" data-range="1hour">
-                            <i class="fas fa-hourglass-half"></i> 1 Jam
-                        </button>
-                        <button class="time-range-btn active" data-range="1day"> <!-- 'active' class indicates current selection. -->
-                            <i class="fas fa-clock"></i> 24 Jam
-                        </button>
-                        <button class="time-range-btn" data-range="7day">
-                            <i class="fas fa-calendar-week"></i> 7 Hari
-                        </button>
-                        <button class="time-range-btn" data-range="30day">
-                            <i class="fas fa-calendar-alt"></i> 30 Hari
-                        </button>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn" data-range="1hour">
+                                <i class="fas fa-hourglass-half"></i> 1 Jam
+                            </button>
+                            <span class="custom-tooltip-text">Data grafik ditampilkan per menit.</span>
+                        </div>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn active" data-range="1day"> <!-- 'active' class indicates current selection. -->
+                                <i class="fas fa-clock"></i> 24 Jam
+                            </button>
+                            <span class="custom-tooltip-text">Data grafik ditampilkan per 15 menit.</span>
+                        </div>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn" data-range="7day">
+                                <i class="fas fa-calendar-week"></i> 7 Hari
+                            </button>
+                            <span class="custom-tooltip-text">Data grafik ditampilkan per 1 jam.</span>
+                        </div>
+                        <div class="tooltip-wrapper">
+                            <button class="time-range-btn" data-range="30day">
+                                <i class="fas fa-calendar-alt"></i> 30 Hari
+                            </button>
+                            <span class="custom-tooltip-text">Data grafik ditampilkan per 3 jam.</span>
+                        </div>
                     </div>
                 </div>
 
@@ -50,25 +62,25 @@
                             <button class="time-range-btn export-btn" id="export1HourBtn" title="Export 1 hour data to Excel">
                                 <i class="fas fa-file-excel"></i> Export 1 Jam
                             </button>
-                            <!-- No custom tooltip needed for 1 Hour, or add a generic one if desired -->
+                            <span class="custom-tooltip-text">Data diekspor per menit untuk 1 jam terakhir.</span>
                         </div>
                         <div class="tooltip-wrapper">
                             <button class="time-range-btn export-btn" id="export1DayBtn" title="Export 1 day data to Excel">
                                 <i class="fas fa-file-excel"></i> Export 1 Hari
                             </button>
-                            <!-- No custom tooltip needed for 1 Day -->
+                            <span class="custom-tooltip-text">Data diekspor per 15 menit untuk 24 jam terakhir.</span>
                         </div>
                         <div class="tooltip-wrapper">
                             <button class="time-range-btn export-btn" id="export7DaysBtn" title="Export 7 days data to Excel">
                                 <i class="fas fa-file-excel"></i> Export 1 Minggu
                             </button>
-                            <span class="custom-tooltip-text">Data diagregasi per 10 menit selama 7 hari.</span>
+                            <span class="custom-tooltip-text">Data diekspor per 1 jam untuk 7 hari terakhir.</span>
                         </div>
                         <div class="tooltip-wrapper">
                             <button class="time-range-btn export-btn" id="export30DaysBtn" title="Export 30 days data to Excel">
                                 <i class="fas fa-file-excel"></i> Export 30 Hari
                             </button>
-                            <span class="custom-tooltip-text">Data diagregasi per jam selama 30 hari.</span>
+                            <span class="custom-tooltip-text">Data diekspor per 3 jam untuk 30 hari terakhir.</span>
                         </div>
                     </div>
                 </div>
