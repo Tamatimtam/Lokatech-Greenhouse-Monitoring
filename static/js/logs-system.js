@@ -112,7 +112,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error fetching system logs:', error);
                 if (systemLogContent && !silentRefresh) {
+                    // Preserve export button if it exists by selecting its container
+                    const exportBtnContainer = systemLogContent.querySelector('.system-log-export-container');
+                    const exportBtnHtmlOnError = exportBtnContainer ? exportBtnContainer.outerHTML : `
+                        <div class="system-log-export-container">
+                            <button id="exportSystemLogsCsvBtn" class="log-control-btn" title="Export current view of system logs to CSV">
+                                <i class="fas fa-file-csv"></i> Export System Logs to CSV
+                            </button>
+                        </div>`;
+
                     systemLogContent.innerHTML = `
+                        ${exportBtnHtmlOnError}
                         <div class="alert alert-danger">
                             <i class="fas fa-exclamation-circle"></i>
                             Error loading system logs: ${error.message}
@@ -124,6 +134,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const retryBtn = document.getElementById('retryLogsBtn');
                     if (retryBtn) {
                         retryBtn.addEventListener('click', () => loadSystemLogs(filters));
+                    }
+                    // Re-attach event listener for export button if it was re-rendered
+                    const newExportBtn = document.getElementById('exportSystemLogsCsvBtn');
+                    if (newExportBtn) {
+                        newExportBtn.addEventListener('click', handleExportSystemLogs); // Ensure this function exists or is correctly named
                     }
                 }
             })
@@ -174,18 +189,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Check if export button already exists to avoid duplicating it
-        const currentExportBtn = systemLogContent.querySelector('#exportSystemLogsCsvBtn');
-
+        // Preserve or define the export button HTML
+        let exportBtnContainer = systemLogContent.querySelector('.system-log-export-container');
         const exportBtnHtml = `
-        <div style="margin-bottom: var(--spacing-md); text-align: right;">
+        <div class="system-log-export-container">
             <button id="exportSystemLogsCsvBtn" class="log-control-btn" title="Export current view of system logs to CSV">
                 <i class="fas fa-file-csv"></i> Export System Logs to CSV
             </button>
         </div>`;
+        
+        const finalExportBtnHtml = exportBtnContainer ? exportBtnContainer.outerHTML : exportBtnHtml;
 
         systemLogContent.innerHTML = `
-            ${currentExportBtn ? '' : exportBtnHtml} 
+            ${finalExportBtnHtml} 
             <div class="system-log-controls">
                 <button id="refreshLogsBtn" class="log-control-btn">
                     <i class="fas fa-sync-alt"></i> Refresh
@@ -319,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const typeFilterEl = document.getElementById('logTypeFilter');
         const levelFilterEl = document.getElementById('logLevelFilter');
         const nodeFilterEl = document.getElementById('logNodeFilter');
-        const exportCsvBtn = document.getElementById('exportSystemLogsCsvBtn');
+        const exportCsvBtn = document.getElementById('exportSystemLogsCsvBtn'); // Ensure this ID is correct
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
@@ -340,19 +356,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (exportCsvBtn) {
-            exportCsvBtn.addEventListener('click', () => {
-                const filters = getCurrentFilters();
-                const params = new URLSearchParams({
-                    days: filters.days || 7,
-                    limit: 5000
-                });
-                if (filters.type) params.append('type', filters.type);
-                if (filters.level) params.append('level', filters.level);
-                if (filters.node) params.append('node', filters.node);
-                
-                window.location.href = `/logs/export-system-logs-csv?${params.toString()}`;
-            });
+            exportCsvBtn.addEventListener('click', handleExportSystemLogs); // Ensure this function exists or is correctly named
         }
+    }
+
+    // Helper function for handling CSV export - ensure it's defined
+    function handleExportSystemLogs() {
+        const filters = getCurrentFilters();
+        const params = new URLSearchParams({
+            days: filters.days || 7,
+            limit: 5000 // Higher limit for export
+        });
+        if (filters.type) params.append('type', filters.type);
+        if (filters.level) params.append('level', filters.level);
+        if (filters.node) params.append('node', filters.node);
+        
+        window.location.href = `/logs/export-system-logs-csv?${params.toString()}`;
     }
 
     function createLogRow(log) {
