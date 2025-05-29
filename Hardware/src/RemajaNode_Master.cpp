@@ -321,16 +321,16 @@ void loop() {
         #endif
     }
 
-    // Apply temperature offsets to received data
-    float adjustedPenyemaianTemp = receivedPenyemaianData.temperature;
-    float adjustedDewasaTemp = receivedDewasaData.temperature;
+    // Create copies of received data with temperature offsets applied
+    SensorData adjustedPenyemaianData = receivedPenyemaianData;
+    SensorData adjustedDewasaData = receivedDewasaData;
     
     if (penyemaianDataFreshForMqtt && receivedPenyemaianData.temperatureValid) {
-        adjustedPenyemaianTemp -= 1.0f; // Apply -1.0 C offset for Penyemaian
+        adjustedPenyemaianData.temperature -= 1.0f; // Apply -1.0 C offset for Penyemaian
     }
     
     if (dewasaDataFreshForMqtt && receivedDewasaData.temperatureValid) {
-        adjustedDewasaTemp -= 1.0f; // Apply -1.0 C offset for Dewasa
+        adjustedDewasaData.temperature -= 1.0f; // Apply -1.0 C offset for Dewasa
     }
 
     // The state of REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN reflects Remaja's (and thus Dewasa's) actuator state
@@ -339,11 +339,10 @@ void loop() {
       currentNtpTimestampStr, 
       localRemajaTemp, sensorManager->getHumidity(), sensorManager->getLightIntensity(), // Use adjusted temp
       localRemajaTempValid, sensorManager->isHumidityValid(), sensorManager->isLightValid(), // Use original validity for temp
-      receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
-      receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
+      adjustedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
+      adjustedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
       digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
-      digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto",
-      adjustedPenyemaianTemp, adjustedDewasaTemp // Pass adjusted temperatures for MQTT payload
+      digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
     );
 
     #if DEBUG_MQTT_MANAGER && DEBUG_REMAJA_MASTER
@@ -548,3 +547,4 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.printf("[MQTT Callback] Message on unhandled topic: %s\n", topic);
   }
 }
+
