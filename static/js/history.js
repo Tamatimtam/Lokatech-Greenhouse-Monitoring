@@ -420,7 +420,6 @@ function updateLightChart(chartData, selectedRange) {
 function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel) {
     chartInstance.data.datasets = []; // Clear previous datasets
 
-    // Helper function (can be defined globally or passed if preferred)
     const formatLabelSectionName = (sectionName) => {
         if (sectionName === 'meja_apung') return 'Meja Apung';
         if (sectionName === 'peremajaan') return 'Peremajaan';
@@ -430,56 +429,68 @@ function updateGenericChart(chartInstance, chartData, selectedRange, sensorLabel
     Object.keys(chartData).forEach(sectionName => {
         if (chartData[sectionName] && chartData[sectionName].length > 0) {
             const isAverages = sectionName === 'averages';
-            const color = chartColors[sectionName] || 'rgba(0,0,0,0.5)'; // Fallback color
+            const color = chartColors[sectionName] || 'rgba(0,0,0,0.5)';
             const backgroundColor = isAverages ? color.replace('1)', '0.2)') : color.replace('1)', '0.1)');
 
             const dataset = {
-                label: `${formatLabelSectionName(sectionName)} ${sensorLabel}`, // Used helper here
+                label: `${formatLabelSectionName(sectionName)} ${sensorLabel}`,
                 data: chartData[sectionName],
                 borderColor: color,
                 backgroundColor: backgroundColor,
-                tension: 0.1, // Slight curve to lines
+                tension: 0.1,
                 borderWidth: 2,
-                // Adjust point radius based on range: larger for 1hr, smaller for 1day, none for 7/30day
-                pointRadius: selectedRange === "1hour" ? 3 : (selectedRange === "1day" ? 2 : 0),
+                // MODIFIED: Adjust point radius for 7-day and 30-day views
+                pointRadius: selectedRange === "1hour" ? 3 : (selectedRange === "1day" ? 2 : 1.5), // Show small points for longer ranges
                 pointHoverRadius: 5,
-                fill: isAverages ? 'origin' : false, // Fill 'averages' line to origin
-                order: isAverages ? 1 : 2 // Render 'averages' potentially on top/bottom
+                fill: isAverages ? 'origin' : false,
+                order: isAverages ? 1 : 2
             };
             chartInstance.data.datasets.push(dataset);
         }
     });
 
-    // Dynamically adjust X-axis time unit, tooltip format, and display formats
-    // based on `selectedRange` for optimal readability.
+    // MODIFIED: X-axis time unit and display formats
     if (selectedRange === "1hour") {
         chartInstance.options.scales.x.time.unit = 'minute';
         chartInstance.options.scales.x.time.tooltipFormat = 'HH:mm:ss';
         chartInstance.options.scales.x.time.displayFormats = { minute: 'HH:mm' };
-        chartInstance.options.scales.x.ticks.stepSize = 5; // e.g., every 5 minutes
+        chartInstance.options.scales.x.ticks.stepSize = 5;
+        chartInstance.options.scales.x.ticks.maxTicksLimit = undefined; // Allow more ticks for 1hr
     } else if (selectedRange === "1day") {
         chartInstance.options.scales.x.time.unit = 'hour';
         chartInstance.options.scales.x.time.tooltipFormat = 'HH:mm';
         chartInstance.options.scales.x.time.displayFormats = { hour: 'HH:mm' };
-        chartInstance.options.scales.x.ticks.stepSize = undefined; // Auto step size
+        chartInstance.options.scales.x.ticks.stepSize = undefined;
+        chartInstance.options.scales.x.ticks.maxTicksLimit = undefined; // Auto
     } else if (selectedRange === "7day") {
         chartInstance.options.scales.x.time.unit = 'day';
         chartInstance.options.scales.x.time.tooltipFormat = 'MMM d, HH:mm';
-        chartInstance.options.scales.x.time.displayFormats = { day: 'MMM d' };
-        chartInstance.options.scales.x.ticks.stepSize = undefined;
+        chartInstance.options.scales.x.time.displayFormats = { day: 'MMM dd' }; // Use 'MMM dd' for clarity
+        chartInstance.options.scales.x.ticks.source = 'auto'; // Let Chart.js pick ticks from data
+        chartInstance.options.scales.x.ticks.autoSkip = true;
+        chartInstance.options.scales.x.ticks.maxRotation = 0; // Keep labels horizontal
+        chartInstance.options.scales.x.ticks.autoSkipPadding = 25; // Adjust padding
+        chartInstance.options.scales.x.ticks.stepSize = undefined; // Let it auto-step by day
+        chartInstance.options.scales.x.ticks.maxTicksLimit = 8; // Suggest around 7-8 ticks for 7 days
     } else { // "30day"
         chartInstance.options.scales.x.time.unit = 'day';
         chartInstance.options.scales.x.time.tooltipFormat = 'MMM d, yyyy';
-        chartInstance.options.scales.x.time.displayFormats = { day: 'MMM d' };
+        chartInstance.options.scales.x.time.displayFormats = { day: 'MMM dd' }; // Use 'MMM dd' for clarity
+        chartInstance.options.scales.x.ticks.source = 'auto';
+        chartInstance.options.scales.x.ticks.autoSkip = true;
+        chartInstance.options.scales.x.ticks.maxRotation = 0;
+        chartInstance.options.scales.x.ticks.autoSkipPadding = 25;
         chartInstance.options.scales.x.ticks.stepSize = undefined;
+        chartInstance.options.scales.x.ticks.maxTicksLimit = 10; // Suggest around 10 ticks (e.g., every 3 days for 30 days)
     }
 
-    // Ensure stepSize is auto for ranges other than 1hour if previously set
+    // This ensures that for ranges other than "1hour", the stepSize is not fixed,
+    // allowing `unit: 'day'` and `maxTicksLimit` to work effectively.
     if (selectedRange !== "1hour") {
         chartInstance.options.scales.x.ticks.stepSize = undefined;
     }
 
-    chartInstance.update(); // Re-render the chart
+    chartInstance.update();
 }
 
 // --- Insight Update Functions ---
