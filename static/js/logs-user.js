@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const filters = getCurrentUserLogFilters();
                 loadUserLogs(filters, true); // Silent refresh
             }
-        }, 30000); // Refresh every 30 seconds
+        }, 300000); // Refresh every 5 mins
     }
 
     function stopAutoRefreshUserLogs() {

@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const systemLogContent = document.getElementById('tab-system');
-    const defaultMaxLogEntries = 100; // Default maximum logs to display
+    const defaultMaxLogEntries = 500; // Default maximum logs to display
     let systemLogs = [];
     let isLoading = false;
     let autoRefreshIntervalId = null;
