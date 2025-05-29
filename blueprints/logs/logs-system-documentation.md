@@ -317,6 +317,25 @@ if section_data_present_and_valid:
     log_node_online(node_name=section_name, details=f"Node {section_name} data received.")
 ```
 
+**🛡️ Grace Period Mechanism:**
+
+The system implements a noise-reduction grace period for node offline status:
+
+- `NODE_OFFLINE_GRACE_PERIOD_SECONDS` (default: 30 seconds): When a node stops sending valid data, the system waits this long before marking it offline and creating a log. This prevents generating excessive logs for brief communication issues.
+
+- `NODE_STATUS_CHECK_INTERVAL_SECONDS` (default: 10 seconds): The system checks node statuses at this interval rather than on every message.
+
+- For each node, the system maintains:
+  - `node_last_valid_data_time`: Timestamp when the node last reported valid sensor data
+  - `node_logged_as_offline`: Whether the node is currently considered offline
+
+- A node is considered to have "valid data" when at least one of its primary sensors (temp, humidity, light) has a non-null, non-error value.
+
+- When valid data is received, the node's `node_last_valid_data_time` is refreshed, and if the node was previously offline, it immediately logs NODE_ONLINE.
+
+- When the time since last valid data exceeds the grace period, the system logs NODE_OFFLINE and marks the node as offline until valid data is received again.
+
+
 </details>
 
 <details>
