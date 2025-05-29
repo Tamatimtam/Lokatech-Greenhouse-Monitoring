@@ -8,16 +8,20 @@ import json
 import time
 import random
 from datetime import datetime, timezone # Added for ISO timestamp
+import argparse # For command-line arguments
 
 # MQTT Configuration
 MQTT_SERVER = "d1b364f4ed864e92b1fb464a3201e5ae.s1.eu.hivemq.cloud"
 MQTT_PORT = 8883  # TLS port
 MQTT_USER = "LokataniAdmin"
 MQTT_PASSWORD = "LokataniAdmin123"
-MQTT_PUBLISH_TOPIC = "lokatech/greenhouse/sensors"
+MQTT_PUBLISH_TOPIC = "lokatech/greenhouse/sensors_test"
 
-# Simulation Configuration
-PUBLISH_INTERVAL_SECONDS = 2 # Publish data every 2 seconds
+# Simulation Configuration - Default, can be overridden by args
+DEFAULT_PUBLISH_INTERVAL_SECONDS = 2 # Publish data every 2 seconds
+
+# Global packet ID counter for this simulator instance
+PACKET_ID_COUNTER = 0
 
 # --- Data Simulation Functions ---
 def simulate_temperature():
@@ -30,10 +34,11 @@ def simulate_light():
     return random.randint(50, 15000)
 
 def simulate_espnow_latency():
-    # Simulate latency between 15ms and 80ms, or occasionally null
-    if random.random() < 0.05: # 5% chance of being null (simulating packet loss/timeout before aggregation)
-        return None
-    return random.randint(15, 80)
+    # Simulate latency to match hardware implementation: 18 + random(5) = 18-22ms range
+    # Based on RemajaNode_Master.cpp: simulatedPenyemaianEspNowLatencyMs = 18 + random(5)
+    # This provides more realistic ESP-NOW latency simulation
+    
+    return 18 + random.randint(0, 4) # Match hardware: 18 + random(5) gives range 18-22ms
 
 def get_iso_timestamp():
     # Generate ISO 8601 timestamp with milliseconds and 'Z' for UTC
@@ -49,7 +54,7 @@ def calculate_averages(sections_data):
     light_count = 0
 
     # Iterate through all defined sections for averaging
-    for section_key in ["peremajaan", "meja_apung", "dewasa"]:
+    for section_key in ["peremajaan", "meja_apung", "dewasa"]: # Using new logical names
         data = sections_data.get(section_key, {})
         if data.get("temp") is not None:
             total_temp += data["temp"]
@@ -78,35 +83,38 @@ def on_connect(client, userdata, flags, rc): # Reverted for paho-mqtt v1.x compa
     else:
         print(f"Failed to connect, return code {rc}")
 
-client = mqtt.Client(client_id="mqtt_simulator_client_py_v1") # Reverted for paho-mqtt v1.x
+client = mqtt.Client(client_id=f"mqtt_simulator_py_{random.randint(1000,9999)}") 
 client.on_connect = on_connect
 
 # --- Main Simulation Loop ---
-def run_simulator():
+def run_simulator(publish_interval_seconds):
+    global PACKET_ID_COUNTER
     try:
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
         client.tls_set()
         client.connect(MQTT_SERVER, MQTT_PORT, 60)
         client.loop_start()
 
-        print(f"MQTT Simulator started. Publishing to topic: {MQTT_PUBLISH_TOPIC}")
+        print(f"MQTT Simulator started. Publishing to topic: {MQTT_PUBLISH_TOPIC} every {publish_interval_seconds}s")
 
         while True:
+            PACKET_ID_COUNTER += 1
             current_iso_timestamp = get_iso_timestamp()
 
             sections_data = {
-                "peremajaan": { # Formerly 'penyemaian'
+                "penyemaian": { # This will be mapped to 'peremajaan' by mqtt_to_firestore if used, but for direct backend testing, use backend's expected keys.
+                               # The backend (SensorDataManager) expects "penyemaian", "remaja", "dewasa" from MQTT payload.
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
                     "espnow_latency_ms": simulate_espnow_latency(),
                     "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 },
-                "meja_apung": { # Formerly 'remaja', this is the master node
+                "remaja": { # This is the master node's local sensors in the payload schema
                     "temp": simulate_temperature(),
                     "humidity": simulate_humidity(),
                     "light": simulate_light(),
-                    # "espnow_latency_ms": None, # Explicitly not present or null as it's the master
+                    # "espnow_latency_ms": None, # Remaja is master, no ESP-NOW latency *to itself* to report this way
                     "trends": {"temp": random.choice(["equals", "up", "down"]), "humidity": random.choice(["equals", "up", "down"]), "light": random.choice(["equals", "up", "down"])}
                 },
                 "dewasa": {
@@ -120,18 +128,22 @@ def run_simulator():
 
             averages_data = calculate_averages(sections_data)
 
-            remaja_fan_state = random.choice([True, False])
-            remaja_fan_mode = random.choice(["auto", "manual"])
-            remaja_light_state = random.choice([True, False])
-            remaja_light_mode = random.choice(["auto", "manual"])
+            remaja_fan_state = random.choice([ False])
+            remaja_fan_mode = random.choice([ "manual"])
+            remaja_light_state = random.choice([ False])
+            remaja_light_mode = random.choice([ "manual"])
 
             payload = {
-                "hardware_send_timestamp_str": current_iso_timestamp,
+                "hardware_send_timestamp_str": current_iso_timestamp, # Actual current time
                 "sections": sections_data,
                 "averages": averages_data,
-                "actuators": { # Actuators are assumed to be controlled by the master node (meja_apung)
+                "actuators": { 
                     "fan": {"state": remaja_fan_state, "mode": remaja_fan_mode},
                     "light": {"state": remaja_light_state, "mode": remaja_light_mode}
+                },
+                "log_data": { # Adding log_data from simulator
+                    "packet_id": PACKET_ID_COUNTER 
+                    # Simulator doesn't provide other log_data fields like CPU/Mem of ESP32
                 }
             }
 
@@ -139,11 +151,11 @@ def run_simulator():
             publish_result = client.publish(MQTT_PUBLISH_TOPIC, json_payload)
 
             if publish_result.rc == mqtt.MQTT_ERR_SUCCESS:
-                print(f"Published: {json_payload}")
+                print(f"Sim PktID: {PACKET_ID_COUNTER} | Published: {json_payload}")
             else:
-                print(f"Failed to publish message: {mqtt.error_string(publish_result.rc)}")
+                print(f"Sim PktID: {PACKET_ID_COUNTER} | Failed to publish message: {mqtt.error_string(publish_result.rc)}")
 
-            time.sleep(PUBLISH_INTERVAL_SECONDS)
+            time.sleep(publish_interval_seconds)
 
     except KeyboardInterrupt:
         print("Simulator stopped by user.")
@@ -158,4 +170,13 @@ def run_simulator():
         print("MQTT client disconnected.")
 
 if __name__ == "__main__":
-    run_simulator()
+    parser = argparse.ArgumentParser(description="MQTT Sensor Data Simulator for LokaTech Greenhouse.")
+    parser.add_argument(
+        "--interval", 
+        type=float, 
+        default=DEFAULT_PUBLISH_INTERVAL_SECONDS,
+        help=f"Interval in seconds for publishing data (default: {DEFAULT_PUBLISH_INTERVAL_SECONDS})"
+    )
+    args = parser.parse_args()
+    
+    run_simulator(args.interval)

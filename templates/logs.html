@@ -129,11 +129,11 @@
                 <h3 class="summary-section-title"><i class="fas fa-exchange-alt"></i> Throughput & Packet Metrics</h3>
                 <div class="summary-items-grid">
                     <div class="summary-item summary-item--throughput">
-                        <span class="summary-label">Packets Received (Backend):</span>
+                        <span class="summary-label">Packets Received:</span>
                         <span class="summary-value" id="packets-received">0</span>
                     </div>
                     <div class="summary-item summary-item--throughput">
-                        <span class="summary-label">Expected Packets (from Sim):</span>
+                        <span class="summary-label">Expected Packets:</span>
                         <span class="summary-value" id="packets-expected">0</span>
                     </div>
                      <div class="summary-item summary-item--throughput">
@@ -141,11 +141,11 @@
                         <span class="summary-value" id="msgs-per-sec-backend">--</span>
                     </div>
                     <div class="summary-item summary-item--throughput summary-item--highlight">
-                        <span class="summary-label">Throughput (Backend vs Sim):</span>
+                        <span class="summary-label">Throughput:</span>
                         <span class="summary-value" id="throughput-percentage">-- %</span>
                     </div>
                     <div class="summary-item summary-item--throughput summary-item--highlight">
-                        <span class="summary-label">Packet Loss (Backend vs Sim):</span>
+                        <span class="summary-label">Packet Loss:</span>
                         <span class="summary-value" id="packet-loss-percentage">-- %</span>
                     </div>
                 </div>
@@ -157,7 +157,7 @@
         <div class="log-controls">
             <button id="clearLogsButton" class="log-control-btn">Clear Logs</button>
             <label for="maxLogs">Max Logs to Display: </label>
-            <input type="number" id="maxLogs" value="50" min="10" max="500" class="log-input">
+            <input type="number" id="maxLogs" value="5000" min="10" max="20000" class="log-input">
             <button id="exportPerformanceLogsCsvBtn" class="log-control-btn" title="Export current performance logs to CSV" style="margin-left: auto;">
                 <i class="fas fa-file-csv"></i> Export Performance Logs to CSV
             </button>
@@ -167,7 +167,7 @@
             <thead>
               <tr>
                 <th>Backend Packet ID</th>
-                <th>Sim Packet ID</th>
+                <th>Expected Packet ID</th>
                 <th>HW Send (UTC)</th>
                 <th>Server MQTT Recv (UTC)</th>
                 <th>Server WS Send (UTC)</th>

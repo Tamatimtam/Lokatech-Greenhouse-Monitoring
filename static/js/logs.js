@@ -1,4 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Add CSS for clickable log rows
+    const style = document.createElement('style');
+    style.textContent = `
+        .clickable-log-row:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            transition: background-color 0.2s;
+        }
+    `;
+    document.head.appendChild(style);
+
     // Tab switching logic
     const tabLinks = document.querySelectorAll('.tab-header .tab-link');
     const tabContents = document.querySelectorAll('.container .tab-content');
@@ -223,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
             serverMqttRecvTs: formatTimestamp(logData.server_mqtt_recv_timestamp_str),
             serverWsSendTs: formatTimestamp(logData.websocket_send_timestamp_str),
             feWsRecvTs: formatTimestamp(feWsRecvTimestamp.toISOString()),
-            cpuBackendPercent: logData.cpu_backend_percent !== null ? logData.cpu_backend_percent.toFixed(2) : '--',
+            cpuBackendPercent: logData.cpu_backend_percent !== null ? Math.min(100, parseFloat(logData.cpu_backend_percent)).toFixed(2) : '--',
             memoryBackendMb: logData.memory_backend_mb !== null ? logData.memory_backend_mb.toFixed(2) : '--',
             espP: espP !== null && espP !== -1 ? espP.toFixed(2) : '--',
             espD: espD !== null && espD !== -1 ? espD.toFixed(2) : '--',
@@ -271,6 +281,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         logEntries.forEach(entry => {
             const row = logTableBody.insertRow();
+            // Make the row look clickable
+            row.style.cursor = 'pointer';
+            row.classList.add('clickable-log-row');
+            
+            // Add a click event listener to remove the row
+            row.addEventListener('click', function() {
+                // Find the index of this entry in the logEntries array
+                const index = logEntries.indexOf(entry);
+                if (index > -1) {
+                    // Remove from the data array
+                    logEntries.splice(index, 1);
+                    // Remove from the DOM
+                    this.remove();
+                }
+            });
+            
             row.insertCell().textContent = entry.backendPacketId;
             row.insertCell().textContent = entry.simPacketId;
             row.insertCell().textContent = entry.hwSendTs;
@@ -297,7 +323,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateStats(entry, logData) {
         // CPU and RAM stats from backend
         if (logData.cpu_backend_percent !== null) { 
-            const cpuVal = parseFloat(logData.cpu_backend_percent);
+            // Ensure CPU percentage never exceeds 100%
+            const cpuVal = Math.min(100, parseFloat(logData.cpu_backend_percent));
             totalCpu += cpuVal; 
             countCpu++;
             currentMaxCpu = Math.max(currentMaxCpu, cpuVal);
@@ -329,9 +356,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateSummaryStats() {
-        if (avgCpuBackendEl) avgCpuBackendEl.textContent = countCpu > 0 ? (totalCpu / countCpu).toFixed(2) + ' %' : '-- %';
+        if (avgCpuBackendEl) {
+            const avgCpu = countCpu > 0 ? Math.min(100, totalCpu / countCpu) : 0;
+            avgCpuBackendEl.textContent = countCpu > 0 ? avgCpu.toFixed(2) + ' %' : '-- %';
+        }
         if (avgRamBackendEl) avgRamBackendEl.textContent = countRam > 0 ? (totalRam / countRam).toFixed(2) + ' MB' : '-- MB';
-        if (maxCpuBackendEl) maxCpuBackendEl.textContent = countCpu > 0 ? currentMaxCpu.toFixed(2) + ' %' : '-- %';
+        if (maxCpuBackendEl) {
+            const maxCpu = Math.min(100, currentMaxCpu);
+            maxCpuBackendEl.textContent = countCpu > 0 ? maxCpu.toFixed(2) + ' %' : '-- %';
+        }
         if (maxRamBackendEl) maxRamBackendEl.textContent = countRam > 0 ? currentMaxRam.toFixed(2) + ' MB' : '-- MB';
 
         if (avgEspnowPenyemaianEl) avgEspnowPenyemaianEl.textContent = countEspnowP > 0 ? (totalEspnowP / countEspnowP).toFixed(2) + ' ms' : '-- ms';
@@ -381,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const headers = [
-            "Backend Packet ID", "Simulator Packet ID",
+            "Backend Packet ID", "Expected Packet ID",
             "Hardware Send (UTC)", "Server MQTT Receive (UTC)", "Server WebSocket Send (UTC)", "Frontend WebSocket Receive (Local)",
             "CPU Backend (%)", "Memori Backend (MB)",
             "Latensi ESP-P (ms)", "Latensi ESP-D (ms)", "Latensi MQTT (ms)", "Latensi WS (ms)", "Latensi Total (ms)",
