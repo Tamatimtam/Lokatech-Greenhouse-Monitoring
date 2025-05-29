@@ -24,6 +24,10 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class SensorDataManager:
+    NODE_OFFLINE_GRACE_PERIOD_SECONDS = 30  # Grace period before logging a node as offline
+    NODE_STATUS_CHECK_INTERVAL_SECONDS = 10  # How often to check node statuses
+    NODE_STALE_THRESHOLD_SECONDS = 15  # Threshold for overall MQTT feed staleness
+
     def __init__(self):
         self.latest_data = {
             "sections": {
@@ -56,20 +60,29 @@ class SensorDataManager:
                 "packet_loss_backend_percentage": None,
             }
         }
-        self.last_update = None
+        self.last_update = None  # Timestamp of the last MQTT message received from Remaja
         self.mqtt_connected = False
         self.socketio = None 
         self.packet_counter = 0
         self.source_identifier = "flask_sensor_manager"
-        self.node_online_status = {
-            'penyemaian': True,
-            'remaja': True,
-            'dewasa': True
+        
+        # New state for node online/offline logic with grace period
+        self.node_last_valid_data_time = {
+            # Initialize with current time to prevent immediate offline logs on startup
+            'penyemaian': time.monotonic(),
+            'remaja': time.monotonic(),
+            'dewasa': time.monotonic()
         }
+        self.node_logged_as_offline = {
+            'penyemaian': False,
+            'remaja': False,
+            'dewasa': False
+        }
+        self.last_node_status_check_time = time.monotonic()
         
         # For psutil
         self.process = psutil.Process(os.getpid())
-        self.process.cpu_percent(interval=None) # Initialize cpu_percent, first call returns 0.0 or None
+        self.process.cpu_percent(interval=None)  # Initialize cpu_percent, first call returns 0.0 or None
 
         # For jitter calculation
         self.prev_mqtt_latency = None
@@ -123,16 +136,49 @@ class SensorDataManager:
         logger.warning(f"Disconnected from MQTT broker with result code {rc}")
         if system_logger_available:
             log_event(LogType.CONNECTION_LOST, LogLevel.WARNING, node="server", details=f"Disconnected from MQTT Broker. Result code: {rc}", source=self.source_identifier)
-            if self.node_online_status.get("remaja", True):
-                self.node_online_status["remaja"] = False
+            # When MQTT disconnects, Remaja (master) is definitely offline.
+            if not self.node_logged_as_offline.get("remaja", False):
                 log_node_offline(node_name="remaja", 
                                  details="CRITICAL: Lost connection to MQTT broker. Remaja Master is considered offline.", 
                                  level=LogLevel.CRITICAL, 
                                  source=self.source_identifier)
+                self.node_logged_as_offline["remaja"] = True
+
+    def check_and_log_node_statuses(self):
+        """
+        Periodically checks if nodes have been silent for too long and logs them as offline.
+        """
+        current_mono_time = time.monotonic()
+        if current_mono_time - self.last_node_status_check_time < self.NODE_STATUS_CHECK_INTERVAL_SECONDS:
+            return  # Not time to check yet
+
+        self.last_node_status_check_time = current_mono_time
+
+        for section_name in self.node_last_valid_data_time.keys():
+            time_since_last_valid = current_mono_time - self.node_last_valid_data_time[section_name]
+
+            if time_since_last_valid > self.NODE_OFFLINE_GRACE_PERIOD_SECONDS:
+                if not self.node_logged_as_offline[section_name] and system_logger_available:
+                    # Node has been silent or sending only nulls for longer than grace period
+                    level = LogLevel.CRITICAL if section_name == "remaja" else LogLevel.WARNING
+                    details_msg = (
+                        f"Node {section_name} has not sent valid data for over "
+                        f"{self.NODE_OFFLINE_GRACE_PERIOD_SECONDS} seconds. Node considered offline."
+                    )
+                    log_node_offline(
+                        node_name=section_name,
+                        details=details_msg,
+                        level=level,
+                        source=self.source_identifier + "_grace_period_check"
+                    )
+                    self.node_logged_as_offline[section_name] = True
+                    # Update internal state for UI
+                    if section_name in self.latest_data['sections']:
+                        self.latest_data['sections'][section_name]['_internal_status_online'] = False
 
     
     def on_message(self, client, userdata, msg):
-        server_mqtt_recv_time = datetime.now(timezone.utc) # Record reception time immediately
+        server_mqtt_recv_time = datetime.now(timezone.utc)  # Record reception time immediately
         try:
             if self.debug:
                 logger.debug(f"Raw MQTT message received on topic {msg.topic}: {msg.payload.decode()}")
@@ -141,12 +187,21 @@ class SensorDataManager:
             
             if self.debug:
                 logger.debug(f"Parsed MQTT data: {json.dumps(data, indent=2)}")
+
+            # Before validation, update the main last_update timestamp
+            self.last_update = datetime.now(timezone.utc)  # MQTT message received from Remaja
+
+            # If Remaja was logged as offline due to MQTT disconnect, mark it online now.
+            if self.node_logged_as_offline.get("remaja", False) and system_logger_available:
+                log_node_online(node_name="remaja", details="Remaja Master is back online and sending MQTT data.", source=self.source_identifier)
+                self.node_logged_as_offline["remaja"] = False
+                self.node_last_valid_data_time["remaja"] = time.monotonic()
+                if 'remaja' in self.latest_data['sections']:
+                    self.latest_data['sections']['remaja']['_internal_status_online'] = True
             
             self.validate_and_store_data(data, server_mqtt_recv_time)
+            self.check_and_log_node_statuses()  # Check other node statuses after processing
 
-            if not self.node_online_status.get("remaja", False) and system_logger_available:
-                self.node_online_status["remaja"] = True
-                log_node_online(node_name="remaja", details="Remaja Master is back online and sending MQTT data.", source=self.source_identifier)
         except json.JSONDecodeError as e:
             err_details = f"Invalid JSON in MQTT message: {e}. Payload: {msg.payload.decode(errors='ignore')[:200]}"
             logger.error(err_details)
@@ -281,40 +336,53 @@ class SensorDataManager:
                             source=self.source_identifier + "_data_monitor"
                         )
 
-        # --- Node Offline/Online Detection ---
-        if system_logger_available:
-            expected_sections_for_node_check = ["penyemaian", "remaja", "dewasa"]
-            for section_name in expected_sections_for_node_check:
-                new_section_data = data.get("sections", {}).get(section_name, {})
-                
-                # Check if all primary sensor values are null (indicating node offline)
+        # --- MODIFIED: Node Online/Offline Data Update ---
+        # Check data validity for each section and update last_valid_data_time
+        expected_sections_in_payload = ["penyemaian", "remaja", "dewasa"]
+        for section_name in expected_sections_in_payload:
+            section_payload_data = data.get("sections", {}).get(section_name)
+            node_has_any_valid_sensor_data = False
+            if section_payload_data:  # If section data exists in payload
                 primary_sensors = ['temp', 'humidity', 'light']
-                all_sensors_null = all(new_section_data.get(sensor) is None for sensor in primary_sensors)
+                # A section is considered sending valid data if at least one primary sensor is not null AND not 0
+                for sensor_key in primary_sensors:
+                    val = section_payload_data.get(sensor_key)
+                    if val is not None and val != 0:  # Light can be 0 and valid, but temp/humidity usually not
+                        if sensor_key == 'light' and val == 0:  # If light is 0, it's still valid data point
+                            node_has_any_valid_sensor_data = True
+                            break
+                        elif sensor_key != 'light':  # temp or humidity
+                            node_has_any_valid_sensor_data = True
+                            break 
                 
-                # Get previous online status (default to True if not tracked yet)
-                was_online = self.node_online_status.get(section_name, True)
+                # If section is present but all primary sensors are null or 0 (error state for temp/hum)
+                # We still count this as the node "reporting", just reporting errors/nulls.
+                # The grace period check will eventually mark it offline if this persists.
+                is_section_present_in_payload = section_name in data.get("sections", {})
+                if is_section_present_in_payload and not node_has_any_valid_sensor_data:
+                    # Don't update last_valid_data_time, let grace period handle it.
+                    logger.debug(f"Node {section_name} reported, but all primary sensors are null or in error state. Not updating last_valid_data_time.")
                 
-                if all_sensors_null and was_online:
-                    # Node just went offline
-                    self.node_online_status[section_name] = False
-                    level = LogLevel.CRITICAL if section_name == "remaja" else LogLevel.WARNING
-                    details_msg = f"Node {section_name} is sending null values for all sensors (temp, humidity, light). Node considered offline."
-                    log_node_offline(node_name=section_name, details=details_msg, level=level, source=self.source_identifier + "_null_detection")
-                    
-                elif not all_sensors_null and not was_online:
-                    # Node came back online
-                    self.node_online_status[section_name] = True
-                    details_msg = f"Node {section_name} data received. Node is back online."
-                    log_node_online(node_name=section_name, details=details_msg, source=self.source_identifier + "_null_detection")
+            if node_has_any_valid_sensor_data:
+                self.node_last_valid_data_time[section_name] = time.monotonic()
+                if self.node_logged_as_offline[section_name] and system_logger_available:
+                    log_node_online(node_name=section_name, details=f"Node {section_name} data received. Node is back online.", source=self.source_identifier + "_data_reception")
+                    self.node_logged_as_offline[section_name] = False
+                # Update internal status for UI
+                if section_name in self.latest_data['sections']:
+                    self.latest_data['sections'][section_name]['_internal_status_online'] = True
  
 
         # Store core data
-        self.latest_data["timestamp"] = data.get("hardware_send_timestamp_str") # Use hardware ts as main ts
+        self.latest_data["timestamp"] = data.get("hardware_send_timestamp_str")  # Use hardware ts as main ts
         self.latest_data["averages"] = data.get("averages", {"temp": None, "humidity": None, "light": None})
         self.latest_data["actuators"] = data.get("actuators") 
 
-        for section_name in expected_sections:
+        for section_name in expected_sections_in_payload:  # Use MQTT keys
             self.latest_data["sections"][section_name] = data.get("sections", {}).get(section_name, {})
+            # Add the online status to the data sent to frontend
+            if section_name in self.latest_data["sections"]:
+                self.latest_data["sections"][section_name]['_internal_status_online'] = not self.node_logged_as_offline.get(section_name, False)
 
         # --- Performance and Latency Data Processing ---
         self.packet_counter += 1
@@ -444,14 +512,38 @@ class SensorDataManager:
         return True
     
     def get_data(self):
-        current_time = datetime.now(timezone.utc)
-        if not self.latest_data or self.latest_data.get("timestamp") is None or not self.last_update:
-            logger.warning("No data available or no updates received yet")
+        current_time_utc = datetime.now(timezone.utc)
+        
+        # Perform periodic node status check
+        self.check_and_log_node_statuses()
+
+        # Check if Remaja master is stale (no MQTT messages at all for a while)
+        if self.last_update and (current_time_utc - self.last_update > timedelta(seconds=self.NODE_STALE_THRESHOLD_SECONDS)):
+            logger.warning(f"Data from Remaja Master is STALE. Last MQTT message: {self.last_update}")
+            if system_logger_available and not self.node_logged_as_offline.get("remaja", False):
+                log_node_offline(node_name="remaja", 
+                                 details=f"CRITICAL: No MQTT data received from Remaja Master for over {self.NODE_STALE_THRESHOLD_SECONDS} seconds.", 
+                                 level=LogLevel.CRITICAL,
+                                 source=self.source_identifier + "_staleness_check_master")
+                self.node_logged_as_offline["remaja"] = True
+                if 'remaja' in self.latest_data['sections']:
+                    self.latest_data['sections']['remaja']['_internal_status_online'] = False
+            # Return last known data but indicate overall staleness
+            stale_data = self.latest_data.copy() 
+            stale_data["status_message"] = "Data from Remaja Master is stale" 
+            return stale_data
+        
+        if not self.latest_data or self.latest_data.get("timestamp") is None:
+            logger.warning("No data available or no updates received yet from Remaja Master")
             return {
-                "sections": { "penyemaian": {}, "remaja": {}, "dewasa": {} },
+                "sections": { 
+                    "penyemaian": {'_internal_status_online': False}, 
+                    "remaja": {'_internal_status_online': False}, 
+                    "dewasa": {'_internal_status_online': False} 
+                },
                 "averages": {"temp": None, "humidity": None, "light": None},
                 "timestamp": None,
-                "actuators": {
+                "actuators": { 
                     "fan": {"state": None, "mode": "auto"},
                     "light": {"state": None, "mode": "auto"}
                 },
@@ -472,27 +564,17 @@ class SensorDataManager:
                     "throughput_backend_percentage": None,
                     "packet_loss_backend_percentage": None,
                 },
-                "status_message": "No data available"
+                "status_message": "No data available from Remaja Master"
             }
             
-        # Check if data is stale (e.g., older than 15 seconds for MQTT)
-        if self.last_update and (current_time - self.last_update > timedelta(seconds=15)):
-            logger.warning(f"Data is stale. Last update: {self.last_update}")
-            # Return last known data but with a status message
-            stale_data = self.latest_data.copy() # Create a shallow copy
-            stale_data["status_message"] = "Data is stale" 
-            # We might want to nullify sensor values here or let UI handle staleness
-            if self.node_online_status.get("remaja", True) and system_logger_available:
-                self.node_online_status["remaja"] = False
-                log_node_offline(node_name="remaja", 
-                                 details="CRITICAL: No MQTT data received from Remaja Master for over 15 seconds.", 
-                                 level=LogLevel.CRITICAL,
-                                 source=self.source_identifier + "_staleness_check")
-            return stale_data
-        
         if self.debug:
-            logger.debug(f"Returning data: {json.dumps(self.latest_data, indent=2)}")
+            logger.debug(f"Returning data via get_data(): {json.dumps(self.latest_data, indent=2)}")
             
+        # Ensure _internal_status_online is present for all sections when returning data
+        for section_name in self.latest_data["sections"]:
+            if '_internal_status_online' not in self.latest_data["sections"][section_name]:
+                self.latest_data["sections"][section_name]['_internal_status_online'] = not self.node_logged_as_offline.get(section_name, True)  # Default to offline if not tracked
+
         return self.latest_data
 
 sensor_manager = SensorDataManager()
