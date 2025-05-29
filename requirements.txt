@@ -9,3 +9,4 @@ flask_cors
 openpyxl
 pytz
 psutil
+cachetools

@@ -198,14 +198,18 @@ function loadHistoricalData(selectedRange) {
     updateHumidityInsights(null);
     updateLightInsights(null);
 
-    // Determine the number of days of data to request from the API.
-    // For "1hour", we still fetch 1 day of data and filter client-side.
+    // Determine the API parameters to request optimized data.
     let daysToFetchAPI = 1;
-    if (selectedRange.endsWith('day')) {
+    let apiParams = `days=${daysToFetchAPI}`; // Default
+
+    if (selectedRange === "1hour") {
+        apiParams = `range=1hour`; // New parameter for 1-hour specific fetch
+    } else if (selectedRange.endsWith('day')) {
         daysToFetchAPI = parseInt(selectedRange);
+        apiParams = `days=${daysToFetchAPI}`;
     }
 
-    fetch(`/history/data?days=${daysToFetchAPI}`)
+    fetch(`/history/data?${apiParams}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
