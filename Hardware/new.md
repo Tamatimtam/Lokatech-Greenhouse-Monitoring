@@ -17,6 +17,7 @@ The **updated hardware architecture** consists of four main components:
 #### 🌱 **1. Penyemaian Node (Seedling Section)**
 - 📍 **Purpose**: Monitors the seedling growing area
 - 🌡️ **Sensors**: Temperature, humidity, light (DHT22 + BH1750)
+- 🌡️ **Temperature Offset**: -1.0°C applied for calibration
 - 📡 **Communication**: Transmits `SensorData` via ESP-NOW to Gateway Node
 - ⚡ **Power**: Standalone ESP32 with sensor power
 
@@ -25,6 +26,7 @@ The **updated hardware architecture** consists of four main components:
 
 - 📍 **Purpose**: Monitors the mature plants growing area
 - 🌡️ **Sensors**: Temperature, humidity, light (DHT22 + BH1750)
+- 🌡️ **Temperature Offset**: -1.0°C applied for calibration
 - 💡 **Actuators**: Fan and light LEDs for local control
 - 📡 **Communication**: 
   - Sends `SensorData` via ESP-NOW to Gateway Node
@@ -42,6 +44,7 @@ The **updated hardware architecture** consists of four main components:
 
 - 📍 **Purpose**: Monitors young plants section AND acts as system master
 - 🌡️ **Local Sensors**: Temperature, humidity, light (DHT22 + BH1750)
+- 🌡️ **Temperature Offset**: -3.5°C applied for calibration
 - 💡 **Local Actuators**: Fan and light LEDs (also used as GPIO signals to Gateway)
 - 🧠 **Intelligence**: Runs Fuzzy Logic Controller for automated decisions
 - 📡 **MQTT**: Publishes sensor data and subscribes to control commands
@@ -357,7 +360,35 @@ const char* mqtt_control_topic = "lokatech/greenhouse/controls/set";
 </details>
 
 <details>
-<summary><strong>⏰ 5.4. Timing & Interval Configuration</strong></summary>
+<summary><strong>⏰ 5.4. Temperature Calibration Configuration</strong></summary>
+
+#### 🌡️ **Temperature Offset Settings**
+The system applies calibration offsets to all temperature readings to improve accuracy:
+
+| Node Type | Offset Applied | Applied Where |
+|-----------|---------------|---------------|
+| 🧠 **Remaja Master** | -3.5°C | Local sensor readings |
+| 🌿 **Dewasa** | -1.0°C | Applied at Remaja Master when processing received data |
+| 🌱 **Penyemaian** | -1.0°C | Applied at Remaja Master when processing received data |
+
+#### 📊 **Implementation Details**
+- **MQTT Payload**: All published temperatures include applied offsets
+- **Fuzzy Logic**: Averages calculated using offset-adjusted temperatures
+- **Raw Data**: Original sensor readings preserved for debugging
+- **Validity Flags**: Temperature validity based on original readings, not offset values
+
+#### 🔧 **Customization**
+To modify temperature offsets, update the following locations in `RemajaNode_Master.cpp`:
+```cpp
+localRemajaTemp -= 3.5f;  // Remaja Master offset
+adjustedPenyemaianTemp -= 1.0f;  // Penyemaian offset  
+adjustedDewasaTemp -= 1.0f;      // Dewasa offset
+```
+
+</details>
+
+<details>
+<summary><strong>⏰ 5.5. Timing & Interval Configuration</strong></summary>
 
 #### 📋 **Key Timing Parameters**
 Located in `Hardware/lib/Common/NodeConfig.h`:
@@ -381,7 +412,7 @@ Located in `Hardware/lib/Common/NodeConfig.h`:
 </details>
 
 <details>
-<summary><strong>🕰️ 5.5. NTP Time Synchronization (Remaja Master)</strong></summary>
+<summary><strong>🕰️ 5.6. NTP Time Synchronization (Remaja Master)</strong></summary>
 
 #### 🌐 **NTP Server Configuration**
 ```cpp
@@ -400,7 +431,7 @@ const int DAYLIGHT_OFFSET_SEC = 0;       // No daylight saving in Indonesia
 </details>
 
 <details>
-<summary><strong>🐛 5.6. Debug Configuration</strong></summary>
+<summary><strong>🐛 5.7. Debug Configuration</strong></summary>
 
 #### 🔧 **Debug Flags**
 Enable/disable in `Hardware/lib/Common/NodeConfig.h`:
@@ -508,22 +539,22 @@ struct ActuatorCommand {
 {
   "hardware_send_timestamp_str": "2023-10-27T10:30:00.123Z", // 🕰️ NTP timestamp
   "sections": {
-    "remaja": {           // 🧠 Local Remaja Master data
-      "temp": 27.5, "humidity": 65, "light": 9000,
+    "remaja": {           // 🧠 Local Remaja Master data (with -3.5°C offset)
+      "temp": 24.0, "humidity": 65, "light": 9000,
       "trends": {"temp": "increasing", "humidity": "stable"}
     },
-    "penyemaian": {       // 🌱 From Gateway
-      "temp": 26.1, "humidity": 62.3, "light": 6800,
+    "penyemaian": {       // 🌱 From Gateway (with -1.0°C offset)
+      "temp": 25.1, "humidity": 62.3, "light": 6800,
       "espnow_latency_ms": 30,
       "trends": {"temp": "stable", "humidity": "decreasing"}
     },
-    "dewasa": {           // 🌿 From Gateway
-      "temp": 25.5, "humidity": 60.1, "light": 7500,
+    "dewasa": {           // 🌿 From Gateway (with -1.0°C offset)
+      "temp": 24.5, "humidity": 60.1, "light": 7500,
       "espnow_latency_ms": 35,
       "trends": {"temp": "decreasing", "humidity": "stable"}
     }
   },
-  "averages": { "temp": 26.4, "humidity": 62, "light": 7767 },
+  "averages": { "temp": 24.5, "humidity": 62, "light": 7767 }, // 🌡️ Uses offset-adjusted temperatures
   "actuators": {          // 🎛️ Remaja Master's local actuators only
     "fan": { "state": true, "mode": "auto" },
     "light": { "state": false, "mode": "manual" }

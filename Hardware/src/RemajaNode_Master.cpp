@@ -315,12 +315,23 @@ void loop() {
     float localRemajaTemp = sensorManager->getTemperature();
     bool localRemajaTempValid = sensorManager->isTemperatureValid();
     if (localRemajaTempValid) {
-        localRemajaTemp -= 2.0f; // Apply -2.0 C offset
+        localRemajaTemp -= 3.5f; // Apply -3.5 C offset
         #if DEBUG_REMAJA_MASTER
         // Serial.printf("[RemajaNode_Master] Original Remaja Temp: %.1fC, Adjusted Remaja Temp: %.1fC\n", sensorManager->getTemperature(), localRemajaTemp);
         #endif
     }
 
+    // Apply temperature offsets to received data
+    float adjustedPenyemaianTemp = receivedPenyemaianData.temperature;
+    float adjustedDewasaTemp = receivedDewasaData.temperature;
+    
+    if (penyemaianDataFreshForMqtt && receivedPenyemaianData.temperatureValid) {
+        adjustedPenyemaianTemp -= 1.0f; // Apply -1.0 C offset for Penyemaian
+    }
+    
+    if (dewasaDataFreshForMqtt && receivedDewasaData.temperatureValid) {
+        adjustedDewasaTemp -= 1.0f; // Apply -1.0 C offset for Dewasa
+    }
 
     // The state of REMAJA_FAN_LED_PIN and REMAJA_LIGHT_LED_PIN reflects Remaja's (and thus Dewasa's) actuator state
     mqttManager->generateJsonPayload( 
@@ -331,7 +342,8 @@ void loop() {
       receivedPenyemaianData, penyemaianDataFreshForMqtt, simulatedPenyemaianEspNowLatencyMs, 
       receivedDewasaData, dewasaDataFreshForMqtt, simulatedDewasaEspNowLatencyMs,         
       digitalRead(REMAJA_FAN_LED_PIN) == HIGH, remajaFanManual ? "manual" : "auto",
-      digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto"
+      digitalRead(REMAJA_LIGHT_LED_PIN) == HIGH, remajaLightManual ? "manual" : "auto",
+      adjustedPenyemaianTemp, adjustedDewasaTemp // Pass adjusted temperatures for MQTT payload
     );
 
     #if DEBUG_MQTT_MANAGER && DEBUG_REMAJA_MASTER
@@ -367,7 +379,7 @@ void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool
     float localRemajaTempForAvg = sensorManager->getTemperature();
     bool localRemajaTempValidForAvg = sensorManager->isTemperatureValid();
     if (localRemajaTempValidForAvg) {
-        localRemajaTempForAvg -= 2.0f; // Apply -2.0 C offset
+        localRemajaTempForAvg -= 3.5f; // Apply -3.5 C offset
     }
 
     if (localRemajaTempValidForAvg) {
@@ -381,13 +393,17 @@ void calculateAverages(float &avgTemp, float &avgHumidity, float &avgLight, bool
     }
 
     if ((currentMillis - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isPenyemaianDataValidSerial) {
-        if (receivedPenyemaianData.temperatureValid) { tempSum += receivedPenyemaianData.temperature; tempCount++; }
+        if (receivedPenyemaianData.temperatureValid) { 
+            tempSum += (receivedPenyemaianData.temperature - 1.0f); tempCount++; // Apply -1.0 C offset
+        }
         if (receivedPenyemaianData.humidityValid) { humiditySum += receivedPenyemaianData.humidity; humidityCount++; }
         if (receivedPenyemaianData.lightValid) { lightSum += receivedPenyemaianData.lightIntensity; lightCount++; }
     }
 
     if ((currentMillis - lastGatewaySerialTime < GATEWAY_SERIAL_TIMEOUT) && isDewasaDataValidSerial) {
-        if (receivedDewasaData.temperatureValid) { tempSum += receivedDewasaData.temperature; tempCount++; }
+        if (receivedDewasaData.temperatureValid) { 
+            tempSum += (receivedDewasaData.temperature - 1.0f); tempCount++; // Apply -1.0 C offset
+        }
         if (receivedDewasaData.humidityValid) { humiditySum += receivedDewasaData.humidity; humidityCount++; }
         if (receivedDewasaData.lightValid) { lightSum += receivedDewasaData.lightIntensity; lightCount++; }
     }
