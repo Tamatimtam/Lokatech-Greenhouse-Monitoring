@@ -6,6 +6,7 @@ from firebase_admin import credentials, firestore
 import datetime
 import os
 import pytz
+import traceback
 
 _db = None # This will be set by app2.py
 _history_initialized_project_id = None # Also set by app2.py
@@ -20,15 +21,16 @@ def get_firestore_db():
         print("CRITICAL ERROR (History DB): Firestore DB client (_db) was NOT SET by the main application. DB operations will fail.")
     return _db
 
-def get_historical_data(section=None, days=7, data_type=None):
+def get_historical_data(section=None, days=7, data_type=None, range_specifier=None):
     """
     Retrieve historical greenhouse data from Firestore using smart sampling.
     
     Args:
-        section (str, optional): The greenhouse section: 'dewasa', 'remaja', 'penyemaian', or 'averages'. 
+        section (str, optional): The greenhouse section: 'dewasa', 'meja_apung', 'peremajaan', or 'averages'. 
                                  If None, returns data for all sections.
         days (int, optional): Number of days of history. Defaults to 7.
         data_type (str, optional): 'temps', 'humidities', or 'lights'. If None, all types.
+        range_specifier (str, optional): Specific range like '1hour' for optimized fetching.
     
     Returns:
         list: List of sampled data points ordered by timestamp
@@ -43,7 +45,46 @@ def get_historical_data(section=None, days=7, data_type=None):
         results = []
         
         # --- MODIFIED LOGIC ---
-        if days <= 1:  # For 1 day or less (covers the "1hour" case which requests days=1)
+        if range_specifier == "1hour": # Handle specific 1-hour request
+            print(f"DEBUG: History - range_specifier=1hour. Fetching last ~70 docs.")
+            one_hour_ago_wib = now_wib - datetime.timedelta(hours=1, minutes=10) # Fetch bit more just in case
+            date_limit_utc = one_hour_ago_wib.astimezone(datetime.timezone.utc)
+            
+            query = db.collection('greenhouse_data') \
+                      .where('timestamp', '>=', date_limit_utc) \
+                      .order_by('timestamp', direction=firestore.Query.DESCENDING) \
+                      .limit(70) # Approx 1 doc/min for 1 hour + buffer
+            
+            docs_list = list(query.stream())
+            docs_list.reverse() # To get ascending order for processing
+            
+            for doc in docs_list:
+                data = doc.to_dict()
+                timestamp = data.get('timestamp')
+                timestamp_wib_val = None
+                
+                if isinstance(timestamp, datetime.datetime):
+                    if timestamp.tzinfo is None:
+                        timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+                    timestamp_wib_val = timestamp.astimezone(wib_timezone)
+
+                if timestamp_wib_val:
+                    result_point = {'timestamp': timestamp_wib_val.isoformat(), 'data': {}}
+                    stats_data = data.get('stats', {})
+                    valid_sections = ['dewasa', 'meja_apung', 'peremajaan', 'averages']
+
+                    if section and section in valid_sections:
+                        if section in stats_data:
+                            result_point['data'][section] = stats_data[section]
+                    elif not section:  # All sections
+                        for sec_name, sec_stats in stats_data.items():
+                            if sec_name in valid_sections:
+                                result_point['data'][sec_name] = sec_stats
+                    
+                    if result_point['data']:
+                        results.append(result_point)
+
+        elif days <= 1:  # For 1 day request (covers the "24hour" case)
             print(f"DEBUG: History - days <= 1 ({days} days). Fetching more raw data.")
             
             # Convert date limit to UTC for Firestore query

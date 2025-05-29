@@ -7,6 +7,33 @@ from io import BytesIO
 from openpyxl.utils import get_column_letter
 import pytz # Ensure pytz is imported
 
+from cachetools import TTLCache, cached # Import cachetools
+from cachetools.keys import hashkey # For generating cache keys
+
+# Create caches with different TTLs for different data ranges
+# Short-term cache for recent data (1 hour, 1 day) - 2 minutes TTL
+history_data_cache_short = TTLCache(maxsize=50, ttl=120)
+
+# Long-term cache for historical data (7 days, 30 days) - 10 minutes TTL
+# These queries are expensive and data doesn't need to be real-time for analysis
+history_data_cache_long = TTLCache(maxsize=50, ttl=600)
+
+def get_appropriate_cache():
+    """
+    Determine which cache to use based on the request parameters.
+    Returns the appropriate cache instance.
+    """
+    range_str = request.args.get('range')
+    days_str = request.args.get('days')
+    
+    # Use long-term cache for 7+ day periods or expensive range queries
+    if range_str in ['7day', '30day'] or (days_str and int(days_str) >= 7):
+        print(f"DEBUG: Using LONG-TERM cache (10min TTL) for {request.args}")
+        return history_data_cache_long
+    else:
+        print(f"DEBUG: Using SHORT-TERM cache (2min TTL) for {request.args}")
+        return history_data_cache_short
+
 # Create a blueprint for history routes
 history = Blueprint('history', __name__, url_prefix='/history')
 
@@ -19,19 +46,44 @@ def history_page():
 @history.route('/data')
 @isloggedin
 def history_data():
-    """API endpoint to get historical data"""
+    """API endpoint to get historical data (now with smart caching)"""
+    print(f"DEBUG: /history/data called with args: {request.args}") # To see cache hits/misses
+    
+    # Create cache key from request arguments
+    cache_key = hashkey(frozenset(request.args.items()))
+    
+    # Determine which cache to use based on request parameters
+    cache = get_appropriate_cache()
+    
+    # Check if data is in cache
+    if cache_key in cache:
+        print(f"DEBUG: Cache HIT for {request.args}")
+        return cache[cache_key]
+    
+    print(f"DEBUG: Cache MISS for {request.args} - fetching from Firestore")
+    
     # Get query parameters
     section = request.args.get('section', None)
-    days = int(request.args.get('days', 7))
+    days_str = request.args.get('days')
+    range_str = request.args.get('range') # Get the new range parameter
     data_type = request.args.get('type', None)
     
-    # Get data from Firestore
-    data = get_historical_data(section=section, days=days, data_type=data_type)
+    days_to_pass = 7 # Default
+    if days_str:
+        days_to_pass = int(days_str)
     
-    return jsonify({
+    # Pass range_str to get_historical_data
+    data = get_historical_data(section=section, days=days_to_pass, data_type=data_type, range_specifier=range_str)
+    
+    response = jsonify({
         'success': True,
         'data': data
     })
+    
+    # Store in cache
+    cache[cache_key] = response
+    
+    return response
 
 @history.route('/latest')
 @isloggedin
@@ -283,3 +335,25 @@ def export_excel():
         download_name=filename,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@history.route('/cache_stats')
+@isloggedin
+def cache_stats():
+    """API endpoint to get cache statistics for monitoring"""
+    return jsonify({
+        'success': True,
+        'cache_stats': {
+            'short_term_cache': {
+                'current_size': len(history_data_cache_short),
+                'max_size': history_data_cache_short.maxsize,
+                'ttl_seconds': history_data_cache_short.ttl,
+                'description': 'For 1hour and 1day requests'
+            },
+            'long_term_cache': {
+                'current_size': len(history_data_cache_long),
+                'max_size': history_data_cache_long.maxsize, 
+                'ttl_seconds': history_data_cache_long.ttl,
+                'description': 'For 7day and 30day requests'
+            }
+        }
+    })
