@@ -96,95 +96,154 @@ This feature is being implemented in multiple phases:
         -   `source="auth_module"`
         -   `ip_address=request.remote_addr`.
 
-4.  **Update API Endpoints in `blueprints/logs/routes.py` (User Log Endpoints):**
-    -   **Created `GET /logs/user-activities`**:
-        -   Calls `firestore_logger.get_user_logs()`.
-        -   Protected by `@isloggedin`.
-        -   Accepts query parameters for filtering (days, type, username, limit).
-    -   **Created `GET /logs/export-user-activities-csv`**:
-        -   Exports user logs from `firestore_logger.get_user_logs()`.
-        -   Protected by `@isloggedin`.
-        -   CSV columns: Timestamp (WIB), Username, Action Type, IP Address, Source, Details (flattened `event_details` as JSON string).
+    -   **Password Reset Requested:** In `request_password_reset()`, after successful validation and before client calls Firebase, `firestore_logger.log_user_activity` is called with:
+        -   `action_type`: `UserActionType.PASSWORD_RESET_REQUESTED`
+        -   `event_details`: `{"action": "password_reset_request_allowed", "email_provided": "user@example.com"}`
+        -   `source`: `"auth_module"`
+        -   `ip_address`: `request.remote_addr`
 
-5.  **Documentation Updates:**
-    -   This file (`logs-user-documentation.md`) updated with details of Phase 1 & 2.
-    -   `logs-system-documentation.md` updated to reflect that user device control actions and the "User" column are removed.
+    -   **Rate Limit Exceeded:** In `login()`, `register()`, and `request_password_reset()` when a rate limit is hit, `firestore_logger.log_user_activity` is called with:
+        -   `username`: `ip_address` (since user might not be identifiable yet)
+        -   `action_type`: `UserActionType.RATE_LIMIT_EXCEEDED`
+        -   `event_details`: `{"action": "login/register/reset-password", "limit": "X requests per Ys"}`
+        -   `source`: `"auth_rate_limiter"`
+        -   `ip_address`: `request.remote_addr`
+
+4.  **Created `blueprints/logs/routes.py` (User Log API Endpoints):**
+    -   **`GET /logs/user-activities`**:
+        -   Fetches user logs based on query parameters: `days`, `type` (action_type), `username`, `limit`.
+        -   Uses `get_user_logs()` from `firestore_logger.py`.
+        -   Returns JSON data.
+    -   **`GET /logs/export-user-activities-csv`**:
+        -   Exports user logs to a CSV file based on query parameters: `days`, `type`, `username`.
+        -   Uses `get_user_logs()` and generates a CSV response.
+
+5.  **Created `static/js/logs-user.js` (Frontend User Log Display):**
+    -   Handles fetching user logs from `/logs/user-activities`.
+    -   Dynamically populates an HTML table with log data.
+    -   Includes client-side filtering controls (days, action type, username).
+    -   Provides a "Refresh" button.
+    -   Manages loading states and error display.
+    -   Handles CSV export button functionality.
+
+6.  **Updated `templates/logs.html` (User Log Tab Structure):**
+    -   Added a basic structure for the "User Logs" tab, including placeholders for controls and the log table.
+    -   Included `logs-user.js`.
+
+7.  **Created `static/css/logs-user.css` (Styling for User Logs Tab):**
+    -   Basic styling for the user logs table, filters, and buttons.
 
 **Files Involved in Phase 2:**
 *   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\dashboard\routes.py`
 *   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\profile\routes.py`
 *   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\auth\routes.py`
 *   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\routes.py`
-*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\firestore_logger.py` (functions called)
-*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\logs-user-documentation.md`
-*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\logs-system-documentation.md`
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\static\js\logs-user.js`
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\templates\logs.html`
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\static\css\logs-user.css`
 
 **Outcome of Phase 2:**
-*   Logging implemented for profile updates, account deletions, and new user registrations into `user_logs`.
-*   IP addresses correctly logged for all user actions, including device control.
-*   API endpoints for fetching and exporting these specific user logs are functional.
-*   Relevant documentation files updated.
+*   Comprehensive logging for device control, profile updates, account deletion, and new user registration is implemented, writing to `user_logs`.
+*   Rate limiting events are also logged to `user_logs`.
+*   A functional "User Logs" tab in the UI allows viewing and filtering these logs.
+*   Users can export the filtered user logs to a CSV file.
 
 </details>
 
 <details open>
-<summary><strong>🎨 Phase 3: Frontend - Building the User Logs Tab & System Logs Cleanup (Completed - UI/Filtering Refinements Ongoing)</strong></summary>
+<summary><strong>✅ Phase 3: UI/UX Refinements - Column Sizing & Pagination (Completed)</strong></summary>
 
-> **💡 Objective**: Develop the frontend interface for viewing user activity logs. Clean up the System Logs tab to remove user-specific information. Improve UI consistency.
+> **💡 Objective**: Enhance the User Logs tab's user experience by implementing better column width management and a "Load More" pagination system to handle large datasets more effectively.
 
 **Steps & Outcomes:**
-1.  **Created `static/css/logs-user.css`:**
-    -   Defined styles for the User Logs tab, table, filters, and log details.
-    -   Styles aim to align with `logs-system.css` for consistency, including control heights, padding, and hover effects on table rows.
-    -   Improved styling for `<pre>` block in `event_details` for better readability (monospaced font, background, padding).
+1.  **CSS Adjustments for Column Sizing (`static/css/logs-user.css`):**
+    -   Defined `max-width` for "Username" and "Details" columns to prevent them from excessively stretching and pushing other columns out of view.
+        -   "Username": Uses `overflow: hidden`, `text-overflow: ellipsis`, `white-space: nowrap` for truncation.
+        -   "Details": Uses `word-break: break-word` to allow content to wrap within its `max-width`.
+    -   Assigned `min-width` to "IP Address" and "Source" columns to ensure their visibility.
 
-2.  **Developed `static/js/logs-user.js`:**
-    -   Fetches data from the `/logs/user-activities` API endpoint.
-    -   Displays logs in a table format (Timestamp, Username, Action Type, IP Address, Source, Details).
-    -   `event_details` are JSON.stringified with indentation and HTML escaped for safe rendering within `<pre>` tags.
-    -   Implemented client-side controls for filtering (date range, username, action type).
-        -   Username filter sends `null` if empty to backend.
-        -   Debounce added for username text input to reduce API calls.
-    -   Implemented "Export User Logs to CSV" button (calls `/logs/export-user-activities-csv`).
-    -   Implemented auto-refresh (every 30 seconds when tab is active).
-    -   Handles loading states and error messages, preserving export button on error.
+2.  **Backend Pagination Support (`blueprints/logs/firestore_logger.py` & `blueprints/logs/routes.py`):**
+    -   Modified `get_user_logs()` in `firestore_logger.py`:
+        -   Added an optional `last_doc_id` parameter.
+        -   If `last_doc_id` is provided, the Firestore query uses `start_after()` with the snapshot of the document corresponding to `last_doc_id` to fetch the next set of logs.
+        -   The function now returns both the list of logs and the ID of the last document fetched in the current batch (`last_doc_id_returned`).
+    -   Updated `GET /logs/user-activities` API endpoint in `routes.py`:
+        -   Accepts `last_doc_id` as a query parameter.
+        -   Passes `last_doc_id` to `get_user_logs()`.
+        -   The JSON response now includes `logs` and `last_doc_id_returned`.
+        -   The `limit` parameter now defaults to 50 (matching the frontend's page size).
 
-3.  **Modified `templates/logs.html`:**
-    -   Included link to `static/css/logs-user.css`.
-    -   Ensured `<div id="tab-user" class="tab-content"></div>` is present and includes a container for the "Export User Logs to CSV" button, which is then managed by `logs-user.js`.
+3.  **Frontend Pagination Implementation (`static/js/logs-user.js`):**
+    -   **Logs Per Page**: Introduced `logsPerPage = 50`.
+    -   **State Management**:
+        -   `allUserLogs`: Array to accumulate all logs displayed on the client.
+        -   `lastFetchedLogId`: Stores the ID of the last log from the most recent fetch, used for subsequent "Load More" requests.
+        -   `currentFilters`: Stores the currently applied filter values.
+    -   **`loadUserLogs()` Function Enhancement**:
+        -   Accepts an `isLoadMore` boolean flag.
+        -   If `isLoadMore` is `false` (initial load or filter change), `allUserLogs` is cleared, and `lastFetchedLogId` is reset.
+        -   The `limit` sent to the backend is always `logsPerPage`.
+        -   If `isLoadMore` is `true`, the `last_doc_id` (from `lastFetchedLogId`) is included in the API request.
+        -   On data fetch:
+            -   If not `isLoadMore`, `allUserLogs` is replaced.
+            -   If `isLoadMore`, new logs are appended to `allUserLogs`.
+            -   `lastFetchedLogId` is updated from the API response.
+            -   The log table is re-rendered.
+    -   **"Load More" Button**:
+        -   A "Load More Logs" button is dynamically added below the log table.
+        -   It's shown if `last_doc_id_returned` is present and the number of logs fetched in the last batch equals `logsPerPage`. Otherwise, it's hidden.
+        -   Clicking it calls `loadUserLogs()` with `isLoadMore = true`.
+    -   **Filter Changes**: When filters are changed, `loadUserLogs()` is called with `isLoadMore = false` to fetch a fresh set of data based on the new criteria, resetting `allUserLogs` and `lastFetchedLogId`.
+    -   **UI Updates**:
+        -   The log count display now reflects the total number of logs *shown* on the client.
+        -   CSS classes were added to table cells for "Username" and "Details" to enable specific width styling.
 
-4.  **Modified `static/js/logs-system.js` (System Logs Cleanup):**
-    -   **Removed the "User" column** from the System Logs table display (HTML structure in `createLogRow` and `displaySystemLogsUI`).
-    -   **Removed user-specific log types** (e.g., `USER_FAN_ON`, `USER_CONTROL_ACTION`) from the "Type" filter dropdown in `displaySystemLogsUI`.
-    -   Adjusted table `colspan` attributes in `populateTableBody` (for "No logs found" message and time group headers) to `6` to match the new column count.
-    -   Corrected a `ReferenceError: username is not defined` by completely removing the commented-out `<td>${username}</td>` line from the template literal in `createLogRow`.
+4.  **HTML Structure (`templates/logs.html`):**
+    -   No major structural changes were required for pagination itself, as the "Load More" button and its container are managed by `logs-user.js`. The existing structure for the user logs tab was sufficient.
 
 **Files Involved in Phase 3:**
-*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\static\css\logs-user.css` (new)
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\static\css\logs-user.css`
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\firestore_logger.py`
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\routes.py`
 *   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\static\js\logs-user.js`
-*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\templates\logs.html`
-*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\static\js\logs-system.js`
 
 **Outcome of Phase 3:**
-*   A functional "User Logs" tab displaying the four specified types of user logs, with filtering controls and export functionality.
-*   UI for User Logs tab refined for better consistency with System Logs.
-*   The "System Logs" tab and its CSV export are cleaned up, no longer displaying user-specific action details or the "User" column.
-*   System Logs tab is free of the `username` reference error.
+*   The User Logs table now has better-defined column widths, improving readability and ensuring important columns like IP Address and Source remain visible.
+*   Logs are displayed in pages of 50.
+*   A "Load More Logs" button allows users to progressively load older log entries, significantly improving performance and usability when dealing with a large number of logs.
+*   The vertical scroll of the log table is managed per page, making it easier to navigate.
 
 </details>
 
 <details>
-<summary><strong>🛡️ Phase 4: Advanced Features & Security Enhancements (Future)</strong></summary>
+<summary><strong>✅ Phase 4: Bug Fix - CSV Export for User Logs (Completed)</strong></summary>
 
-> **💡 Objective**: Introduce more advanced logging capabilities for other user actions if deemed necessary later, enhance security aspects related to logging, and potentially add analytical features.
+> **💡 Objective**: Resolve a bug in the "Export User Logs to CSV" functionality where an `AttributeError` occurred due to incorrect handling of the return value from `get_user_logs`.
 
-**Potential Steps:**
-*   Log failed login attempts (if security requirements change).
-*   Log changes to user roles or permissions (if applicable in the future).
-*   Implement rate limiting for log-generating actions if abuse is a concern.
+**Problem Description:**
+The `export_user_activities_csv` function in `blueprints/logs/routes.py` was assigning the entire tuple `(logs_list, last_doc_id_returned)` (returned by `firestore_logger.get_user_logs`) to its `logs` variable. When iterating over this tuple, if `log_entry` became the `last_doc_id_returned` (a string or None), calling `log_entry.get(...)` resulted in an `AttributeError: '...' object has no attribute 'get'`.
 
-**Files Potentially Involved in Phase 4:**
-*   Dependent on the features chosen. Likely to involve `blueprints/logs/firestore_logger.py` and relevant route files.
+**Steps & Outcomes:**
+1.  **Modified `blueprints/logs/routes.py`:**
+    -   In the `export_user_activities_csv` function, the call to `firestore_logger.get_user_logs` has been updated to correctly unpack the returned tuple. The `logs` variable now exclusively holds the list of log documents, and the `last_doc_id_returned` is ignored as it's not needed for the export operation.
+        ```python
+        # Before
+        # logs = firestore_logger.get_user_logs(...)
+
+        # After
+        logs, _ = firestore_logger.get_user_logs(
+            days=days,
+            log_type_filter=log_type,
+            username_filter=username,
+            limit=limit 
+        )
+        ```
+
+**Files Involved in Phase 4:**
+*   `d:\Lokatani\Lokatech-Greenhouse-Monitoring\blueprints\logs\routes.py`
+
+**Outcome of Phase 4:**
+*   The "Export User Logs to CSV" feature now functions correctly, generating a CSV file of the user activity logs without encountering the `AttributeError`.
 
 </details>
 

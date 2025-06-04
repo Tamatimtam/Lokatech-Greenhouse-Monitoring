@@ -167,11 +167,14 @@ def export_user_activities_csv():
         username = request.args.get('username', None)
         limit = request.args.get('limit', 5000, type=int) # Default higher limit for export
 
-        logs = firestore_logger.get_user_logs(
+        # Correctly unpack the logs list and ignore last_doc_id_returned
+        logs, _ = firestore_logger.get_user_logs(
             days=days,
             log_type_filter=log_type,
             username_filter=username,
             limit=limit 
+            # last_doc_id is not typically used for a full export, 
+            # so we fetch up to the limit in one go.
         )
 
         if not logs:
