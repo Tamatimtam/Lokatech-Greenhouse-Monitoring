@@ -306,7 +306,8 @@ def get_user_logs(
     days: int = 7, 
     log_type_filter: Optional[str] = None, # This will filter by UserActionType.value
     username_filter: Optional[str] = None,
-    limit: int = 100
+    limit: int = 100,
+    last_doc_id: Optional[str] = None # New parameter for pagination
 ):
     db_client_instance = get_firestore_db()
     if not db_client_instance: 
@@ -333,39 +334,59 @@ def get_user_logs(
                 query = query.where('username_lowercase', '==', username_filter_lower)
                 applied_filters_debug["username_lowercase"] = username_filter_lower
             
+            # Order by timestamp descending for all queries to make `start_after` consistent
+            query = query.order_by('timestamp', direction=firestore.Query.DESCENDING)
+
+            if last_doc_id:
+                last_doc_ref = db_client_instance.collection('user_logs').document(last_doc_id)
+                last_doc_snapshot = last_doc_ref.get()
+                if last_doc_snapshot.exists:
+                    query = query.start_after(last_doc_snapshot)
+                    applied_filters_debug["start_after_doc_id"] = last_doc_id
+                else:
+                    print(f"WARNING (user_logs): last_doc_id '{last_doc_id}' not found for pagination. Fetching from beginning of filtered results.")
+
+
             actual_limit = min(limit, 500) 
-            query = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(actual_limit)
+            query = query.limit(actual_limit)
             
             print(f"DEBUG (user_logs): Executing Firestore query with limit {actual_limit}. Filters: {applied_filters_debug}")
-            docs = query.stream()
+            docs_stream = query.stream() # Changed variable name to avoid conflict
             
             results = []
-            for doc in docs:
+            # Convert generator to list to be able to get the last document
+            docs_list = list(docs_stream)
+
+            for doc in docs_list:
                 log_entry = doc.to_dict()
                 log_entry['id'] = doc.id 
                 if isinstance(log_entry.get('timestamp'), datetime.datetime):
                     log_entry['timestamp'] = log_entry['timestamp'].isoformat()
                 results.append(log_entry)
             
-            return results
+            # Determine the ID of the last document fetched in this batch
+            last_doc_id_returned = docs_list[-1].id if docs_list else None
+            
+            return results, last_doc_id_returned # Return logs and the ID of the last doc
             
         except Exception as e:
             print(f"Error in _query_firestore_user_logs: {e}")
-            return []
+            return [], None # Return empty list and None for last_doc_id on error
     
     try:
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(_query_firestore_user_logs)
             try:
-                results = future.result(timeout=10) 
-                print(f"DEBUG: Successfully retrieved {len(results)} user logs")
-                return results
+                # Unpack results and last_doc_id_returned
+                logs_results, last_doc_id_returned = future.result(timeout=10) 
+                print(f"DEBUG: Successfully retrieved {len(logs_results)} user logs. Last doc ID: {last_doc_id_returned}")
+                return logs_results, last_doc_id_returned
             except FutureTimeoutError:
                 print("ERROR: Firestore user_logs query timed out after 10 seconds")
-                return []
+                return [], None
                 
     except Exception as e:
         print(f"Error retrieving user logs: {e}")
         import traceback
         traceback.print_exc()
-        return []
+        return [], None

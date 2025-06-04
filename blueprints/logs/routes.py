@@ -128,35 +128,28 @@ def export_system_logs_csv():
 
 # --- User Activity Log Endpoints ---
 
-@logs_bp.route('/user-activities')
+@logs_bp.route('/user-activities', methods=['GET'])
 @isloggedin
-def get_user_activities_route():
-    """Fetch user activity logs from Firestore with filtering."""
+def get_user_activities_json():
     try:
-        # Log all received query parameters for detailed debugging
-        print(f"DEBUG (get_user_activities_route): Received request.args: {request.args}")
+        days = request.args.get('days', default=7, type=int)
+        log_type = request.args.get('type', default=None, type=str)
+        username = request.args.get('username', default=None, type=str)
+        limit = request.args.get('limit', default=50, type=int) # Default limit for a page
+        last_doc_id = request.args.get('last_doc_id', default=None, type=str) # For pagination
 
-        days = request.args.get('days', 7, type=int)
-        log_type = request.args.get('type', None) # Filters by UserActionType string value
-        username = request.args.get('username', None)
-        limit = request.args.get('limit', 100, type=int)
-        
-        # Explicitly check if log_type is an empty string from query params and treat it as None
-        # This ensures that if "All Types" (value="") is selected, no type filter is applied.
-        if log_type == "":
-            print(f"DEBUG (get_user_activities_route): log_type was an empty string, setting to None.")
-            log_type = None
-        
-        print(f"DEBUG (get_user_activities_route): Parsed filters - days: {days}, log_type: {log_type}, username: {username}, limit: {limit}")
-        
-        logs = firestore_logger.get_user_logs(
-            days=days,
-            log_type_filter=log_type,
+        # Validate days and limit to prevent abuse
+        days = max(1, min(days, 90)) 
+        limit = max(1, min(limit, 200)) # Max 200 logs per request
+
+        logs, last_doc_id_returned = firestore_logger.get_user_logs(
+            days=days, 
+            log_type_filter=log_type, 
             username_filter=username,
-            limit=limit
+            limit=limit,
+            last_doc_id=last_doc_id
         )
-        
-        return jsonify(logs)
+        return jsonify({'logs': logs, 'last_doc_id_returned': last_doc_id_returned})
     except Exception as e:
         print(f"ERROR in get_user_activities_route: {e}")
         import traceback
@@ -164,7 +157,7 @@ def get_user_activities_route():
         print(f"ERROR traceback: {error_trace}")
         return jsonify({"error": str(e), "details": error_trace}), 500
 
-@logs_bp.route('/export-user-activities-csv')
+@logs_bp.route('/export-user-activities-csv', methods=['GET'])
 @isloggedin
 def export_user_activities_csv():
     """Export user activity logs to a CSV file."""

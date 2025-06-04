@@ -1,13 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
     const userLogContent = document.getElementById('tab-user');
-    const defaultMaxLogEntries = 100;
-    let userLogs = [];
+    const logsPerPage = 50; // Display 50 logs per page
+    let allUserLogs = []; // Accumulates logs as more are loaded
     let isLoadingUserLogs = false;
     let autoRefreshUserLogsIntervalId = null;
+    let lastFetchedLogId = null; // ID of the last log item from the previous fetch
+    let currentFilters = {}; // Store current filters to detect changes
 
     // Initial logs loading if tab is active
     if (userLogContent && userLogContent.classList.contains('active')) {
-        loadUserLogs();
+        currentFilters = getCurrentUserLogFilters();
+        loadUserLogs(currentFilters);
         startAutoRefreshUserLogs();
     }
 
@@ -17,7 +20,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (mutation.attributeName === 'class') {
                 const isActive = userLogContent.classList.contains('active');
                 if (isActive && !autoRefreshUserLogsIntervalId) {
-                    loadUserLogs();
+                    currentFilters = getCurrentUserLogFilters(); // Get fresh filters on tab activation
+                    allUserLogs = []; // Reset logs when tab becomes active after being inactive
+                    lastFetchedLogId = null;
+                    loadUserLogs(currentFilters);
                     startAutoRefreshUserLogs();
                 } else if (!isActive && autoRefreshUserLogsIntervalId) {
                     stopAutoRefreshUserLogs();
@@ -57,46 +63,55 @@ document.addEventListener('DOMContentLoaded', function() {
         return {
             days: daysFilterEl ? parseInt(daysFilterEl.value, 10) : 7,
             type: typeFilterEl ? typeFilterEl.value : null,
-            username: usernameValue ? usernameValue : null, // Ensure null if empty string after trim
-            limit: defaultMaxLogEntries
+            username: usernameValue ? usernameValue : null,
+            limit: logsPerPage // Use logsPerPage for API limit
         };
     }
 
-    function loadUserLogs(filters = getCurrentUserLogFilters(), silentRefresh = false) {
+    function loadUserLogs(filters = getCurrentUserLogFilters(), silentRefresh = false, isLoadMore = false) {
         if (isLoadingUserLogs && !silentRefresh) return;
 
         isLoadingUserLogs = true;
         
         const refreshBtn = document.getElementById('refreshUserLogsBtn');
+        const loadMoreBtn = document.getElementById('loadMoreUserLogsBtn');
         let originalRefreshBtnWidth = '';
-        if (refreshBtn && !silentRefresh) {
+
+        if (refreshBtn && !silentRefresh && !isLoadMore) {
             refreshBtn.disabled = true;
-            originalRefreshBtnWidth = refreshBtn.offsetWidth + 'px'; // Capture width before changing content
-            refreshBtn.style.width = originalRefreshBtnWidth; // Apply fixed width
+            originalRefreshBtnWidth = refreshBtn.offsetWidth + 'px';
+            refreshBtn.style.width = originalRefreshBtnWidth;
             refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
         }
+        if (loadMoreBtn && isLoadMore) {
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        }
         
-        if (userLogContent && !silentRefresh) {
+        if (userLogContent && !silentRefresh && !isLoadMore) {
             const existingLoadingIndicator = userLogContent.querySelector('.loading-indicator');
-             // Check if controls are not yet rendered or if it's the initial placeholder
             if (!existingLoadingIndicator && (!userLogContent.querySelector('.user-log-controls') || userLogContent.innerHTML.includes("under development"))) {
-                userLogContent.innerHTML = `
-                    <div class="loading-indicator">
-                        <i class="fas fa-spinner fa-spin"></i> Loading user logs...
-                    </div>
-                `;
+                userLogContent.innerHTML = `<div class="loading-indicator"><i class="fas fa-spinner fa-spin"></i> Loading user logs...</div>`;
             }
         }
 
         const params = new URLSearchParams({
             days: filters.days || 7,
-            limit: filters.limit || defaultMaxLogEntries
+            limit: logsPerPage // Send logsPerPage as the limit
         });
 
         if (filters.type) params.append('type', filters.type);
-        // Only append username if it's a non-empty string
         if (filters.username && filters.username.length > 0) {
             params.append('username', filters.username);
+        }
+        if (isLoadMore && lastFetchedLogId) {
+            params.append('last_doc_id', lastFetchedLogId);
+        }
+
+        // If it's not a "load more" action, reset the logs
+        if (!isLoadMore) {
+            allUserLogs = [];
+            lastFetchedLogId = null;
         }
 
         fetch(`/logs/user-activities?${params.toString()}`)
@@ -107,56 +122,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                userLogs = data;
-                if (!silentRefresh || !document.getElementById('user-log-tbody')) {
-                    displayUserLogsUI();
-                } else {
-                    populateUserLogTableBody();
+                if (!isLoadMore || silentRefresh) { // Full UI render for initial load, filter change, or silent refresh
+                    allUserLogs = data.logs || [];
+                    if (!document.getElementById('user-log-tbody') || !isLoadMore) { // Avoid full re-render if just appending silently
+                         displayUserLogsUI(); // This will call populateUserLogTableBody
+                    } else {
+                         populateUserLogTableBody(); // Just update table body for silent refresh
+                    }
+                } else { // Append for "Load More"
+                    allUserLogs = allUserLogs.concat(data.logs || []);
+                    populateUserLogTableBody(); // Re-populates with allUserLogs
                 }
-                restoreUserLogFilterSelections(filters);
+                lastFetchedLogId = data.last_doc_id_returned;
+                
+                updateLoadMoreButtonVisibility(data.logs ? data.logs.length : 0);
+                if (!isLoadMore) { // Only restore filters if it's not a "load more" action
+                    restoreUserLogFilterSelections(filters);
+                }
             })
             .catch(error => {
                 console.error('Error fetching user logs:', error);
                 if (userLogContent && !silentRefresh) {
-                    // Preserve export button if it exists by selecting its container
                     const exportBtnContainer = userLogContent.querySelector('.user-log-export-container');
-                    const exportBtnHtml = exportBtnContainer ? exportBtnContainer.outerHTML : `
-                        <div class="user-log-export-container">
-                            <button id="exportUserLogsCsvBtn" class="log-control-btn" title="Export current view of user logs to CSV">
-                                <i class="fas fa-file-csv"></i> Export User Logs to CSV
-                            </button>
-                        </div>`;
+                    const exportBtnHtml = exportBtnContainer ? exportBtnContainer.outerHTML : `<div class="user-log-export-container"><button id="exportUserLogsCsvBtn" class="log-control-btn" title="Export current view of user logs to CSV"><i class="fas fa-file-csv"></i> Export User Logs to CSV</button></div>`;
                     
                     userLogContent.innerHTML = `
                         ${exportBtnHtml}
                         <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-circle"></i>
-                            Error loading user logs: ${error.message}
-                            <button id="retryUserLogsBtn" class="log-control-btn">
-                                <i class="fas fa-redo"></i> Retry
-                            </button>
+                            <i class="fas fa-exclamation-circle"></i> Error loading user logs: ${error.message}
+                            <button id="retryUserLogsBtn" class="log-control-btn"><i class="fas fa-redo"></i> Retry</button>
                         </div>
                     `;
                     const retryBtn = document.getElementById('retryUserLogsBtn');
                     if (retryBtn) {
-                        retryBtn.addEventListener('click', () => loadUserLogs(filters));
+                        retryBtn.addEventListener('click', () => loadUserLogs(filters, false, false)); // Retry initial load
                     }
-                    // Re-attach event listener for export button if it was re-rendered
                     const newExportBtn = document.getElementById('exportUserLogsCsvBtn');
-                    if (newExportBtn) {
-                        newExportBtn.addEventListener('click', handleExportUserLogs);
-                    }
+                    if (newExportBtn) newExportBtn.addEventListener('click', handleExportUserLogs);
                 }
             })
             .finally(() => {
                 isLoadingUserLogs = false;
-                const refreshBtn = document.getElementById('refreshUserLogsBtn');
-                if (refreshBtn) {
+                if (refreshBtn && !isLoadMore) {
                     refreshBtn.disabled = false;
                     refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
-                    if (originalRefreshBtnWidth) { // Reset width if it was set
-                        refreshBtn.style.width = ''; 
-                    }
+                    if (originalRefreshBtnWidth) refreshBtn.style.width = ''; 
+                }
+                if (loadMoreBtn) {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.innerHTML = 'Load More Logs';
                 }
             });
     }
@@ -179,8 +193,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Check if the export button container already exists.
-        // This helps preserve it if displayUserLogsUI is called multiple times without a full page reload.
         let exportBtnContainer = userLogContent.querySelector('.user-log-export-container');
         const exportBtnHtml = `
             <div class="user-log-export-container">
@@ -188,9 +200,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-file-csv"></i> Export User Logs to CSV
                 </button>
             </div>`;
-
-        // If the container doesn't exist from a previous render (e.g. initial load, or error cleared),
-        // we prepare its HTML. Otherwise, we'll keep the existing one.
         const finalExportBtnHtml = exportBtnContainer ? exportBtnContainer.outerHTML : exportBtnHtml;
 
         userLogContent.innerHTML = `
@@ -203,7 +212,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <label for="userLogDaysFilter">Days: </label>
                     <input type="number" id="userLogDaysFilter" value="7" min="1" max="90" class="log-input">
                 </div>
-                
                 <div>
                     <label for="userLogActionTypeFilter">Action Type: </label>
                     <select id="userLogActionTypeFilter" class="log-input">
@@ -212,11 +220,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <option value="PROFILE_UPDATE">Profile Update</option>
                         <option value="ACCOUNT_DELETED">Account Deleted</option>
                         <option value="REGISTRATION_SUCCESS">Registration Success</option>
-                        <option value="PASSWORD_RESET_REQUESTED">Password Reset Requested</option> {/* New Filter Option */}
-                        <option value="RATE_LIMIT_EXCEEDED">Rate Limit Exceeded</option> {/* New Filter Option */}
+                        <option value="PASSWORD_RESET_REQUESTED">Password Reset Requested</option>
+                        <option value="RATE_LIMIT_EXCEEDED">Rate Limit Exceeded</option>
                     </select>
                 </div>
-                
                 <div>
                     <label for="userLogUsernameFilter">Username: </label>
                     <input type="text" id="userLogUsernameFilter" placeholder="user@example.com" class="log-input">
@@ -240,9 +247,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tbody>
                 </table>
             </div>
+            <div class="user-log-load-more-container">
+                <button id="loadMoreUserLogsBtn" class="log-control-btn hidden">Load More Logs</button>
+            </div>
         `;
         
-        populateUserLogTableBody();
+        populateUserLogTableBody(); // Populates with current allUserLogs
         addUserLogEventListenersToControls();
     }
 
@@ -250,17 +260,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = document.getElementById('user-log-tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = ''; 
-        if (userLogs.length === 0) {
+        tbody.innerHTML = ''; // Clear existing rows before populating
+        if (allUserLogs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No user logs found for the selected criteria.</td></tr>';
         } else {
-            userLogs.forEach((log, index) => { // Added index for staggered animation
+            allUserLogs.forEach((log, index) => {
                 const row = createUserLogRow(log);
                 tbody.appendChild(row);
-                // Stagger the animation slightly
                 setTimeout(() => {
                     row.classList.add('visible');
-                }, index * 50); // 50ms delay per row
+                }, index * 30); // Shorter delay for potentially more items
             });
         }
         updateUserLogCount();
@@ -269,7 +278,18 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateUserLogCount() {
         const logCountDisplay = document.getElementById('userLogCountDisplay');
         if (logCountDisplay) {
-            logCountDisplay.textContent = `${userLogs.length} logs`;
+            logCountDisplay.textContent = `${allUserLogs.length} logs shown`;
+        }
+    }
+
+    function updateLoadMoreButtonVisibility(fetchedCount) {
+        const loadMoreBtn = document.getElementById('loadMoreUserLogsBtn');
+        if (loadMoreBtn) {
+            if (fetchedCount < logsPerPage || !lastFetchedLogId) {
+                loadMoreBtn.classList.add('hidden'); // No more logs or error
+            } else {
+                loadMoreBtn.classList.remove('hidden');
+            }
         }
     }
     
@@ -291,29 +311,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const typeFilterEl = document.getElementById('userLogActionTypeFilter');
         const usernameFilterEl = document.getElementById('userLogUsernameFilter');
         const exportCsvBtn = document.getElementById('exportUserLogsCsvBtn'); 
+        const loadMoreBtn = document.getElementById('loadMoreUserLogsBtn');
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                // Loading state is handled in loadUserLogs
-                const filters = getCurrentUserLogFilters();
-                loadUserLogs(filters);
+                currentFilters = getCurrentUserLogFilters();
+                loadUserLogs(currentFilters, false, false); // Not loadMore
             });
         }
 
+        let debounceTimer;
         [daysFilterEl, typeFilterEl, usernameFilterEl].forEach(filterEl => {
             if (filterEl) {
                 const eventType = filterEl.tagName === 'INPUT' && filterEl.type === 'text' ? 'input' : 'change';
                 filterEl.addEventListener(eventType, () => {
-                    // Debounce for username input
                     if (filterEl.id === 'userLogUsernameFilter') {
-                        if (this.usernameTimeout) clearTimeout(this.usernameTimeout);
-                        this.usernameTimeout = setTimeout(() => {
-                            const filters = getCurrentUserLogFilters();
-                            loadUserLogs(filters);
-                        }, 500); // 500ms debounce
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => {
+                            currentFilters = getCurrentUserLogFilters();
+                            loadUserLogs(currentFilters, false, false); // Not loadMore
+                        }, 500); // Debounce for username input
                     } else {
-                        const filters = getCurrentUserLogFilters();
-                        loadUserLogs(filters);
+                        currentFilters = getCurrentUserLogFilters();
+                        loadUserLogs(currentFilters, false, false); // Not loadMore
                     }
                 });
             }
@@ -321,6 +341,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (exportCsvBtn) {
             exportCsvBtn.addEventListener('click', handleExportUserLogs);
+        }
+
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', () => {
+                // Filters should already be current from last load or change
+                loadUserLogs(currentFilters, false, true); // isLoadMore = true
+            });
         }
     }
 
@@ -397,6 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const detailsContent = formatEventDetailsForDisplay(log.action_type, log.event_details);
 
+        // Apply specific classes for CSS targeting column widths
         tr.innerHTML = `
             <td class="log-timestamp">${timestampWIB}</td>
             <td class="log-username">${escapeHtml(log.username || 'N/A')}</td>

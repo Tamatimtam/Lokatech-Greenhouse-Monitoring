@@ -177,11 +177,17 @@
     font-family: var(--font-mono, monospace);
     color: var(--text-muted, #6c757d); /* Muted color for less emphasis */
     white-space: nowrap;
+    min-width: 120px; /* Ensure IP address has some space */
 }
 
 .user-log-table .log-username {
     font-weight: 500;
     color: var(--primary-dark, #0056b3); /* Or a theme-appropriate color */
+    min-width: 150px;
+    max-width: 250px; /* Max width for username */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .user-log-table .log-action-type {
@@ -193,11 +199,17 @@
 .user-log-table .log-source {
     color: var(--text-secondary, #555);
     font-style: italic;
+    white-space: nowrap;
+    min-width: 100px; /* Ensure source has some space */
 }
 
 .user-log-table .log-details-cell {
     /* Allow for more flexible content than just pre */
     line-height: 1.5; /* Improve readability of multi-line text */
+    min-width: 200px;
+    max-width: 400px; /* Max width for details */
+    word-break: break-word; /* Allow details to wrap */
+    /* overflow: hidden; combined with max-height and text-overflow can be tricky for multi-line */
 }
 
 .user-log-table .log-details-cell .formatted-details .detail-item {
@@ -316,4 +328,25 @@
 .user-log-table tbody tr.visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Load More Button Container */
+.user-log-load-more-container {
+    text-align: center;
+    margin-top: var(--spacing-lg, 1.5rem);
+    margin-bottom: var(--spacing-lg, 1.5rem);
+}
+
+#loadMoreUserLogsBtn {
+    /* Uses .log-control-btn styles, can add specifics if needed */
+    background-color: var(--secondary, #6c757d); /* Example: grey for secondary action */
+    border-color: var(--secondary-dark, #545b62);
+}
+
+#loadMoreUserLogsBtn:hover {
+    background-color: var(--secondary-dark, #5a6268);
+}
+
+#loadMoreUserLogsBtn.hidden {
+    display: none;
 }
