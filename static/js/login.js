@@ -235,6 +235,26 @@ if (submitResetBtn) {
         submitResetBtn.classList.add('loading');
 
         try {
+            // Step 1: Call backend to check rate limit and log the request
+            const backendResponse = await fetch('/auth/request-password-reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email: email })
+            });
+
+            const backendData = await backendResponse.json();
+
+            if (!backendResponse.ok) { // Handles 429 from backend rate limiter or other backend errors
+                resetErrorMessage.textContent = backendData.message || 'Gagal memproses permintaan atur ulang kata sandi.';
+                resetErrorMessage.classList.add('show');
+                // Do not proceed to Firebase if backend check fails
+                return; 
+            }
+            
+            // Step 2: If backend check is okay, proceed to call Firebase to send the email
             await firebase.auth().sendPasswordResetEmail(email);
             resetErrorMessage.textContent = 'Email untuk mengatur ulang kata sandi telah dikirim. Silakan periksa kotak masuk Anda.';
             resetErrorMessage.style.color = 'green';
@@ -245,9 +265,13 @@ if (submitResetBtn) {
                 closeModal(resetPasswordModal);
             }, 3000);
             
-        } catch (error) {
+        } catch (error) { // Catches network errors for backend call or Firebase errors
             console.error('Password Reset Error:', error);
+            // If error has a message from backend (already parsed), use it. Otherwise, Firebase error or generic.
             resetErrorMessage.textContent = error.message || 'Gagal mengirim email pengaturan ulang kata sandi. Silakan coba lagi.';
+            if (error.code) { // Firebase errors usually have a 'code' property
+                 resetErrorMessage.textContent = error.message; // Use Firebase's specific message
+            }
             resetErrorMessage.classList.add('show');
         } finally {
             submitResetBtn.disabled = false;

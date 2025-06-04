@@ -255,11 +255,16 @@ def register():
 The password reset functionality allows users to regain access to their accounts by receiving a password reset email.
 
 **Password Reset Flow:**
-1. User clicks "Forgot password?" link
-2. System prompts for email address
-3. Firebase sends password reset email
-4. User creates new password via emailed link
-5. User can log in with new credentials
+1. User clicks "Forgot password?" link.
+2. System prompts for email address.
+3. Frontend sends a request to the backend (`/auth/request-password-reset`) with the email.
+4. Backend validates the email and checks if the IP address is rate-limited for password reset requests.
+   - If rate-limited, backend returns an error, and the process stops.
+   - If not rate-limited, backend returns success.
+5. Upon success from the backend, the frontend calls Firebase client SDK (`firebase.auth().sendPasswordResetEmail(email)`) to send the password reset email.
+6. Firebase sends the password reset email (subject to its own rate limits).
+7. User creates a new password via the emailed link.
+8. User can log in with new credentials.
 
 **Frontend Implementation**:
 ```javascript
@@ -274,9 +279,25 @@ document.getElementById('resetPassword').addEventListener('click', async functio
     }
 
     try {
-        await firebase.auth().sendPasswordResetEmail(email);
-        errorElement.textContent = 'Password reset email sent. Check your inbox.';
-        errorElement.style.color = 'green';
+        // Step 1: Call backend to check rate limit
+        const backendResponse = await fetch('/auth/request-password-reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ email: email })
+        });
+        const backendData = await backendResponse.json();
+
+        if (backendResponse.ok) {
+            // Step 2: If backend check is okay, proceed to call Firebase
+            await firebase.auth().sendPasswordResetEmail(email);
+            errorElement.textContent = 'Password reset email sent. Check your inbox.';
+            errorElement.style.color = 'green';
+        } else {
+            errorElement.textContent = backendData.message;
+        }
     } catch (error) {
         errorElement.textContent = error.message;
     }
@@ -479,7 +500,18 @@ Key Firebase methods used in the application:
 - **Multi-layer Verification**: Credentials verified by Firebase and tokens verified by backend
 - **Token Protection**: JWT tokens with expiration to prevent replay attacks
 - **Password Requirements**: Firebase enforces strong password requirements
-- **Brute Force Prevention**: Firebase automatically limits login attempts
+- **Brute Force Prevention**: 
+    - Firebase automatically limits login attempts on its end for direct Firebase interactions.
+    - **Application-Level Rate Limiting (In-Memory)**: The application implements a simple in-memory rate limiting mechanism to protect specific backend API endpoints against brute-force attacks and abuse.
+        - **Purpose**: To prevent an attacker from making an excessive number of requests to guess passwords via the `/auth/login` endpoint, to overwhelm the `/auth/register` endpoint, or to abuse the `/auth/request-password-reset` endpoint.
+        - **Implementation**: A Python dictionary in `blueprints/auth/routes.py` stores recent request timestamps for each IP address, specific to actions like 'login', 'register', or 'reset-password'. Access to this store is managed by a `threading.Lock` to ensure thread safety. This is a per-instance rate limiter; if the application is scaled to multiple instances, each instance will have its own independent rate-limiting counts.
+        - **Protected Routes & Limits**:
+            - Login API endpoint (`/auth/login`): Limited to `10 requests per minute` per IP.
+            - Registration API endpoint (`/auth/register`): Limited to `10 requests per hour` per IP.
+            - Password Reset Request API endpoint (`/auth/request-password-reset`): Limited to `5 requests per hour` per IP.
+        - **Behavior**: If an IP address exceeds these limits for a given endpoint, subsequent requests from that IP to that endpoint will receive an HTTP 429 "Too Many Requests" error, and the request will be blocked until the rate limit window resets for that IP and action.
+        - **Logging**: When a rate limit is triggered, an event is logged to the `user_logs` collection in Firestore with `action_type: RATE_LIMIT_EXCEEDED`. This log includes the affected IP address, the action (login/register), and the limit that was breached, aiding in monitoring and identifying potential abuse.
+        - **Note**: The main login page (`/`) GET requests are not subject to this specific in-memory rate limiter.
 
 ### 🛡️ Access Controls
 - **Domain Restrictions**: Only approved email domains can register

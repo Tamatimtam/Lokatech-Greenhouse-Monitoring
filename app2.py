@@ -9,6 +9,12 @@ from datetime import datetime, timedelta
 import re
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
+# Removed Limiter imports:
+# from flask_limiter import Limiter
+# from flask_limiter.util import get_remote_address
+# Import for user activity logging (ensure UserActionType has RATE_LIMIT_EXCEEDED)
+from blueprints.logs.firestore_logger import log_user_activity, UserActionType # Keep this for other potential uses
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('GreenhouseApp')
@@ -17,6 +23,11 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = secrets.token_hex(16)
 port = int(os.environ.get('PORT', 4443))
+
+# Removed Limiter initialization:
+# limiter = Limiter(...)
+# limiter.init_app(app)
+# app.limiter = limiter
 
 # Extract Firebase API key from firebase-init.js for server-side use
 FIREBASE_API_KEY = None
@@ -114,6 +125,10 @@ app.register_blueprint(profile_bp)
 app.register_blueprint(history_bp)
 app.register_blueprint(logs_bp, url_prefix='/logs')
 
+# Removed custom error handler for 429, as it's handled in blueprints now
+# @app.errorhandler(429)
+# def ratelimit_handler(e): ...
+
 # ... (rest of your app2.py: SocketIO handlers, root route, if __name__ == '__main__') ...
 @socketio.on('connect')
 def handle_connect(auth=None): # Add auth=None to accept optional argument
@@ -124,6 +139,7 @@ def handle_disconnect():
     logger.info(f"Client disconnected: {request.sid}")
 
 @app.route("/")
+# Removed @limiter.limit decorator
 def index():
     return render_template("login.html")
 
