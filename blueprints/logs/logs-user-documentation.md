@@ -30,6 +30,8 @@ This feature is being implemented in multiple phases:
             PROFILE_UPDATE = "PROFILE_UPDATE"
             ACCOUNT_DELETED = "ACCOUNT_DELETED"
             REGISTRATION_SUCCESS = "REGISTRATION_SUCCESS"
+            RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+            PASSWORD_RESET_REQUESTED = "PASSWORD_RESET_REQUESTED"
         ```
     -   **Created `log_user_activity()` function**:
         -   Signature: `log_user_activity(username: str, action_type: UserActionType, event_details: dict, source: str, ip_address: Optional[str])`
@@ -282,6 +284,22 @@ This feature is being implemented in multiple phases:
 }
 ```
 
+**Example `event_details` for `PASSWORD_RESET_REQUESTED`:**
+```json
+{
+  "action": "password_reset_request_allowed",
+  "email_provided": "user@example.com"
+}
+```
+
+**Example `event_details` for `RATE_LIMIT_EXCEEDED`:**
+```json
+{
+  "action": "login", // Can be "register" or "reset-password"
+  "limit": "10 requests per 60s" // Example, actual limit string varies
+}
+```
+
 ### 🏷️ `UserActionType` Enum (in `blueprints/logs/firestore_logger.py`)
 ```python
 from enum import Enum
@@ -291,6 +309,8 @@ class UserActionType(Enum):
     PROFILE_UPDATE = "PROFILE_UPDATE"
     ACCOUNT_DELETED = "ACCOUNT_DELETED"
     REGISTRATION_SUCCESS = "REGISTRATION_SUCCESS"
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    PASSWORD_RESET_REQUESTED = "PASSWORD_RESET_REQUESTED"
 ```
 
 ---
@@ -299,10 +319,17 @@ class UserActionType(Enum):
 ### 📊 User Logs Tab (`static/js/logs-user.js`)
 -   **Data Fetching**: Calls `/logs/user-activities` with filter parameters.
 -   **Display**: Renders logs in a table with columns: Timestamp (WIB), Username, Action Type, Details, IP Address, Source.
--   **Details Column**: `event_details` are displayed using a custom formatter (`formatEventDetailsForDisplay`) which generates human-readable HTML. For unrecognized action types or complex data, it falls back to a pretty-printed JSON string within a `<pre>` tag. HTML within string values of the JSON is escaped.
+-   **Details Column**: `event_details` are displayed using a custom formatter (`formatEventDetailsForDisplay`) which generates human-readable HTML.
+    -   `DEVICE_CONTROL`: Shows summary, device, and node.
+    -   `PROFILE_UPDATE`: Shows field updated, old value, and new value.
+    -   `ACCOUNT_DELETED`: Shows status (success/failure), reason (if failure), and account email.
+    -   `REGISTRATION_SUCCESS`: Shows registered email.
+    -   `PASSWORD_RESET_REQUESTED`: Shows action (e.g., "password reset request allowed") and email provided.
+    -   `RATE_LIMIT_EXCEEDED`: Shows the blocked action (e.g., "login") and the limit string (e.g., "10 requests per 60s").
+    -   For unrecognized action types or complex data, it falls back to a pretty-printed JSON string within a `<pre>` tag. HTML within string values of the JSON is escaped.
 -   **Filtering**:
     -   Days: Number input (1-90).
-    -   Action Type: Dropdown with `DEVICE_CONTROL`, `PROFILE_UPDATE`, `ACCOUNT_DELETED`, `REGISTRATION_SUCCESS`.
+    -   Action Type: Dropdown with `DEVICE_CONTROL`, `PROFILE_UPDATE`, `ACCOUNT_DELETED`, `REGISTRATION_SUCCESS`, `PASSWORD_RESET_REQUESTED`, `RATE_LIMIT_EXCEEDED`.
     -   Username: Text input (debounced).
 -   **Export**: Button triggers download from `/logs/export-user-activities-csv` with current filters.
 -   **Auto-Refresh**: Fetches new logs every 30 seconds if the tab is active.

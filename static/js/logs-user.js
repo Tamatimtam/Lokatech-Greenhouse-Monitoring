@@ -212,6 +212,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <option value="PROFILE_UPDATE">Profile Update</option>
                         <option value="ACCOUNT_DELETED">Account Deleted</option>
                         <option value="REGISTRATION_SUCCESS">Registration Success</option>
+                        <option value="PASSWORD_RESET_REQUESTED">Password Reset Requested</option> {/* New Filter Option */}
+                        <option value="RATE_LIMIT_EXCEEDED">Rate Limit Exceeded</option> {/* New Filter Option */}
                     </select>
                 </div>
                 
@@ -358,6 +360,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             case 'REGISTRATION_SUCCESS':
                 if (eventDetails.registered_email) html += `<div class="detail-item"><span class="detail-key">Registered Email:</span> <span class="detail-value">${escapeHtml(eventDetails.registered_email)}</span></div>`;
+                break;
+            case 'PASSWORD_RESET_REQUESTED': // New case
+                if (eventDetails.action) html += `<div class="detail-item"><span class="detail-key">Action:</span> <span class="detail-value">${escapeHtml(eventDetails.action.replace(/_/g, ' '))}</span></div>`;
+                if (eventDetails.email_provided) html += `<div class="detail-item"><span class="detail-key">Email Provided:</span> <span class="detail-value">${escapeHtml(eventDetails.email_provided)}</span></div>`;
+                break;
+            case 'RATE_LIMIT_EXCEEDED': // New case
+                if (eventDetails.action) html += `<div class="detail-item"><span class="detail-key">Blocked Action:</span> <span class="detail-value">${escapeHtml(eventDetails.action.replace(/_/g, ' '))}</span></div>`;
+                if (eventDetails.limit) html += `<div class="detail-item"><span class="detail-key">Limit:</span> <span class="detail-value">${escapeHtml(eventDetails.limit)}</span></div>`;
                 break;
             default:
                 // Fallback to pretty-printed JSON for unrecognized action types or complex structures
