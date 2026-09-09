@@ -92,11 +92,37 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loading-overlay').style.display = 'flex';
     });
     
-    // Listen for sensor data updates
+    // Listen for sensor data updates from WebSocket
     socket.on('sensor_update', function(data) {
         console.log('Received sensor update:', data);
         updateDisplay(data);
     });
+
+    // Check for simulated data from 3D greenhouse simulation
+    const loadSimulatedData = () => {
+        try {
+            const raw = localStorage.getItem('lokagrow_sim_data');
+            if (raw) {
+                const simData = JSON.parse(raw);
+                updateDisplay(simData);
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    };
+
+    // Load initial simulation data immediately
+    loadSimulatedData();
+
+    // Listen to storage events across tabs
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'lokagrow_sim_data') {
+            loadSimulatedData();
+        }
+    });
+
+    // Periodically sync with simulation
+    setInterval(loadSimulatedData, 1000);
     
     // Update the UI with sensor data
     function updateDisplay(sensorData) {
@@ -112,7 +138,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the corresponding sensor data field
             const sensorKey = sensorMapping[conditionKey];
             // Get the value from the sensor data
-            const value = sensorData.averages[sensorKey];
+            let value = sensorData.averages[sensorKey];
+            
+            // Fallback for soil moisture if not provided by ambient atmospheric sensors
+            if (value === undefined && conditionKey === 'soil_moisture') {
+                const hum = sensorData.averages.humidity || 65;
+                value = Math.min(85, Math.max(50, 62 + (hum - 65) * 0.25));
+            }
             
             if (value !== undefined) {
                 updateConditionDisplay(conditionKey, value);

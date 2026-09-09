@@ -285,6 +285,10 @@ const ControlsManager = {
                         indicator.classList.remove('mode-auto', 'mode-manual');
                         indicator.classList.add(newMode === 'auto' ? 'mode-auto' : 'mode-manual');
                     }
+
+                    if (window.greenhouseSimEngine) {
+                        window.greenhouseSimEngine.setActuatorMode(deviceName, newMode);
+                    }
                     
                     this.activateCooldown(deviceName);
                     
@@ -295,7 +299,7 @@ const ControlsManager = {
                         newMode
                     );
                     
-                    if (success) {
+                    if (success || window.greenhouseSimEngine) {
                         SystemMonitor.status.actuators[deviceName].mode = newMode;
                     } else {
                         // Revert UI on failure of all attempts
@@ -318,10 +322,14 @@ const ControlsManager = {
                     const device = deviceName;
                     const newState = event.target.checked;
                     
-                    if (!SystemMonitor.status.connected) {
+                    if (!SystemMonitor.status.connected && !window.greenhouseSimEngine) {
                         alert(`Tidak dapat mengontrol ${device} - sistem tidak terhubung`);
                         event.target.checked = !newState; 
                         return;
+                    }
+
+                    if (window.greenhouseSimEngine) {
+                        window.greenhouseSimEngine.setActuator(device, newState, true);
                     }
                     
                     if (this.isOnCooldown(device)) {
@@ -340,12 +348,12 @@ const ControlsManager = {
                     // Send command with manual mode explicitly set (with retries)
                     const success = await this.sendControlCommandWithRetries(device, newState, "manual");
 
-                    if (!success) {
+                    if (!success && !window.greenhouseSimEngine) {
                         // Revert switch state if all API calls failed
                         event.target.checked = !newState; 
                         alert(`Gagal mengubah status ${device} setelah beberapa percobaan.`);
                     } else {
-                        // API call (at least the last one) succeeded. Update UI elements
+                        // API call (or simEngine) succeeded. Update UI elements
                         const indicator = document.getElementById(`${device}-mode-indicator`);
                         if (indicator) {
                             indicator.textContent = '(Manual)';
@@ -376,6 +384,42 @@ const ControlsManager = {
             } else {
                 console.warn(`Switch element not found with ID: ${elementId} (for device: ${deviceName})`);
             }
+        });
+
+        // Listen for real-time simulation automation updates
+        window.addEventListener('lokagrow:telemetry', (event) => {
+            const payload = event.detail;
+            if (!payload || !payload.actuators) return;
+
+            const devices = [
+                { id: 'fan', act: payload.actuators.fan },
+                { id: 'light', act: payload.actuators.light || payload.actuators.lights }
+            ];
+
+            devices.forEach(({ id, act }) => {
+                if (!act) return;
+                const switchEl = document.getElementById(`${id}-switch`);
+                const indicator = document.getElementById(`${id}-mode-indicator`);
+                const toggle = document.getElementById(`${id}-mode-toggle`);
+
+                const isAuto = act.mode === 'auto';
+                const isActive = !!act.state;
+
+                if (isAuto) {
+                    if (switchEl && !ControlsManager.isOnCooldown(id) && switchEl.checked !== isActive) {
+                        switchEl.checked = isActive;
+                    }
+                    if (indicator) {
+                        indicator.textContent = isActive ? '(Auto - Aktif)' : '(Auto)';
+                        indicator.classList.remove('mode-manual');
+                        indicator.classList.add('mode-auto');
+                    }
+                    if (toggle && toggle.dataset.mode !== 'auto') {
+                        toggle.dataset.mode = 'auto';
+                        toggle.textContent = 'Alihkan ke Mode Manual';
+                    }
+                }
+            });
         });
     }
 };

@@ -29,6 +29,29 @@
         </div>
         <div class="plant-card__content">
           <p class="plant-description">Bayam adalah sayuran hijau yang kaya akan nutrisi. Cocok untuk ditanam di greenhouse dengan kondisi yang tepat.</p>
+          
+          <!-- Real-Time Microclimate & Health Status -->
+          <div class="plant-live-status" data-plant="bayam" style="margin: 0.75rem 0; padding: 0.75rem; background: rgba(40, 98, 71, 0.06); border-radius: 8px; border: 1px solid rgba(40, 98, 71, 0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+              <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Kondisi Real-Time</span>
+              <span id="bayam-health-badge" class="plant-badge" style="font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(39, 174, 96, 0.15); color: #27ae60;">Optimal</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 0.8rem; text-align: center;">
+              <div style="background: white; padding: 5px 2px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="color: #64748b; font-size: 0.7rem;"><i class="fas fa-thermometer-half"></i> Suhu</div>
+                <div id="bayam-live-temp" style="font-weight: 700; color: #1e293b;">-- °C</div>
+              </div>
+              <div style="background: white; padding: 5px 2px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="color: #64748b; font-size: 0.7rem;"><i class="fas fa-tint"></i> Lembap</div>
+                <div id="bayam-live-hum" style="font-weight: 700; color: #1e293b;">-- %</div>
+              </div>
+              <div style="background: white; padding: 5px 2px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="color: #64748b; font-size: 0.7rem;"><i class="fas fa-sun"></i> Cahaya</div>
+                <div id="bayam-live-light" style="font-weight: 700; color: #1e293b;">-- %</div>
+              </div>
+            </div>
+          </div>
+
           <div class="plant-card__action">
             <a href="/plants/bayam" class="button button--primary">
               <i class="fas fa-info-circle"></i> Lihat Detail
@@ -45,6 +68,29 @@
         </div>
         <div class="plant-card__content">
           <p class="plant-description">Kale adalah superfood yang penuh dengan vitamin dan mineral. Ideal untuk dibudidayakan di greenhouse.</p>
+          
+          <!-- Real-Time Microclimate & Health Status -->
+          <div class="plant-live-status" data-plant="kale" style="margin: 0.75rem 0; padding: 0.75rem; background: rgba(40, 98, 71, 0.06); border-radius: 8px; border: 1px solid rgba(40, 98, 71, 0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+              <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);">Kondisi Real-Time</span>
+              <span id="kale-health-badge" class="plant-badge" style="font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(39, 174, 96, 0.15); color: #27ae60;">Optimal</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 0.8rem; text-align: center;">
+              <div style="background: white; padding: 5px 2px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="color: #64748b; font-size: 0.7rem;"><i class="fas fa-thermometer-half"></i> Suhu</div>
+                <div id="kale-live-temp" style="font-weight: 700; color: #1e293b;">-- °C</div>
+              </div>
+              <div style="background: white; padding: 5px 2px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="color: #64748b; font-size: 0.7rem;"><i class="fas fa-tint"></i> Lembap</div>
+                <div id="kale-live-hum" style="font-weight: 700; color: #1e293b;">-- %</div>
+              </div>
+              <div style="background: white; padding: 5px 2px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="color: #64748b; font-size: 0.7rem;"><i class="fas fa-sun"></i> Cahaya</div>
+                <div id="kale-live-light" style="font-weight: 700; color: #1e293b;">-- %</div>
+              </div>
+            </div>
+          </div>
+
           <div class="plant-card__action">
             <a href="/plants/kale" class="button button--primary">
               <i class="fas fa-info-circle"></i> Lihat Detail

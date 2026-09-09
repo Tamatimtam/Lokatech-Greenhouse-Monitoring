@@ -1,0 +1,282 @@
+/* 
+ * Simulasi 3D Page Styles
+ * Matches the original Lokatani design system and color palette (#286247, #F5F7FA)
+ */
+
+.sim-3d-container {
+    position: relative;
+    width: 100%;
+    height: 480px;
+    background: #0f172a;
+    border-radius: var(--radius-md, 8px);
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    margin-bottom: var(--spacing-md, 1rem);
+}
+
+@media (max-width: 768px) {
+    .sim-3d-container {
+        height: 360px;
+    }
+}
+
+.sim-3d-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.sim-3d-canvas canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* 3D Overlay Toolbar (Top) */
+.sim-overlay-top {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.sim-overlay-top > * {
+    pointer-events: auto;
+}
+
+.sim-badge {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sim-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    outline: 2px solid rgba(16, 185, 129, 0.4);
+    outline-offset: 1px;
+}
+
+.sim-cam-controls {
+    display: flex;
+    gap: 6px;
+}
+
+.sim-cam-btn {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.sim-cam-btn:hover {
+    background: var(--primary, #286247);
+    color: #ffffff;
+    border-color: var(--primary, #286247);
+}
+
+.sim-cam-btn.active {
+    background: var(--primary, #286247);
+    color: #ffffff;
+    border-color: var(--primary, #286247);
+}
+
+/* 3D Simulation Controls Bar (Bottom) */
+.sim-controls-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 10px 16px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    z-index: 10;
+}
+
+.sim-time-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #ffffff;
+    font-size: 0.85rem;
+}
+
+.sim-time-slider {
+    width: 140px;
+    accent-color: var(--primary, #286247);
+    cursor: pointer;
+}
+
+.sim-time-text {
+    font-weight: 700;
+    color: #38bdf8;
+    font-variant-numeric: tabular-nums;
+    min-width: 65px;
+}
+
+.sim-btn-play {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s;
+}
+
+.sim-btn-play:hover {
+    background: var(--primary, #286247);
+}
+
+/* Node Telemetry Grid (3 Columns) */
+.sim-nodes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md, 1rem);
+    margin-top: var(--spacing-md, 1rem);
+}
+
+@media (max-width: 768px) {
+    .sim-nodes-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sim-node-box {
+    background: var(--background, #F5F7FA);
+    border-radius: var(--radius-md, 8px);
+    padding: var(--spacing-md, 1rem);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.sim-node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-sm, 0.5rem);
+    padding-bottom: var(--spacing-xs, 0.25rem);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sim-node-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--primary, #286247);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sim-node-status-badge {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e2fbe8;
+    color: #065f46;
+    font-weight: 600;
+}
+
+.sim-sensor-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #666666);
+}
+
+.sim-sensor-value {
+    font-weight: 700;
+    color: var(--text-primary, #1A1A1A);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Actuator Quick Switches Grid */
+.sim-actuator-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md, 1rem);
+    margin-top: var(--spacing-md, 1rem);
+}
+
+@media (max-width: 768px) {
+    .sim-actuator-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sim-actuator-box {
+    background: var(--background, #F5F7FA);
+    border-radius: var(--radius-md, 8px);
+    padding: var(--spacing-md, 1rem);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sim-actuator-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sim-actuator-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: rgba(40, 98, 71, 0.1);
+    color: var(--primary, #286247);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.sim-actuator-text h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #1A1A1A);
+}
+
+.sim-actuator-text p {
+    margin: 2px 0 0 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #666666);
+}

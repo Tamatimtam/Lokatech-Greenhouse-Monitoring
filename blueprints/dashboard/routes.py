@@ -80,7 +80,7 @@ def set_control_state():
             if device in sensor_manager.latest_data.get('actuators', {}):
                  sensor_manager.latest_data['actuators'][device]['state'] = state
                  sensor_manager.latest_data['actuators'][device]['mode'] = mode
-                 sensor_manager.last_update = datetime.datetime.now() # Mark data as fresh
+                 sensor_manager.last_update = datetime.datetime.now(datetime.timezone.utc)
                  # Optionally emit via websocket immediately if socketio is set
                  if sensor_manager.socketio:
                      try:
@@ -95,8 +95,30 @@ def set_control_state():
                 "published_data": data
             }), 200
         else:
-            logger.error(f"Failed to publish MQTT command to {MQTT_CONTROL_TOPIC}: {mqtt_payload}")
-            return jsonify({"message": "Failed to publish command via MQTT"}), 500
+            logger.warning(f"MQTT offline or failed publish, applying state to simulation: {mqtt_payload}")
+            if device in sensor_manager.latest_data.get('actuators', {}):
+                 sensor_manager.latest_data['actuators'][device]['state'] = state
+                 sensor_manager.latest_data['actuators'][device]['mode'] = mode
+                 sensor_manager.last_update = datetime.datetime.now(datetime.timezone.utc)
+                 if sensor_manager.socketio:
+                     sensor_manager.socketio.emit('sensor_update', sensor_manager.latest_data)
+            return jsonify({
+                "status": "success",
+                "simulated": True,
+                "message": f"Command updated for {device} (simulated)",
+                "published_data": data
+            }), 200
     except Exception as e:
-        logger.error(f"Exception during MQTT publish: {e}")
-        return jsonify({"message": f"Error publishing command: {e}"}), 500
+        logger.warning(f"Exception during MQTT publish, falling back to simulated state: {e}")
+        if device in sensor_manager.latest_data.get('actuators', {}):
+             sensor_manager.latest_data['actuators'][device]['state'] = state
+             sensor_manager.latest_data['actuators'][device]['mode'] = mode
+             sensor_manager.last_update = datetime.datetime.now(datetime.timezone.utc)
+             if sensor_manager.socketio:
+                 sensor_manager.socketio.emit('sensor_update', sensor_manager.latest_data)
+        return jsonify({
+            "status": "success",
+            "simulated": True,
+            "message": f"Command updated for {device} (simulated fallback)",
+            "published_data": data
+        }), 200

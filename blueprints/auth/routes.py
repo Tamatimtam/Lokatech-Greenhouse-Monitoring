@@ -52,6 +52,18 @@ def is_rate_limited(ip_address: str, action: str, limit: int, window_seconds: in
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 ALLOWED_DOMAINS = ['lokatani.id', 'mhsw.pnj.ac.id']
 
+@bp.route("/guest", methods=["GET", "POST"])
+def guest_login():
+    session['user'] = {
+        'email': 'tamu@lokagrow.id',
+        'name': 'Tamu Demo',
+        'picture': 'default_avatar.png',
+        'is_guest': True
+    }
+    session.modified = True
+    logger.info("Guest user logged in to demo session")
+    return redirect("/dashboard")
+
 @bp.route("/login", methods=["POST"])
 # Removed @current_app.limiter.limit decorator
 def login():

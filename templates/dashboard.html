@@ -11,6 +11,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/simulation.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 {% endblock %}
 
@@ -32,6 +33,45 @@
     <i class="fas fa-triangle-exclamation"></i>
     <span id="error-message">Tidak ada koneksi ke hardware (Remaja Node)</span> {# Updated message #}
   </div>
+
+  <!-- DIGITAL TWIN 3D GREENHOUSE CARD -->
+  {% call card.card('DIGITAL TWIN GREENHOUSE 3D & SIKLUS MIKROKLIMAT') %}
+    <div class="sim-3d-container" id="greenhouse-sim-box" style="margin-bottom: 0.5rem;">
+      <!-- Top Overlay Controls -->
+      <div class="sim-overlay-top">
+        <div class="sim-badge">
+          <span class="sim-badge-dot"></span>
+          <span>Digital Twin Real-time</span>
+        </div>
+
+        <div class="sim-cam-controls">
+          <button class="sim-cam-btn active" data-cam="overview" title="Pandangan Menyeluruh"><i class="fas fa-compress-arrows-alt"></i> Semua</button>
+          <button class="sim-cam-btn" data-cam="penyemaian" title="Fokus Node 1"><i class="fas fa-seedling"></i> Penyemaian</button>
+          <button class="sim-cam-btn" data-cam="peremajaan" title="Fokus Node 2"><i class="fas fa-leaf"></i> Meja Apung</button>
+          <button class="sim-cam-btn" data-cam="dewasa" title="Fokus Node 3 & Master"><i class="fas fa-microchip"></i> Dewasa</button>
+        </div>
+      </div>
+
+      <!-- 3D Canvas Box -->
+      <div id="greenhouse-3d-canvas" class="sim-3d-canvas" style="height: 380px;"></div>
+
+      <!-- Bottom Simulation Controls Bar -->
+      <div class="sim-controls-bar">
+        <div class="sim-time-wrapper">
+          <span><i class="fas fa-sun" style="color: #f59e0b;"></i> Waktu:</span>
+          <input type="range" id="sim-time-slider" class="sim-time-slider" min="0" max="24" step="0.25" value="11.5" title="Geser waktu untuk mengubah posisi matahari">
+          <span id="sim-time-display" class="sim-time-text">11:30 WIB</span>
+          <button id="sim-play-toggle" class="sim-btn-play" title="Mulai / Jeda Simulasi Siang-Malam">
+            <i class="fas fa-play"></i> Timelapse 24 Jam
+          </button>
+        </div>
+
+        <div style="font-size: 0.8rem; color: #94a3b8;">
+          <i class="fas fa-info-circle"></i> Putar 3D dengan mouse/touch. Mengubah slider waktu mensimulasikan siklus siang & malam.
+        </div>
+      </div>
+    </div>
+  {% endcall %}
 
   {% call card.card('KONDISI LINGKUNGAN', 'card--env') %}
     {% set env_variables = [
@@ -124,9 +164,14 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="{{ url_for('static', filename='js/sim-engine.js') }}?v=2.2"></script>
+<script src="{{ url_for('static', filename='js/greenhouse3d.js') }}?v=2.2"></script>
 <script>
-    // Pass initial sensor data if available (though WebSocket will be primary)
+    // Pass initial sensor data if available (though WebSocket/Sim will be primary)
     window.initialSensorData = {{ sensor_data|tojson|safe if sensor_data else 'null' }};
 </script>
-<script type="module" src="{{ url_for('static', filename='js/dashboard/main.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/dashboard/main.js') }}?v=2.2"></script>
 {% endblock %}

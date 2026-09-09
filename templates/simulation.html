@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% import "macros/card.html" as card %}
+{% import "macros/controls.html" as controls %}
+{% import "macros/status.html" as status %}
+{% import "macros/navigation.html" as navigation %}
+
+{% block title %}Simulasi 3D - Monitoring Greenhouse{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/simulation.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="header">
+    <div class="header__content">
+      <h1>Simulasi 3D Greenhouse</h1>
+      <p>Digital Twin interaktif 3 node mikroklimat & siklus siang/malam</p>
+    </div>
+    <img class="logo" src="{{ url_for('static', filename='images/lokatech-logo.png') }}" alt="Logo Lokatani.id">
+  </header>
+
+  <!-- 1. MODEL 3D GREENHOUSE CARD -->
+  {% call card.card('MODEL 3D GREENHOUSE & SIKLUS MIKROKLIMAT') %}
+    <div class="sim-3d-container" id="greenhouse-sim-box">
+      <!-- Top Overlay Controls -->
+      <div class="sim-overlay-top">
+        <div class="sim-badge">
+          <span class="sim-badge-dot"></span>
+          <span>Digital Twin Real-time</span>
+        </div>
+
+        <div class="sim-cam-controls">
+          <button class="sim-cam-btn active" data-cam="overview" title="Pandangan Menyeluruh"><i class="fas fa-compress-arrows-alt"></i> Semua</button>
+          <button class="sim-cam-btn" data-cam="penyemaian" title="Fokus Node 1"><i class="fas fa-seedling"></i> Penyemaian</button>
+          <button class="sim-cam-btn" data-cam="peremajaan" title="Fokus Node 2"><i class="fas fa-leaf"></i> Meja Apung</button>
+          <button class="sim-cam-btn" data-cam="dewasa" title="Fokus Node 3 & Master"><i class="fas fa-microchip"></i> Dewasa</button>
+        </div>
+      </div>
+
+      <!-- 3D Canvas Box -->
+      <div id="greenhouse-3d-canvas" class="sim-3d-canvas"></div>
+
+      <!-- Bottom Simulation Controls Bar -->
+      <div class="sim-controls-bar">
+        <div class="sim-time-wrapper">
+          <span><i class="fas fa-sun" style="color: #f59e0b;"></i> Waktu Hari:</span>
+          <input type="range" id="sim-time-slider" class="sim-time-slider" min="0" max="24" step="0.25" value="11.5" title="Geser waktu untuk mengubah posisi matahari">
+          <span id="sim-time-display" class="sim-time-text">11:30 WIB</span>
+          <button id="sim-play-toggle" class="sim-btn-play" title="Mulai / Jeda Simulasi Siang-Malam">
+            <i class="fas fa-play"></i> Timelapse 24 Jam
+          </button>
+        </div>
+
+        <div style="font-size: 0.8rem; color: #94a3b8;">
+          <i class="fas fa-info-circle"></i> Klik & seret untuk putar 3D, scroll untuk zoom
+        </div>
+      </div>
+    </div>
+  {% endcall %}
+
+  <!-- 2. STATUS SENSOR & MIKROKLIMAT REAL-TIME -->
+  {% call card.card('STATUS SENSOR & MIKROKLIMAT SIMULASI') %}
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; text-align: center;">
+      Telemetri simulasi berikut terhubung langsung dengan posisi matahari dan aktuator di atas. Data ini juga disinkronkan ke menu <strong>Home (Dashboard)</strong>.
+    </p>
+
+    <div class="sim-nodes-grid">
+      <!-- Node 1: Penyemaian -->
+      <div class="sim-node-box">
+        <div class="sim-node-header">
+          <span class="sim-node-title"><i class="fas fa-seedling" style="color: #3b82f6;"></i> Node 1: Penyemaian</span>
+          <span class="sim-node-status-badge">Online</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-temperature-high" style="color: #e74c3c; width: 18px;"></i> Suhu:</span>
+          <span class="sim-sensor-value" id="val-temp-penyemaian">-- °C</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-tint" style="color: #3498db; width: 18px;"></i> Kelembapan:</span>
+          <span class="sim-sensor-value" id="val-hum-penyemaian">-- %</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-sun" style="color: #f1c40f; width: 18px;"></i> Cahaya:</span>
+          <span class="sim-sensor-value" id="val-light-penyemaian">-- lux</span>
+        </div>
+      </div>
+
+      <!-- Node 2: Meja Apung -->
+      <div class="sim-node-box">
+        <div class="sim-node-header">
+          <span class="sim-node-title"><i class="fas fa-leaf" style="color: #10b981;"></i> Node 2: Meja Apung</span>
+          <span class="sim-node-status-badge">Online</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-temperature-high" style="color: #e74c3c; width: 18px;"></i> Suhu:</span>
+          <span class="sim-sensor-value" id="val-temp-remaja">-- °C</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-tint" style="color: #3498db; width: 18px;"></i> Kelembapan:</span>
+          <span class="sim-sensor-value" id="val-hum-remaja">-- %</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-sun" style="color: #f1c40f; width: 18px;"></i> Cahaya:</span>
+          <span class="sim-sensor-value" id="val-light-remaja">-- lux</span>
+        </div>
+      </div>
+
+      <!-- Node 3: Dewasa (Master Gateway) -->
+      <div class="sim-node-box">
+        <div class="sim-node-header">
+          <span class="sim-node-title"><i class="fas fa-microchip" style="color: #286247;"></i> Node 3: Dewasa (Master)</span>
+          <span class="sim-node-status-badge">Online</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-temperature-high" style="color: #e74c3c; width: 18px;"></i> Suhu:</span>
+          <span class="sim-sensor-value" id="val-temp-dewasa">-- °C</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-tint" style="color: #3498db; width: 18px;"></i> Kelembapan:</span>
+          <span class="sim-sensor-value" id="val-hum-dewasa">-- %</span>
+        </div>
+        <div class="sim-sensor-row">
+          <span><i class="fas fa-sun" style="color: #f1c40f; width: 18px;"></i> Cahaya:</span>
+          <span class="sim-sensor-value" id="val-light-dewasa">-- lux</span>
+        </div>
+      </div>
+    </div>
+  {% endcall %}
+
+  <!-- 3. KONTROL AKTUATOR MANUAL -->
+  {% call card.card('KONTROL AKTUATOR MANUAL') %}
+    <div class="sim-actuator-grid">
+      <!-- Exhaust Fan -->
+      <div class="sim-actuator-box">
+        <div class="sim-actuator-info">
+          <div class="sim-actuator-icon"><i class="fas fa-fan"></i></div>
+          <div class="sim-actuator-text">
+            <h4>Kipas Exhaust</h4>
+            <p>Baling-baling 3D berputar & mendinginkan greenhouse</p>
+          </div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="sim-fan-switch">
+          <span class="switch__slider"></span>
+        </label>
+      </div>
+
+      <!-- Grow Lights -->
+      <div class="sim-actuator-box">
+        <div class="sim-actuator-info">
+          <div class="sim-actuator-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.1);"><i class="fas fa-lightbulb"></i></div>
+          <div class="sim-actuator-text">
+            <h4>Lampu Hortikultura</h4>
+            <p>Sorotan LED magenta menyala di tanaman 3D</p>
+          </div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="sim-lights-switch">
+          <span class="switch__slider"></span>
+        </label>
+      </div>
+
+      <!-- Misting System -->
+      <div class="sim-actuator-box">
+        <div class="sim-actuator-info">
+          <div class="sim-actuator-icon" style="color: #38bdf8; background: rgba(56, 189, 248, 0.1);"><i class="fas fa-shower"></i></div>
+          <div class="sim-actuator-text">
+            <h4>Pompa Pengabutan</h4>
+            <p>Menyemprotkan partikel kabut air di persemaian</p>
+          </div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="sim-mist-switch">
+          <span class="switch__slider"></span>
+        </label>
+      </div>
+    </div>
+  {% endcall %}
+</div>
+
+{{ navigation.bottom_nav('simulation') }}
+{% endblock %}
+
+{% block scripts %}
+<!-- GSAP & Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<!-- Simulation & 3D Engines -->
+<script src="{{ url_for('static', filename='js/sim-engine.js') }}"></script>
+<script src="{{ url_for('static', filename='js/greenhouse3d.js') }}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize 3D Digital Twin in the canvas container
+    if (typeof Greenhouse3D !== 'undefined') {
+        window.greenhouseInstance = new Greenhouse3D('greenhouse-3d-canvas');
+    }
+
+    // 2. Camera Focus Buttons
+    const camButtons = document.querySelectorAll('.sim-cam-btn');
+    camButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            camButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const target = this.getAttribute('data-cam');
+            if (target === 'overview') {
+                window.greenhouseInstance?.resetCamera();
+            } else {
+                window.greenhouseInstance?.focusOnZone(target);
+            }
+        });
+    });
+
+    // 3. Day / Night Slider & Timelapse
+    const timeSlider = document.getElementById('sim-time-slider');
+    const timeDisplay = document.getElementById('sim-time-display');
+    const playBtn = document.getElementById('sim-play-toggle');
+
+    if (timeSlider && window.SimEngine) {
+        timeSlider.addEventListener('input', (e) => {
+            const h = parseFloat(e.target.value);
+            window.SimEngine.setTimeOfDay(h);
+            timeDisplay.textContent = `${window.SimEngine.getFormattedTime()} WIB`;
+        });
+    }
+
+    if (playBtn && window.SimEngine) {
+        playBtn.addEventListener('click', () => {
+            window.SimEngine.togglePlay();
+        });
+
+        window.SimEngine.onUpdate((event, data) => {
+            if (event === 'timeUpdate') {
+                if (timeSlider) timeSlider.value = data.timeOfDay;
+                if (timeDisplay) timeDisplay.textContent = `${window.SimEngine.getFormattedTime()} WIB`;
+            } else if (event === 'playState') {
+                playBtn.innerHTML = data.isPlaying
+                    ? '<i class="fas fa-pause"></i> Jeda Timelapse'
+                    : '<i class="fas fa-play"></i> Timelapse 24 Jam';
+                playBtn.style.background = data.isPlaying ? '#286247' : '#1e293b';
+            }
+        });
+    }
+
+    // 4. Actuators Toggles
+    const fanSwitch = document.getElementById('sim-fan-switch');
+    const lightsSwitch = document.getElementById('sim-lights-switch');
+    const mistSwitch = document.getElementById('sim-mist-switch');
+
+    if (fanSwitch && window.SimEngine) {
+        fanSwitch.checked = window.SimEngine.actuators.fan;
+        fanSwitch.addEventListener('change', () => {
+            window.SimEngine.setActuator('fan', fanSwitch.checked);
+        });
+    }
+
+    if (lightsSwitch && window.SimEngine) {
+        lightsSwitch.checked = window.SimEngine.actuators.lights;
+        lightsSwitch.addEventListener('change', () => {
+            window.SimEngine.setActuator('lights', lightsSwitch.checked);
+        });
+    }
+
+    if (mistSwitch && window.SimEngine) {
+        mistSwitch.checked = window.SimEngine.actuators.mist;
+        mistSwitch.addEventListener('change', () => {
+            window.SimEngine.setActuator('mist', mistSwitch.checked);
+        });
+    }
+
+    // 5. Update Telemetry Numbers on UI & Save to localStorage for Dashboard sync
+    function updateTelemetryUI(payload) {
+        if (!payload || !payload.sections) return;
+
+        const sec = payload.sections;
+
+        // Penyemaian (Node 1)
+        if (sec.penyemaian) {
+            document.getElementById('val-temp-penyemaian').textContent = `${sec.penyemaian.temp ?? '--'} °C`;
+            document.getElementById('val-hum-penyemaian').textContent = `${sec.penyemaian.humidity ?? '--'} %`;
+            document.getElementById('val-light-penyemaian').textContent = `${sec.penyemaian.light ?? '--'} lux`;
+        }
+
+        // Remaja / Meja Apung (Node 2)
+        const node2 = sec.peremajaan || sec.remaja;
+        if (node2) {
+            document.getElementById('val-temp-remaja').textContent = `${node2.temp ?? '--'} °C`;
+            document.getElementById('val-hum-remaja').textContent = `${node2.humidity ?? '--'} %`;
+            document.getElementById('val-light-remaja').textContent = `${node2.light ?? '--'} lux`;
+        }
+
+        // Dewasa (Node 3)
+        if (sec.dewasa) {
+            document.getElementById('val-temp-dewasa').textContent = `${sec.dewasa.temp ?? '--'} °C`;
+            document.getElementById('val-hum-dewasa').textContent = `${sec.dewasa.humidity ?? '--'} %`;
+            document.getElementById('val-light-dewasa').textContent = `${sec.dewasa.light ?? '--'} lux`;
+        }
+
+        // Sync to localStorage so Dashboard can consume this exact data
+        try {
+            // Map keys to the exact structure expected by the original dashboard
+            const dashboardPayload = {
+                timestamp: payload.timestamp,
+                averages: payload.averages,
+                sections: {
+                    penyemaian: sec.penyemaian || {},
+                    remaja: sec.peremajaan || sec.remaja || {},
+                    dewasa: sec.dewasa || {}
+                },
+                actuators: payload.actuators
+            };
+            localStorage.setItem('lokagrow_sim_data', JSON.stringify(dashboardPayload));
+        } catch (e) {}
+    }
+
+    if (window.SimEngine) {
+        window.SimEngine.onUpdate((event, data) => {
+            if (event === 'telemetry') {
+                updateTelemetryUI(data);
+            }
+        });
+
+        // Initial render
+        updateTelemetryUI(window.SimEngine.getLatestPayload());
+    }
+});
+</script>
+{% endblock %}

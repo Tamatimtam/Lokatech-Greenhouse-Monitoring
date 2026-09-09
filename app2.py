@@ -100,11 +100,7 @@ except ImportError:
 socketio = SocketIO(
     app, 
     async_mode='threading',  # Use threading with sync workers
-    cors_allowed_origins=[
-        "https://codename-amber-341209055572.asia-southeast1.run.app", 
-        "http://localhost:4443", 
-        "http://127.0.0.1:4443"
-    ]
+    cors_allowed_origins="*"
 )
 sensor_manager.set_socketio(socketio)
 
@@ -116,9 +112,11 @@ from blueprints.plants import bp as plants_bp
 from blueprints.profile import bp as profile_bp
 from blueprints.history.routes import history as history_bp # Uses history_firestore
 from blueprints.logs import logs_bp # Uses system_firestore_logger
+from blueprints.simulation import simulation_bp
 
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(simulation_bp)
 app.register_blueprint(sensor_bp)
 app.register_blueprint(plants_bp)
 app.register_blueprint(profile_bp)

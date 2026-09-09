@@ -518,8 +518,10 @@ class SensorDataManager:
         self.check_and_log_node_statuses()
 
         # Check if Remaja master is stale (no MQTT messages at all for a while)
-        if self.last_update and (current_time_utc - self.last_update > timedelta(seconds=self.NODE_STALE_THRESHOLD_SECONDS)):
-            logger.warning(f"Data from Remaja Master is STALE. Last MQTT message: {self.last_update}")
+        if self.last_update:
+            last_up = self.last_update if self.last_update.tzinfo else self.last_update.replace(tzinfo=timezone.utc)
+            if (current_time_utc - last_up > timedelta(seconds=self.NODE_STALE_THRESHOLD_SECONDS)):
+                logger.warning(f"Data from Remaja Master is STALE. Last MQTT message: {self.last_update}")
             if system_logger_available and not self.node_logged_as_offline.get("remaja", False):
                 log_node_offline(node_name="remaja", 
                                  details=f"CRITICAL: No MQTT data received from Remaja Master for over {self.NODE_STALE_THRESHOLD_SECONDS} seconds.", 
