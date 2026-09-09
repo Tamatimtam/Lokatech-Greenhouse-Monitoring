@@ -1,22 +1,26 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# Set the working directory in the container
-WORKDIR /app
+# Create user with UID 1000 (standard for Hugging Face Spaces and non-root security)
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+
+WORKDIR $HOME/app
 
 # Copy the requirements file into the container
-COPY requirements.txt .
+COPY --chown=user requirements.txt .
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
-COPY . .
+COPY --chown=user . .
 
-# Expose the port the app runs on (Cloud Run requires listening on 8080 by default)
-ENV PORT 8080
-EXPOSE $PORT
+# Expose port (7860 for Hugging Face Spaces; dynamic PORT on other hosts)
+ENV PORT=7860
+EXPOSE 7860
 
 # Run the application
-# Assuming app2.py is the main entry point and it runs a Flask app
 CMD ["python", "app2.py"]
