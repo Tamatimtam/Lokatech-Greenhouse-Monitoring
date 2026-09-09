@@ -16,12 +16,30 @@ from flask_cors import CORS
 from blueprints.logs.firestore_logger import log_user_activity, UserActionType # Keep this for other potential uses
 
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('GreenhouseApp')
 
 app = Flask(__name__)
 CORS(app)
-app.secret_key = secrets.token_hex(16)
+
+# Support reverse proxy headers (e.g. Vercel, Render, HuggingFace)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Disable strict slashes so routes match both with and without trailing slash without 308 redirects
+app.url_map.strict_slashes = False
+
+# Persistent secret key across serverless instances / server restarts
+app.secret_key = os.environ.get('SECRET_KEY', 'lokagrow-production-secret-key-greenhouse-2026')
+
+# Session cookie settings
+app.config['SESSION_COOKIE_NAME'] = 'lokagrow_session'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_PATH'] = '/'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 port = int(os.environ.get('PORT', 4443))
 
 # Removed Limiter initialization:

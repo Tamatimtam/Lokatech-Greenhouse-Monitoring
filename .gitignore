@@ -33,3 +33,5 @@ secrets
 simpleLogin.code-workspace
 deploy.sh
 Hardware/simulation/deploy_tama.sh
+.vercel
+.env*

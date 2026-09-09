@@ -54,6 +54,7 @@ ALLOWED_DOMAINS = ['lokatani.id', 'mhsw.pnj.ac.id']
 
 @bp.route("/guest", methods=["GET", "POST"])
 def guest_login():
+    session.permanent = True
     session['user'] = {
         'email': 'tamu@lokagrow.id',
         'name': 'Tamu Demo',
@@ -86,6 +87,7 @@ def login():
         id_token = request.json['idToken']
         google_user = auth.verify_id_token(id_token, clock_skew_seconds=20)
 
+        session.permanent = True
         session['user'] = {
             'email': google_user['email'],
             'name': google_user.get('name', google_user['email'].split('@')[0]),
