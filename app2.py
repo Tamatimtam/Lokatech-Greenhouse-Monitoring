@@ -141,6 +141,10 @@ def handle_disconnect():
 def index():
     return render_template("login.html")
 
+@app.route('/healthz')
+def healthz():
+    return jsonify({"status": "healthy", "service": "lokagrow"}), 200
+
 if __name__ == '__main__':
     logger.info(f"Starting Flask-SocketIO application on port {port}")
     socketio.run(app, debug=True, port=port, host='0.0.0.0', use_reloader=False,         allow_unsafe_werkzeug=True )
